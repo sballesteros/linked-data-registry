@@ -1,7 +1,9 @@
 data-registry
 =============
 
-A mongodb powered data registry.
+A mongodb powered data registry ("optimised" for
+[SDF](http://dataprotocols.org/simple-data-format/)) for data
+described in [data packages](http://dataprotocols.org/data-packages/).
 
 3 main collections:
 
