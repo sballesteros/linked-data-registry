@@ -28,9 +28,11 @@ var app = express();
 
 // Configuration
 app.configure(function(){
-  app.use(express.bodyParser({uploadDir:'./uploads'}));
+  app.use(express.json());
+  app.use(express.urlencoded());
   app.use(express.methodOverride());
   app.use(express.cookieParser());
+  app.use(express.cookieSession({secret: 'secret'}));
 
   //app.use(express.basicAuth(function(username, password, callback){
   //  authenticate(app.get('users'), username, password, callback);
@@ -53,7 +55,8 @@ app.configure('production', function(){
 /**
  * Commit
  **/
-app.post('/publish', publish);
+app.post('/publish/dpkg', publish.dpkg);
+app.post('/publish/stream', publish.stream);
 
 
 var server = http.createServer(app);
