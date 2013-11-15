@@ -5,6 +5,7 @@ var express = require('express')
   , util = require('util')
   , bcrypt = require('bcrypt')
   , publish = require('./routes/publish')
+  , install = require('./routes/install')
   , mongodb = require('mongodb')
   , ObjectID = require('mongodb').ObjectID;
 
@@ -53,11 +54,16 @@ app.configure('production', function(){
 // Routes
 
 /**
- * Commit
+ * publish
  **/
 app.post('/publish/dpkg', publish.dpkg);
 app.post('/publish/stream', publish.stream);
 
+
+/**
+ * install
+ **/
+app.get('/install/:name/:version/:resource', install);
 
 var server = http.createServer(app);
 var MongoClient = mongodb.MongoClient;
