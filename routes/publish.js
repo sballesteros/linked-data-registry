@@ -50,7 +50,7 @@ function publishDpkg(req, res, next){
       req.session.name = dpkg.name;
       req.session.version = dpkg.version;
       req.session.resource = dpkg.resources[0].name;
-      res.send({'resource': dpkg.resources[0].name});
+      res.status(206).json({'resource': dpkg.resources[0].name});
     });
   };
   
@@ -58,7 +58,7 @@ function publishDpkg(req, res, next){
   col.findAndModify({name: dpkg.name, version: dpkg.version}, [], {$set: {name: dpkg.name, version: dpkg.version}}, {upsert:true}, function(err, doc){
 
     if(doc._ok){
-      return res.status(400).send({'msg': 'already published'});
+      return res.status(200).json({'msg': 'a data package with this name and version already exists'});
     }
 
     if(doc._ok === false) { //smtg went wrong previously, erase everything and start from scratch
@@ -77,7 +77,7 @@ function publishDpkg(req, res, next){
 function publishStream(req, res, next){
 
   if( !(req.session.name && req.session.version && req.session.resource) ){
-    return res.send({'msg': 'fail'});    
+    return res.status(400).json({'msg': 'fail'});    
   }
 
   var tags = {
@@ -91,7 +91,7 @@ function publishStream(req, res, next){
     var resourceInd = resources.indexOf(tags.resource);
     var schema = doc.resources[resourceInd].schema;
 
-    var streamToMongo = new StreamToMongo(req.app.get('data'), tags);
+    var streamToMongo = new StreamToMongo(req.app.get('data'), tags); //TODO nStart from _length of previous PATCH version
     var shasum = crypto.createHash('sha1');
 
     req
@@ -103,6 +103,9 @@ function publishStream(req, res, next){
       }))
       .pipe(new Coercitor(schema))
       .pipe(streamToMongo)
+      .on('error', function(err){
+        throw err;
+      })
       .on('finish', function(){
 
         var d = shasum.digest('hex');
@@ -115,16 +118,16 @@ function publishStream(req, res, next){
           req.app.get('dpkg').update({name: tags.name, version: req.session.version}, {$set: upd}, {w:1}, function(err){
             if(err) throw err;
             res.session = null;
-            res.send({'msg': 'done'});
+            res.status(200).json({'msg': 'done'});
           });        
         } else {
           req.app.get('dpkg').update({name: tags.name, version: req.session.version}, {$set: upd}, {w:1}, function(err){
             if(err) throw err;
             req.session.resource = req.session.names[resourceInd + 1];
-            res.send({resource: req.session.resource});
+            res.status(206).json({resource: req.session.resource});
           });        
         }
-        
+
       });
 
   });  
