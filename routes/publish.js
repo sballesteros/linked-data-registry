@@ -1,11 +1,16 @@
 var Writable = require('stream').Writable
   , util = require('util')
+  , crypto = require('crypto')
+  , Coercitor = require('jts-validator')
   , split = require('split');
 
-function StreamToMongo(collection, tags) {
+function StreamToMongo(collection, tags, nStart) {
+
   Writable.call(this, {objectMode: true});
   this._collection = collection;
   this._row = tags;
+  this._nRow = 0;
+  this._nStart = nStart || 0;
 }
 
 util.inherits(StreamToMongo, Writable);
@@ -14,23 +19,22 @@ StreamToMongo.prototype._write = function (obj, encoding, done) {
   this._row.data = obj;
   delete this._row._id; //otherwise same _id is recycled => error
 
-  this._collection.insert(this._row, { w: 1 }, function(err){
-    if(err) throw err;
+  this._nRow++;
+  if(this._nRow > this._nStart){
+    this._collection.insert(this._row, { w: 1 }, done);
+  } else {
     done();
-  });
+  }
+
 };
 
 
 function publishDpkg(req, res, next){
   var col = req.app.get('dpkg');
   var dpkg = req.body;
-  
-  //insert new dpkg. To avoid race conditions, first mark publication intention by only setting the name
-  col.findAndModify({name: dpkg.name, version: dpkg.version}, [], {$set: {name: dpkg.name}}, {upsert:true}, function(err, doc){
-    if(doc._ok){
-      return res.send({'msg': 'already published'});
-    }
+  dpkg.version = dpkg.version.split('.');
 
+  function terminate(){
     //remove data from resources:
     dpkg.resources.forEach(function(r){
       ['path', 'url', 'data'].forEach(function(p){
@@ -40,54 +44,92 @@ function publishDpkg(req, res, next){
       });
     });
     dpkg._ok = false; //will be set to true ONLY when all the resources have been streamed...
-
-    col.update({name: dpkg.name}, dpkg, {w:1}, function(err){
+    
+    col.update({name: dpkg.name, version: dpkg.version}, dpkg, {w:1}, function(err){
+      if(err) throw err;
       req.session.name = dpkg.name;
       req.session.version = dpkg.version;
       req.session.resource = dpkg.resources[0].name;
-      req.session.resources = dpkg.resources.map(function(x){return x.name});
       res.send({'resource': dpkg.resources[0].name});
     });
+  };
+  
+  //insert new dpkg. To avoid race conditions, first mark publication intention by only setting the name
+  col.findAndModify({name: dpkg.name, version: dpkg.version}, [], {$set: {name: dpkg.name, version: dpkg.version}}, {upsert:true}, function(err, doc){
+
+    if(doc._ok){
+      return res.status(400).send({'msg': 'already published'});
+    }
+
+    if(doc._ok === false) { //smtg went wrong previously, erase everything and start from scratch
+      req.app.get('data').remove({name: dpkg.name, version: dpkg.version}, function(err, cnt){
+        console.log(cnt);
+        terminate();
+      });
+    } else {
+      terminate();
+    }
+
   });
 };
 
 
 function publishStream(req, res, next){
-  var collection = req.app.get('data');
 
-  if( !(req.session.name && req.session.version && req.session.resource && req.session.resources.length) ){
+  if( !(req.session.name && req.session.version && req.session.resource) ){
     return res.send({'msg': 'fail'});    
   }
 
   var tags = {
     name: req.session.name,
     resource: req.session.resource,
-    version: req.session.version.split('.').slice(0,2).join('.')
+    version: req.session.version
   };
 
-  var streamToMongo = new StreamToMongo(collection, tags);
+  req.app.get('dpkg').findOne({name: tags.name, version: req.session.version}, {resources:true}, function(err, doc){
+    var resources = doc.resources.map(function(x){ return x.name});
+    var resourceInd = resources.indexOf(tags.resource);
+    var schema = doc.resources[resourceInd].schema;
 
-  req
-    .pipe(split(function(row){
-      if(row) {
-        return JSON.parse(row);
-      }
-    }))
-    .pipe(streamToMongo)
-    .on('finish', function(){
+    var streamToMongo = new StreamToMongo(req.app.get('data'), tags);
+    var shasum = crypto.createHash('sha1');
 
-      if(tags.resource === req.session.resources[req.session.resources.length-1]){
-        req.app.get('dpkg').update({name: tags.name, version: req.session.version}, {$set: {_ok: true}}, {w:1}, function(err){
-          if(err) throw err;
-          res.session = null;
-          res.send({'msg': 'done'});
-        });        
-      } else {
-        req.session.resource = req.session.names[req.session.names.indexOf(tags.name) + 1];
-        res.send({resource: req.session.resource});
-      }
-      
-    });
+    req
+      .pipe(split(function(row){
+        if(row) {
+          shasum.update(row);
+          return JSON.parse(row);
+        }
+      }))
+      .pipe(new Coercitor(schema))
+      .pipe(streamToMongo)
+      .on('finish', function(){
+
+        var d = shasum.digest('hex');
+        var upd = {};
+        upd['resources.' + resourceInd + '._length'] =  streamToMongo._nRow;
+        upd['resources.' + resourceInd + '._shasum'] =  d;
+
+        if(tags.resource === resources[resources.length-1]){
+          upd['_ok'] = true
+          req.app.get('dpkg').update({name: tags.name, version: req.session.version}, {$set: upd}, {w:1}, function(err){
+            if(err) throw err;
+            res.session = null;
+            res.send({'msg': 'done'});
+          });        
+        } else {
+          req.app.get('dpkg').update({name: tags.name, version: req.session.version}, {$set: upd}, {w:1}, function(err){
+            if(err) throw err;
+            req.session.resource = req.session.names[resourceInd + 1];
+            res.send({resource: req.session.resource});
+          });        
+        }
+        
+      });
+
+  });  
+
+
 };
 
 

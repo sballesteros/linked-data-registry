@@ -4,7 +4,8 @@
   "description": "Standard Analytics IO data registry",
   "main": "index.js",
   "scripts": {
-    "test": "make test"
+    "test": "make test",
+    "start": "node app.js"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
     "bcrypt": "~0.7.7",
     "mongodb": "~1.3.19",
     "express": "~3.4.4",
-    "split": "~0.2.10"
+    "split": "~0.2.10",
+    "jts-validator": "0.0.2"
   }
 }

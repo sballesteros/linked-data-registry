@@ -40,11 +40,13 @@ the data collection contains documents of the form:
       "_id": "uniqueID",
       "name": "datapackage name (unique)",
       "resource": "resource_name",
-      "version": "MAJOR.MINOR",
+      "version": "[MAJOR, MINOR, PATCH]",
       "data": {the data}
     }
-    
-Note that PATCH is ommitted in version.
+
+Note: when PATCH is incremented, only the new data corresponding to
+the increment are stored. So to query the data corresponding to
+MAJOR.MINOR.PATCH we need to query all patch number <= PATCH.
 
 ##changes
 
@@ -52,12 +54,9 @@ This collection follows [SLEEP](http://dataprotocols.org/sleep/)
 
     { 
       _id: "for internal use"
-      "name": "datapackage name (unique)",
-      "resource": "resource_name",
-      "version": "MAJOR.MINOR",
       "seq": 10, 
       "id": "uniqueID (_id of the data collection)", 
       "deleted": false, 
-      "data": { } 
+      "data": {a document from the data collection} 
     }
 
