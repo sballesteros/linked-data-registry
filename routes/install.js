@@ -14,19 +14,25 @@ Ldjsonify.prototype._transform = function(chunk, encoding, done){
   done();
 };
 
-module.exports = Ldjsonify;
-
 function streamResource(req, res, next){
   var name = req.params.name;
   var version = req.params.version.split('.');
   var resource = req.params.resource;
 
-  var s = req.app.get('data').find({name: name, version: version, resource: resource}, {data:true, _id:false}).stream();
+  var s = req.app.get('data').find(
+    {
+      name: name,
+      'version.0': version[0],
+      'version.1': version[1],
+      'version.2': {$lte: version[2]},
+      resource: resource
+    },
+    {data:true, _id:false}).stream();
+  
   s.pipe(new Ldjsonify).pipe(res);
   s.on('error', function(err){
-    return next(err);
+    throw err;
   });
-
 };
 
 module.exports = streamResource;
