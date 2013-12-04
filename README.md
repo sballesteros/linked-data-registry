@@ -9,7 +9,6 @@ but different because:
 
 - each resource of a datapackage has it's own URL
 - you do not necessarily install a datapackage as a dependency
-- if a resource have some [json-ld](http://json-ld.org/) we do cool semantic stuff
+- if a resource has some [json-ld](http://json-ld.org/) we can do cool semantic stuff
 
 A client is in development [here](https://github.com/standard-analytics/dpm-stan).
-
