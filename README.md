@@ -1,13 +1,15 @@
-data-registry
-=============
+Standard Analytics data registry
+================================
 
-A CouchDB powered data registry for small (< 200Mo) data packaged in
+A CouchDB powered data registry for small (~ 200Mo) data packaged in
 [data packages](http://dataprotocols.org/data-packages/).
 
+Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
+but different because:
 
-Publishing
-==========
+- each resource of a datapackage has it's own URL
+- you do not necessarily install a datapackage as a dependency
+- if a resource have some [json-ld](http://json-ld.org/) we do cool semantic stuff
 
-edit your package.json file and add a following line:
+A client is in development [here](https://github.com/standard-analytics/dpm-stan).
 
-"publishConfig": { "registry": "http://data-registry-url/" }

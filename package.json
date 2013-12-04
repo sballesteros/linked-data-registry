@@ -4,8 +4,7 @@
   "description": "Standard Analytics IO data registry",
   "main": "index.js",
   "scripts": {
-    "test": "make test",
-    "start": "node app.js"
+    "test": "make test"
   },
   "repository": {
     "type": "git",
@@ -14,8 +13,7 @@
   "keywords": [
     "datapackage",
     "registry",
-    "open",
-    "data"
+    "open data"
   ],
   "author": "Sebastien Ballesteros",
   "license": "MIT",
@@ -25,10 +23,7 @@
   "homepage": "https://github.com/standard-analytics/data-registry",
   "dependencies": {
     "semver": "~2.2.1",
-    "bcrypt": "~0.7.7",
-    "mongodb": "~1.3.19",
-    "express": "~3.4.4",
-    "split": "~0.2.10",
-    "jts-validator": "0.0.2"
+    "couchapp": "~0.10.0",
+    "padded-semver": "~2.0.5"
   }
 }
