@@ -24,6 +24,7 @@
   "dependencies": {
     "semver": "~2.2.1",
     "couchapp": "~0.10.0",
-    "padded-semver": "~2.0.5"
+    "padded-semver": "~2.0.5",
+    "tv4": "~1.0.11"
   }
 }
