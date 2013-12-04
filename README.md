@@ -1,5 +1,5 @@
-datapackage data registry
-=========================
+datapackage registry
+====================
 
 A CouchDB powered data registry for small (~ 200Mo) data packaged in
 [data packages](http://dataprotocols.org/data-packages/).
