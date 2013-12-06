@@ -8,7 +8,7 @@ lists.latest = function(head, req){
   delete doc._rev;
   delete doc._revisions;
   delete doc._attachments;
-  
+
   start({"headers": {"Content-Type": "application/json"}});
-  send(toJSON(doc));
+  send(JSON.stringify(doc));
 };
