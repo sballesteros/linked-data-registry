@@ -2,14 +2,13 @@ var shows = exports;
 
 shows.datapackage = function(doc,req){
 
-  delete doc._id; 
-  delete doc._rev;
-  delete doc._revisions;
-  delete doc._attachments;
+  var util = require('dpkg-util');
+  util.urlify(doc, req);
+  util.clean(doc);
 
   return {
     headers : {"Content-Type":"application/json"},
-    body : toJSON(doc)
+    body : JSON.stringify(doc)
   }
 
 };
@@ -17,10 +16,7 @@ shows.datapackage = function(doc,req){
 
 shows.resource = function(doc, req){
 
-  function extname(filename) {
-    var i = filename.lastIndexOf('.');
-    return (i < 0) ? '' : filename.substr(i);
-  };
+  var util = require('dpkg-util');
   
   var r = doc.resources.filter(function(x){ return x.name === req.query.resource; })[0];
   if (!r){
@@ -33,7 +29,7 @@ shows.resource = function(doc, req){
       body : JSON.stringify(r.data)
     }    
   } else if ('path' in r){
-    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/stan/' + doc._id + '/' + r.name + extname(r.path) } };    
+    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/stan/' + doc._id + '/' + r.name + util.extname(r.path) } };    
   } else if ('url' in r){
     return { code : 301, headers : { 'Location' : r.url } };   
   } else {
