@@ -1,22 +1,25 @@
 var http = require('http')
   , express = require('express')
   , auth = require('basic-auth')
+  , cookie = require('cookie')
+  , httpProxy = require('http-proxy')
   , async = require('async')
   , url = require('url')
   , nano = require('nano')('http://seb:seb@localhost:5984'); //connect as admin (suppose to work on same machine as the db or use https)
 
 var app = express()
-  , server = http.createServer(app);
+  , server = http.createServer(app)
+  , proxy = new httpProxy.RoutingProxy();
+
+var proxyOptions = { host: 'localhost', port: 5984 };
 
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
-app.use(express.json());
 app.use(app.router);
 app.use(function(err, req, res, next){
   res.json(err.code || err.status_code || 400, {'error': err.message || ''});
 });
-
 
 function secure(req, res, next){
 
@@ -31,7 +34,12 @@ function secure(req, res, next){
     }
 
     if (headers && headers['set-cookie']) {
-      req.user = user.name;
+      try {
+        var token = cookie.parse(headers['set-cookie'][0])['AuthSession'];
+      } catch(e){
+        return next(new Error('no cookie for auth: ' + e.message));
+      }
+      req.user = { name: user.name, token: token };
       next();
     } else {
       res.json(403 , {'error': 'Forbidden'});
@@ -40,39 +48,124 @@ function secure(req, res, next){
 
 };
 
+var jsonParser = express.json();
 
-app.delete('/unpublish/:name/:version?', secure, function(req, res, next){
+app.put('/adduser/:name', function(req, res, next){
+  req.url = req.url.replace(req.route.regexp, '/_users/org.couchdb.user:' + req.params.name);
+  proxy.proxyRequest(req, res, proxyOptions);
+});
 
-  var id = req.params.name + '@' + req.params.version; 
+app.get('/search', function(req, res, next){
+  req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
+  proxy.proxyRequest(req, res, proxyOptions);
+});
 
-  registry.head(id, function(err, _, headers) {
-    if(err) return next(err);
+app.get('/install/:name/:version?', function(req, res, next){  
+    
+  if ('version' in req.params && req.params.version){
+    req.url = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+  } else {
+    req.url = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+  }
 
-    var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
-    registry.destroy(id, etag, function(err, body) {
-      if(err) return next(err);
-      registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0']}, function(err, body){
-        if(err) return next(err);
-        if(!body.rows.length){ //no more version of name: remove all the maintainers
+  proxy.proxyRequest(req, res, proxyOptions);
+});
 
-          _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, maintainers) {
-            if (err) return next(err);
+app.put('/publish/:name/:version', secure, function(req, res, next){
+  
+  var headers = req.headers;
+  delete headers.authorization;
+  headers['X-CouchDB-WWW-Authenticate'] = 'Cookie';
+  headers['Cookie'] = cookie.serialize('AuthSession', req.user.token);
 
-            async.each(maintainers, function(maintainer, cb){
-              _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, dpkgName: req.params.name}, cb);          
-            }, function(err){
-              if(err) return next(err);
-              res.json({ok:true});
-            });
+  var id = encodeURIComponent(req.params.name + '@' + req.params.version);
 
-          });          
-          
-        } else {
-          res.json({ok:true});
-        }
-      });
+  var options = {
+    port: 5984,
+    hostname: '127.0.0.1',
+    method: 'PUT',
+    path: '/registry/' + id,
+    headers: headers
+  };
+
+  var reqCouch = http.request(options, function(resCouch){
+    resCouch.setEncoding('utf8');
+    var data = '';
+    resCouch.on('data', function(chunk){ data += chunk; });
+    resCouch.on('end', function(){
+
+      if(resCouch.statusCode === 201){
+        //add maintainer to maintains
+        registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
+          if (err) return _fail(res, err);
+          if( req.user.name && (dpkg.username !== req.user.name) ){
+            return next(erroCode('not allowed', 403));
+          }
+          _grant({username: req.user.name, dpkgName: req.params.name}, res, next);
+        });
+
+      } else {
+        res.json(resCouch.statusCode, JSON.parse(data));
+      }
 
     });
+
+  });  
+  req.pipe(reqCouch);
+
+});
+
+
+app.del('/unpublish/:name/:version?', secure, function(req, res, next){
+
+  async.waterfall([
+
+    function(cb){ //get (all) the versions
+      if (req.params.version) return cb(null, [req.params.name + '@' +req.params.version]);
+      registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: false}, function(err, body){      
+        if(err) return cb(err);
+        cb(null, body.rows.map(function(x){return x.id;}));
+      });
+    },
+
+    function(ids, cb){ //delete (all) the versions
+      async.each(ids, function(id, cb2){
+        registry.head(id, function(err, _, headers) {
+          if(err) return cb2(err);
+          var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
+          registry.destroy(id, etag, cb2);
+        });
+
+      }, function(err, _){
+        if(err) return cb(err);
+        cb(null, req.params.name);
+      });
+    },
+
+  ], function(err, name){ //remove maintainers if all version of the package have been deleted    
+    if(err) return next(err);
+
+    registry.view('registry', 'byNameAndVersion', {startkey: [name], endkey: [name, '\ufff0']}, function(err, body){
+      if(err) return next(err);
+      if(!body.rows.length){ //no more version of name: remove all the maintainers
+
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: name}, function(err, maintainers) {
+          if (err) return next(err);
+
+          async.each(maintainers, function(maintainer, cb){
+            _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, dpkgName: name}, cb);          
+          }, function(err){
+            if(err) return next(err);
+            res.json({ok:true});
+          });
+
+        });          
+        
+      } else {
+        res.json({ok:true});
+      }
+    });    
+    
   });
 
 });
@@ -85,7 +178,8 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
   });
 });
 
-app.post('/owner/add', secure, function(req, res, next){
+
+app.post('/owner/add', jsonParser, secure, function(req, res, next){
 
   var data = req.body;
 
@@ -93,45 +187,27 @@ app.post('/owner/add', secure, function(req, res, next){
     return next(new Error('invalid data'));
   }
   
-  if(data.username === req.user){ // => first maintainer => retrieve dpkg (with data._id) and check if dpkg.username === req.user;
-
-    if(!('_id' in data)){
-      return next(new Error('invalid data'));
+  //check if req.user.name is a maintainter of data.dpkgname
+  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
+    if(err) return next(err);
+    
+    if(maintains.indexOf(data.dpkgName) === -1){
+      return next(errorCode('not allowed', 403));
     }
-
-    registry.show('registry', 'firstUsername', data._id, function(err, dpkg) {      
-      if (err) return _fail(res, err);
-      if( req.user && (dpkg.username !== req.user) ){
-        return next(erroCode('not allowed', 403));
-      }
-      _grant(data, res, next);
-    });
-
-  } else { //not the first time, check if req.user is a maintainter of data.dpkgname
-
-    _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user, function(err, maintains) {
-      if(err) return next(err);
-      
-      if(maintains.indexOf(data.dpkgName) === -1){
-        return next(errorCode('not allowed', 403));
-      }
-      _grant(data, res, next);
-    });
-
-  }
+    _grant(data, res, next);
+  });
 
 });
 
-app.post('/owner/rm', secure, function(req, res, next){
+app.post('/owner/rm', jsonParser, secure, function(req, res, next){
 
   var data = req.body;
-
   
   if(!(('username' in data) && ('dpkgName' in data))){
     return next(new Error('invalid data'));
   }
 
-  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user, function(err, maintains) {
+  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
     if(err) return next(err);
 
     if(maintains.indexOf(data.dpkgName) === -1){
@@ -160,5 +236,5 @@ function errorCode(msg, code){
   return err;
 };
 
-server.listen(8000);
-console.log('Server running at http://127.0.0.1:8000/');
+server.listen(3000);
+console.log('Server running at http://127.0.0.1:3000/');
