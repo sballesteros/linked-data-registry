@@ -19,7 +19,7 @@ updates.add = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.granted === 'string') && (typeof data.dpkgName === 'string') )){
+    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') )){
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
@@ -57,7 +57,7 @@ updates.rm = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.banned === 'string') && (typeof data.dpkgName === 'string') )){
+    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') )){
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
