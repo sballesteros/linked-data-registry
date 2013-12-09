@@ -12,11 +12,11 @@ var registry = nano.db.use('registry')
 app.use(express.json());
 app.use(app.router);
 app.use(function(err, req, res, next){
-  res.json(err.code || 400, {'error': err.message || ''});
+  res.json(err.code || err.status_code || 400, {'error': err.message || ''});
 });
 
 app.get('/owner/ls/:dpkgName', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, kew: req.params.dpkgName}, function(err, body) {
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body) {
     if (err) return next(err);
     res.json(body);
   });
@@ -46,11 +46,11 @@ app.post('/owner/add', function(req, res, next){
 
   } else { //not the first time, check if granter is a maintainter of data.dpkgname
 
-    _users.show('maintainers', 'maintains', data.granter, function(err, maintains) {
+    _users.show('maintainers', 'maintains', 'org.couchdb.user:' + data.granter, function(err, maintains) {
       if(err) return next(err);
-
-      if(maintains.indexOf(data.granter) === -1){
-        return next(erroCode('not allowed', 403));
+      
+      if(maintains.indexOf(data.dpkgName) === -1){
+        return next(errorCode('not allowed', 403));
       }
       _grant(data, res, next);
     });
@@ -59,8 +59,33 @@ app.post('/owner/add', function(req, res, next){
 
 });
 
+app.post('/owner/rm', function(req, res, next){
+
+  var data = req.body;
+
+  
+  if(!(('granter' in data) && ('banned' in data) && ('dpkgName' in data))){
+    return next(new Error('invalid data'));
+  }
+
+  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + data.granter, function(err, maintains) {
+    if(err) return next(err);
+
+    if(maintains.indexOf(data.dpkgName) === -1){
+      return next(errorCode('not allowed', 403));
+    }
+
+    _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + data.banned, data, function(err, body){
+      if(err) return next(err);
+      res.json(200, body);
+    });
+
+  });
+
+});
+
 function _grant(data, res, next){
-  _users.atomic('maintainers', 'maintains', 'org.couchdb.user:' + data.granted, data, function(err, body){
+  _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.granted, data, function(err, body){
     if(err) return next(err);
     res.json(200, body);
   });

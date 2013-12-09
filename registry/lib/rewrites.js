@@ -3,7 +3,8 @@ module.exports = [
   { from: '/:name/latest', to: '/_list/latest/byNameAndVersion', method: 'GET',
     query: {reduce: 'false', descending: 'true', startkey: [':name', '\ufff0'], endkey: [':name'], limit: '1', include_docs:'true'} },
 
-  { from: '/search', to: '/_view/byKeyword', method: 'GET', query: {reduce: 'false'}},
+  {from: '/search', to: '/_list/search/byKeyword', method: 'GET', query: {reduce: 'false'}},
+  //{ from: '/search', to: '/_view/byKeyword', method: 'GET', query: {reduce: 'false'}},
 
   { from: '/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
   { from: '/first/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
