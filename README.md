@@ -1,7 +1,7 @@
 datapackage registry
 ====================
 
-A CouchDB powered data registry for small (~ 200Mo) data packaged in
+A CouchDB powered data registry for data packaged in
 [data packages](http://dataprotocols.org/data-packages/).
 
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
@@ -19,7 +19,7 @@ API
 
 ### PUT /adduser/:name
 
-Create an user of username ```:name```
+Create an user of username ```name```
 
 
 ### PUT /publish/:dpkgname/:version
@@ -48,7 +48,7 @@ data:
     }
 
 
-Add maintainer ```name``` to the datapackage ```dpggName```.
+Add maintainer ```name``` to the datapackage ```dpkgname```.
 
 ### POST /owner/rm
 
@@ -59,7 +59,7 @@ data:
       dpkgName: dpkgname
     }
 
-Remove maintainer ```name``` from the datapackage ```dpggName```.
+Remove maintainer ```name``` from the datapackage ```dpkgname```.
 
 
 ### GET /search?keys=["search", "terms"]
