@@ -10,7 +10,7 @@ exports['dpkg-util'] =
       dpkg.resources.forEach(function(r){
 
         if( ('data' in r) || ('path' in r) ){
-          r.url = 'http://' + req.headers.Host + '/stan/_design/registry/_rewrite/' + encodeURIComponent(dpkg.name + '@' + dpkg.version) + '/' + r.name;
+          r.url = 'http://' + req.headers.Host + '/resource/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
           delete r.path;
         }
