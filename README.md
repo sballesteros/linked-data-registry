@@ -15,6 +15,7 @@ A client is in development [here](https://github.com/standard-analytics/dpm-stan
 API
 ===
 
+
 ### GET /install/:dpkgname/:version?
 
 Download a datapackage of name ```dpkgname``` and version
@@ -28,10 +29,22 @@ datapackage with name ```dpkgname``` and version ```version```.
 
 ### PUT /adduser/:name
 
+data:
+
+    {
+      name: name,
+      password: password,
+      email: email
+    }
+    
 Create an user of username ```name```.
 
 
 ### PUT /publish/:dpkgname/:version
+
+data: Document with attachments in multipart/related format as needed by CouchDb. See
+[CouchDB multiple attachments](http://docs.couchdb.org/en/latest/api/document/common.html#creating-multiple-attachments)
+for details.
 
 Publish a specific ```version``` of the datapackage of name ```dpkgname```.
 
