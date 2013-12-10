@@ -1,15 +1,13 @@
 datapackage registry
 ====================
 
-A CouchDB powered data registry for data packaged in
-[data packages](http://dataprotocols.org/data-packages/).
+A CouchDB powered data registry for [data packages](http://dataprotocols.org/data-packages/).
 
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
-- each resource of a datapackage has it's own URL
-- you do not necessarily install a datapackage as a dependency
-- if a resource has some [json-ld](http://json-ld.org/) we can do cool semantic stuff
+- each resource of a datapackage has it's _own URL_
+- semantic search for resource having [json-ld](http://json-ld.org/) is supported
 
 A client is in development [here](https://github.com/standard-analytics/dpm-stan).
 
@@ -30,12 +28,12 @@ datapackage with name ```dpkgname``` and version ```version```.
 
 ### PUT /adduser/:name
 
-Create an user of username ```name```
+Create an user of username ```name```.
 
 
 ### PUT /publish/:dpkgname/:version
 
-Publish a specific ```version``` of the datapackage of name ```dpkgname```
+Publish a specific ```version``` of the datapackage of name ```dpkgname```.
 
 
 ### DELETE /unpublish/:dpkgname/:version?
@@ -46,7 +44,7 @@ Delete datapackage of name ```dpkgname``` and version
 
 ### GET /owner/ls/:dpkgname
 
-List the maintainers of datapackage of name ```dpkgname```
+List the maintainers of datapackage of name ```dpkgname```.
 
 
 ### POST /owner/add
@@ -75,7 +73,7 @@ Remove maintainer ```name``` from the datapackage ```dpkgname```.
 
 ### GET /search?keys=["search", "terms"]
 
-Search by keywords
+Search by keywords.
 
 
 

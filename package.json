@@ -1,20 +1,17 @@
 {
-  "name": "stan-data-registry",
+  "name": "data-registry",
   "version": "0.0.0",
-  "description": "Standard Analytics IO data registry",
+  "description": "A registry for data packages",
   "main": "index.js",
   "scripts": {
-    "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)"
+    "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
+    "start": "COUCH_HOST=127.0.0.1 COUCH_PORT=5984 COUCH_USER=seb COUCH_PASS=seb NODE_PORT=3000 node proxy/app.js"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/standard-analytics/data-registry.git"
   },
-  "keywords": [
-    "datapackage",
-    "registry",
-    "open data"
-  ],
+  "keywords": [ "datapackage", "registry", "open", "data", "CouchDB" ],
   "author": "Sebastien Ballesteros",
   "license": "MIT",
   "bugs": {
@@ -31,6 +28,7 @@
     "express": "~3.4.6",
     "async": "~0.2.9",
     "cookie": "~0.1.0",
-    "request": "~2.29.0"
+    "request": "~2.29.0",
+    "npm-user-validate": "0.0.3"
   }
 }

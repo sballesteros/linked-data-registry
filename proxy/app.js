@@ -12,8 +12,9 @@ var app = express()
   , server = http.createServer(app)
   , proxy = new httpProxy.RoutingProxy();
 
-var proxyOptions = { host: 'localhost', port: 5984 }
-  , admin = {name: 'seb', password: 'seb'};
+var proxyOptions = { host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'] }
+  , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
+  , port = process.env['NODE_PORT'] || 3000;
 
 var nano = require('nano')(util.format('http://%s:%s@%s:%d', admin.name, admin.password, proxyOptions.host, proxyOptions.port)); //connect as admin (suppose to work on same machine as the db or use https)
 var registry = nano.db.use('registry')
@@ -53,10 +54,6 @@ function secure(req, res, next){
 
 var jsonParser = express.json();
 
-app.put('/adduser/:name', function(req, res, next){
-  req.url = req.url.replace(req.route.regexp, '/_users/org.couchdb.user:' + req.params.name);
-  proxy.proxyRequest(req, res, proxyOptions);
-});
 
 app.get('/search', function(req, res, next){
   req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
@@ -79,6 +76,15 @@ app.get('/resource/:name/:version/:resource', function(req, res, next){
   myurl = util.format('http://%s:%s@%s:%d%s', admin.name, admin.password, proxyOptions.host, proxyOptions.port, myurl);
 
   req.pipe(request(myurl)).pipe(res); //use request to handle the redirect
+});
+
+app.put('/adduser/:name', jsonParser, function(req, res, next){
+  var data = req.body;
+  //can only be done by an admin
+  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body){
+    if(err) return next(err);
+    res.json(201, body);
+  });          
 });
 
 
@@ -247,5 +253,5 @@ function errorCode(msg, code){
   return err;
 };
 
-server.listen(3000);
-console.log('Server running at http://127.0.0.1:3000/');
+server.listen(port);
+console.log('Server running at http://127.0.0.1:' + port);
