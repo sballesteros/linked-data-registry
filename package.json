@@ -4,7 +4,7 @@
   "description": "Standard Analytics IO data registry",
   "main": "index.js",
   "scripts": {
-    "test": "make test"
+    "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)"
   },
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "http-proxy": "~0.10.3",
     "express": "~3.4.6",
     "async": "~0.2.9",
-    "cookie": "~0.1.0"
+    "cookie": "~0.1.0",
+    "request": "~2.29.0"
   }
 }

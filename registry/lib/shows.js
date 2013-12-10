@@ -29,7 +29,7 @@ shows.resource = function(doc, req){
       body : JSON.stringify(r.data)
     }    
   } else if ('path' in r){
-    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/stan/' + doc._id + '/' + r.name + util.extname(r.path) } };    
+    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + r.name + util.extname(r.path) } };    
   } else if ('url' in r){
     return { code : 301, headers : { 'Location' : r.url } };   
   } else {

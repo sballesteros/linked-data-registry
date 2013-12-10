@@ -1,18 +1,21 @@
 var http = require('http')
+  , util = require('util')
   , express = require('express')
   , auth = require('basic-auth')
   , cookie = require('cookie')
   , httpProxy = require('http-proxy')
+  , request = require('request')
   , async = require('async')
-  , url = require('url')
-  , nano = require('nano')('http://seb:seb@localhost:5984'); //connect as admin (suppose to work on same machine as the db or use https)
+  , url = require('url');
 
 var app = express()
   , server = http.createServer(app)
   , proxy = new httpProxy.RoutingProxy();
 
-var proxyOptions = { host: 'localhost', port: 5984 };
+var proxyOptions = { host: 'localhost', port: 5984 }
+  , admin = {name: 'seb', password: 'seb'};
 
+var nano = require('nano')(util.format('http://%s:%s@%s:%d', admin.name, admin.password, proxyOptions.host, proxyOptions.port)); //connect as admin (suppose to work on same machine as the db or use https)
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
@@ -70,6 +73,14 @@ app.get('/install/:name/:version?', function(req, res, next){
 
   proxy.proxyRequest(req, res, proxyOptions);
 });
+
+app.get('/resource/:name/:version/:resource', function(req, res, next){
+  var myurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
+  myurl = util.format('http://%s:%s@%s:%d%s', admin.name, admin.password, proxyOptions.host, proxyOptions.port, myurl);
+
+  req.pipe(request(myurl)).pipe(res); //use request to handle the redirect
+});
+
 
 app.put('/publish/:name/:version', secure, function(req, res, next){
   

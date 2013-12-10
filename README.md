@@ -17,6 +17,17 @@ A client is in development [here](https://github.com/standard-analytics/dpm-stan
 API
 ===
 
+### GET /install/:dpkgname/:version?
+
+Download a datapackage of name ```dpkgname``` and version
+```version```. If version is omitted the latest version is returned.
+
+### GET /resource/:dpkgname/:version/:resourcename
+
+Download the resource with name ```resourcename``` from the
+datapackage with name ```dpkgname``` and version ```version```.
+
+
 ### PUT /adduser/:name
 
 Create an user of username ```name```
@@ -43,7 +54,7 @@ List the maintainers of datapackage of name ```dpkgname```
 data:
 
     {
-      username: username,
+      username: name,
       dpkgName: dpkgname
     }
 
@@ -55,7 +66,7 @@ Add maintainer ```name``` to the datapackage ```dpkgname```.
 data:
 
     {
-      username: username,
+      username: name,
       dpkgName: dpkgname
     }
 
@@ -67,8 +78,4 @@ Remove maintainer ```name``` from the datapackage ```dpkgname```.
 Search by keywords
 
 
-### GET /install/:dpkgname/:version?
-
-Download a datapackage of name ```dpkgname``` and version
-```version```. If version is omitted the latest version is returned.
 
