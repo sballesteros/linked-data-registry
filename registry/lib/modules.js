@@ -13,6 +13,8 @@ exports['dpkg-util'] =
           r.url = 'http://' + req.headers.Host + '/resource/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
           delete r.path;
+        } else if('require' in r){
+          r.url = 'http://' + req.headers.Host + '/resource/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
         }
 
       });      

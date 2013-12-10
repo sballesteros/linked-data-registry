@@ -54,7 +54,6 @@ function secure(req, res, next){
 
 var jsonParser = express.json();
 
-
 app.get('/search', function(req, res, next){
   req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
   proxy.proxyRequest(req, res, proxyOptions);
@@ -75,15 +74,16 @@ app.get('/resource/:name/:version/:resource', function(req, res, next){
   var myurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
   myurl = util.format('http://%s:%s@%s:%d%s', admin.name, admin.password, proxyOptions.host, proxyOptions.port, myurl);
 
+  //TODO: resolve cyclic dependencies
   req.pipe(request(myurl)).pipe(res); //use request to handle the redirect
 });
 
 app.put('/adduser/:name', jsonParser, function(req, res, next){
   var data = req.body;
   //can only be done by an admin
-  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body){
+  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, header){
     if(err) return next(err);
-    res.json(201, body);
+    res.json(header['status-code'], body);
   });          
 });
 
@@ -118,7 +118,7 @@ app.put('/publish/:name/:version', secure, function(req, res, next){
           if( req.user.name && (dpkg.username !== req.user.name) ){
             return next(erroCode('not allowed', 403));
           }
-          _grant({username: req.user.name, dpkgName: req.params.name}, res, next);
+          _grant({username: req.user.name, dpkgName: req.params.name}, res, next, 201);
         });
 
       } else {
@@ -240,10 +240,10 @@ app.post('/owner/rm', jsonParser, secure, function(req, res, next){
 
 });
 
-function _grant(data, res, next){
-  _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body){
+function _grant(data, res, next, codeForced){
+  _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body, header){
     if(err) return next(err);
-    res.json(200, body);
+    res.json(codeForced || header['status-code'], body);
   });
 };
 

@@ -8,7 +8,8 @@ updates.create = function(userDoc, req){
   var resp = {headers : {"Content-Type" : "application/json"}};
 
   if(userDoc){
-    resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
+    resp.code = 409;
+    resp.body = JSON.stringify({error: "user already exists"});
     return [null, resp];
   } else {
 
