@@ -205,7 +205,7 @@ app.post('/owner/add', jsonParser, secure, function(req, res, next){
   //check if data.username is an existing user
   _users.head('org.couchdb.user:' + data.username, function(err, _, headers){
     if(err) return next(err);
-    if(headers['status-code'] !== 200){
+    if(headers['status-code'] >= 400){
       return next(errorCode('granted user does not exists', headers['status-code']));
     }
 
@@ -262,4 +262,4 @@ function errorCode(msg, code){
 };
 
 server.listen(port);
-console.log('Server running at http://127.0.0.1:' + port);
+console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
