@@ -1,22 +1,29 @@
 var http = require('http')
+  , https = require('https')
   , util = require('util')
   , express = require('express')
+  , querystring = require('querystring')
   , auth = require('basic-auth')
   , cookie = require('cookie')
-  , httpProxy = require('http-proxy')
+//  , httpProxy = require('http-proxy')
   , request = require('request')
   , async = require('async')
   , url = require('url');
 
 var app = express()
-  , server = http.createServer(app)
-  , proxy = new httpProxy.RoutingProxy();
+  , server = http.createServer(app);
+  //, proxy = new httpProxy.RoutingProxy();
 
-var proxyOptions = { host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'] }
+var proxyOptions = { https: process.env['COUCH_HTTPS'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], portHttps: process.env['COUCH_PORT_HTTPS'] }
   , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
+  , host = process.env['NODE_HOST'] 
   , port = process.env['NODE_PORT'] || 3000;
 
-var nano = require('nano')(util.format('http://%s:%s@%s:%d', admin.name, admin.password, proxyOptions.host, proxyOptions.port)); //connect as admin (suppose to work on same machine as the db or use https)
+var root = util.format('http://%s:%s', proxyOptions.host, proxyOptions.port)
+  , rootSecure = util.format('%s://%s:%s@%s:%d', proxyOptions.https, admin.name, admin.password, proxyOptions.host, proxyOptions.portHttps)
+  , resourceRoot = '?' + querystring.stringify({proxy:  host  + ((port != 80) ? (':' + port) : '')});
+
+var nano = require('nano')(rootSecure); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
@@ -55,79 +62,70 @@ function secure(req, res, next){
 var jsonParser = express.json();
 
 app.get('/search', function(req, res, next){
-  req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
-  proxy.proxyRequest(req, res, proxyOptions);
+  var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
+  req.pipe(request(root +rurl)).pipe(res);
+
+  //TODO: understand why this doesn't work on cloudant'
+  // req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');  
+  // proxy.proxyRequest(req, res, proxyOptions);
+
 });
 
 app.get('/install/:name/:version?', function(req, res, next){  
-    
-  if ('version' in req.params && req.params.version){
-    req.url = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
-  } else {
-    req.url = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
-  }
 
-  proxy.proxyRequest(req, res, proxyOptions);
+  var rurl;
+  if ('version' in req.params && req.params.version){
+    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+  } else {
+    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+  }
+  rurl += resourceRoot;
+
+  req.pipe(request(root + rurl)).pipe(res);
 });
 
 app.get('/resource/:name/:version/:resource', function(req, res, next){
-  var myurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
-  myurl = util.format('http://%s:%s@%s:%d%s', admin.name, admin.password, proxyOptions.host, proxyOptions.port, myurl);
 
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
+  req.pipe(request(root + rurl)).pipe(res);
+  
   //TODO: resolve cyclic dependencies
-  req.pipe(request(myurl)).pipe(res); //use request to handle the redirect
 });
 
 app.put('/adduser/:name', jsonParser, function(req, res, next){
   var data = req.body;
   //can only be done by an admin
-  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, header){
+  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, headers){
     if(err) return next(err);
-    res.json(header['status-code'], body);
+    res.json(headers['status-code'], body);
   });          
 });
 
 
 app.put('/publish/:name/:version', secure, function(req, res, next){
-  
-  var headers = req.headers;
-  delete headers.authorization;
-  headers['X-CouchDB-WWW-Authenticate'] = 'Cookie';
-  headers['Cookie'] = cookie.serialize('AuthSession', req.user.token);
+
+//  var headers = req.headers;
+//  delete headers.authorization;
+//  headers['X-CouchDB-WWW-Authenticate'] = 'Cookie';
+//  headers['Cookie'] = cookie.serialize('AuthSession', req.user.token);
 
   var id = encodeURIComponent(req.params.name + '@' + req.params.version);
 
-  var options = {
-    port: 5984,
-    hostname: '127.0.0.1',
-    method: 'PUT',
-    path: '/registry/' + id,
-    headers: headers
-  };
+  var reqCouch = request.put(root + '/registry/'+ id, function(err, resCouch, body){
+    if(resCouch.statusCode === 201){
+      //add maintainer to maintains
+      registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
+        if (err) return _fail(res, err);
+        if( req.user.name && (dpkg.username !== req.user.name) ){
+          return next(erroCode('not allowed', 403));
+        }
+        _grant({username: req.user.name, dpkgName: req.params.name}, res, next, 201);
+      });
 
-  var reqCouch = http.request(options, function(resCouch){
-    resCouch.setEncoding('utf8');
-    var data = '';
-    resCouch.on('data', function(chunk){ data += chunk; });
-    resCouch.on('end', function(){
-
-      if(resCouch.statusCode === 201){
-        //add maintainer to maintains
-        registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
-          if (err) return _fail(res, err);
-          if( req.user.name && (dpkg.username !== req.user.name) ){
-            return next(erroCode('not allowed', 403));
-          }
-          _grant({username: req.user.name, dpkgName: req.params.name}, res, next, 201);
-        });
-
-      } else {
-        res.json(resCouch.statusCode, JSON.parse(data));
-      }
-
-    });
-
-  });  
+    } else {
+      res.json(resCouch.statusCode, body);
+    }
+  });
   req.pipe(reqCouch);
 
 });
@@ -189,9 +187,9 @@ app.del('/unpublish/:name/:version?', secure, function(req, res, next){
 
 
 app.get('/owner/ls/:dpkgName', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body) {
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body, headers) {
     if (err) return next(err);
-    res.json(body);
+    res.json(headers['status-code'], body);
   });
 });
 
@@ -203,16 +201,26 @@ app.post('/owner/add', jsonParser, secure, function(req, res, next){
   if(!(('username' in data) && ('dpkgName' in data))){
     return next(new Error('invalid data'));
   }
-  
-  //check if req.user.name is a maintainter of data.dpkgname
-  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
+
+  //check if data.username is an existing user
+  _users.head('org.couchdb.user:' + data.username, function(err, _, headers){
     if(err) return next(err);
-    
-    if(maintains.indexOf(data.dpkgName) === -1){
-      return next(errorCode('not allowed', 403));
+    if(headers['status-code'] !== 200){
+      return next(errorCode('granted user does not exists', headers['status-code']));
     }
-    _grant(data, res, next);
+
+    //check if req.user.name is a maintainter of data.dpkgname
+    _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains, headers) {
+      if(err) return next(err);
+      
+      if(maintains.indexOf(data.dpkgName) === -1){
+        return next(errorCode('not allowed', 403));
+      }
+      _grant(data, res, next, headers['status-code']);
+    });
+
   });
+
 
 });
 
@@ -231,9 +239,9 @@ app.post('/owner/rm', jsonParser, secure, function(req, res, next){
       return next(errorCode('not allowed', 403));
     }
 
-    _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + data.username, data, function(err, body){
+    _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + data.username, data, function(err, body, headers){
       if(err) return next(err);
-      res.json(body);
+      res.json(headers['status-code'], body);
     });
 
   });
@@ -241,9 +249,9 @@ app.post('/owner/rm', jsonParser, secure, function(req, res, next){
 });
 
 function _grant(data, res, next, codeForced){
-  _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body, header){
+  _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body, headers){
     if(err) return next(err);
-    res.json(codeForced || header['status-code'], body);
+    res.json(codeForced || headers['status-code'], body);
   });
 };
 

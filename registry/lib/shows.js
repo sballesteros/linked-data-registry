@@ -27,7 +27,7 @@ shows.resource = function(doc, req){
     return {
       headers : {"Content-Type":"application/json"},
       body : JSON.stringify(r.data)
-    }    
+    }
   } else if ('path' in r){
     return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + r.name + util.extname(r.path) } };    
   } else if ('url' in r){

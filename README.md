@@ -33,7 +33,8 @@ data:
 
     {
       name: name,
-      password: password,
+      salt: salt,
+      password_sha: sha(password+salt),
       email: email
     }
     

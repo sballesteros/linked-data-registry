@@ -11,6 +11,14 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { forbidden: 'user must have an ISO8601 date property' };    
   }
 
+//  if(!newDoc.salt){
+//    throw { forbidden: 'user must have the salt used to generate the password_sha' };    
+//  }
+//
+//  if(!newDoc.password_sha){
+//    throw { forbidden: 'missing password_sha' };    
+//  }
+
   if(!Array.isArray(newDoc.maintains)){
     throw { forbidden: 'maintains must be an array' };
   } else {

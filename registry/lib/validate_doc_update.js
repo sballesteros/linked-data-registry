@@ -91,7 +91,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { forbidden: 'invalide date' };    
   } 
 
-  //stuff that can never be modified
+  //  //stuff that can never be modified
   if(oldDoc){
     if(oldDoc.name !== newDoc.mame) {
       throw { forbidden: 'name should not be modified' };

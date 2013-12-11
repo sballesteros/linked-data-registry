@@ -1,6 +1,6 @@
 var fs = require('fs');
 
-exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8');
+exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8') + '\n'; //note the '\n' (fuck my life)
 exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
 exports['dpkg-util'] =
@@ -10,11 +10,11 @@ exports['dpkg-util'] =
       dpkg.resources.forEach(function(r){
 
         if( ('data' in r) || ('path' in r) ){
-          r.url = 'http://' + req.headers.Host + '/resource/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
+          r.url = 'http://' + req.query.proxy + '/resource/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
           delete r.path;
         } else if('require' in r){
-          r.url = 'http://' + req.headers.Host + '/resource/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
+          r.url = 'http://' + req.query.proxy + '/resource/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
         }
 
       });      

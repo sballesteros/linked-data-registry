@@ -25,7 +25,7 @@ updates.create = function(userDoc, req){
     if(err = validate.username(data.name)){
       errs.push(err);
     }
-    if(err = validate.pw(data.password)){
+    if(data.password && (err = validate.pw(data.password))){
       errs.push(err);
     }
     if(err = validate.email(data.email)){
@@ -38,21 +38,23 @@ updates.create = function(userDoc, req){
       return [null, resp];      
     }
 
-
-
     userDoc = {
       _id: 'org.couchdb.user:' + data.name,
       name: data.name,
       roles: [],
       type: 'user',
-      password: data.password,
       email: data.email,
       date: (new Date()).toISOString(),
       maintains: []
     };
 
-    log(userDoc);
-
+    if('password' in data){
+      userDoc.password = data.password;
+    } else { //for cloudant
+      userDoc.salt = data.salt;
+      userDoc.password_sha = data.password_sha;
+    }
+    
     resp.code = 201;
     resp.body = JSON.stringify({ok: 'created'});      
     return [userDoc, resp];    
