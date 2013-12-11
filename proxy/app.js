@@ -139,7 +139,11 @@ app.del('/unpublish/:name/:version?', secure, function(req, res, next){
       if (req.params.version) return cb(null, [req.params.name + '@' +req.params.version]);
       registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: false}, function(err, body){      
         if(err) return cb(err);
-        cb(null, body.rows.map(function(x){return x.id;}));
+        var ids = body.rows.map(function(x){return x.id;});
+        if(!ids.length){
+          return cb(errorCode('not found', 404));
+        }
+        cb(null, ids);
       });
     },
 
