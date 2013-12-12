@@ -43,7 +43,7 @@ data:
 Create an user of username ```name```.
 
 
-### PUT /publish/:dpkgname/:version
+### PUT /:dpkgname/:version
 
 data: Document with attachments in multipart/related format as needed by CouchDb. See
 [CouchDB multiple attachments](http://docs.couchdb.org/en/latest/api/document/common.html#creating-multiple-attachments)
@@ -52,7 +52,7 @@ for details.
 Publish a specific ```version``` of the datapackage of name ```dpkgname```.
 
 
-### DELETE /unpublish/:dpkgname/:version?
+### DELETE /:dpkgname/:version?
 
 Delete datapackage of name ```dpkgname``` and version
 ```version```. If version is omitted all the versions are deleted.
