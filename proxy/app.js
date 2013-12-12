@@ -71,6 +71,83 @@ app.get('/search', function(req, res, next){
 
 });
 
+
+app.put('/adduser/:name', jsonParser, function(req, res, next){
+  var data = req.body;
+  //can only be done by an admin
+  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, headers){
+    if(err) return next(err);
+    res.json(headers['status-code'], body);
+  });          
+});
+
+
+app.post('/owner/add', jsonParser, secure, function(req, res, next){
+
+  var data = req.body;
+
+  if(!(('username' in data) && ('dpkgName' in data))){
+    return next(new Error('invalid data'));
+  }
+
+  //check if data.username is an existing user
+  _users.head('org.couchdb.user:' + data.username, function(err, _, headers){
+    if(err) return next(err);
+    if(headers['status-code'] >= 400){
+      return next(errorCode('granted user does not exists', headers['status-code']));
+    }
+
+    //check if req.user.name is a maintainter of data.dpkgname
+    _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains, headers) {
+      if(err) return next(err);
+      
+      if(maintains.indexOf(data.dpkgName) === -1){
+        return next(errorCode('not allowed', 403));
+      }
+      _grant(data, res, next, headers['status-code']);
+    });
+
+  });
+
+
+});
+
+app.post('/owner/rm', jsonParser, secure, function(req, res, next){
+
+  var data = req.body;
+  
+  if(!(('username' in data) && ('dpkgName' in data))){
+    return next(new Error('invalid data'));
+  }
+
+  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
+    if(err) return next(err);
+
+    if(maintains.indexOf(data.dpkgName) === -1){
+      return next(errorCode('not allowed', 403));
+    }
+
+    _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + data.username, data, function(err, body, headers){
+      if(err) return next(err);
+      res.json(headers['status-code'], body);
+    });
+
+  });
+
+});
+
+
+
+app.get('/owner/ls/:dpkgName', function(req, res, next){
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body, headers) {
+    if (err) return next(err);
+    res.json(headers['status-code'], body);
+  });
+});
+
+
+
+//install
 app.get('/:name/:version?', function(req, res, next){  
 
   var rurl;
@@ -95,14 +172,6 @@ app.get('/:name/:version/:resource', function(req, res, next){
   //TODO: resolve cyclic dependencies
 });
 
-app.put('/adduser/:name', jsonParser, function(req, res, next){
-  var data = req.body;
-  //can only be done by an admin
-  _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, headers){
-    if(err) return next(err);
-    res.json(headers['status-code'], body);
-  });          
-});
 
 
 app.put('/:name/:version', secure, function(req, res, next){
@@ -192,68 +261,6 @@ app.del('/:name/:version?', secure, function(req, res, next){
 
 });
 
-
-app.get('/owner/ls/:dpkgName', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body, headers) {
-    if (err) return next(err);
-    res.json(headers['status-code'], body);
-  });
-});
-
-
-app.post('/owner/add', jsonParser, secure, function(req, res, next){
-
-  var data = req.body;
-
-  if(!(('username' in data) && ('dpkgName' in data))){
-    return next(new Error('invalid data'));
-  }
-
-  //check if data.username is an existing user
-  _users.head('org.couchdb.user:' + data.username, function(err, _, headers){
-    if(err) return next(err);
-    if(headers['status-code'] >= 400){
-      return next(errorCode('granted user does not exists', headers['status-code']));
-    }
-
-    //check if req.user.name is a maintainter of data.dpkgname
-    _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains, headers) {
-      if(err) return next(err);
-      
-      if(maintains.indexOf(data.dpkgName) === -1){
-        return next(errorCode('not allowed', 403));
-      }
-      _grant(data, res, next, headers['status-code']);
-    });
-
-  });
-
-
-});
-
-app.post('/owner/rm', jsonParser, secure, function(req, res, next){
-
-  var data = req.body;
-  
-  if(!(('username' in data) && ('dpkgName' in data))){
-    return next(new Error('invalid data'));
-  }
-
-  _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
-    if(err) return next(err);
-
-    if(maintains.indexOf(data.dpkgName) === -1){
-      return next(errorCode('not allowed', 403));
-    }
-
-    _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + data.username, data, function(err, body, headers){
-      if(err) return next(err);
-      res.json(headers['status-code'], body);
-    });
-
-  });
-
-});
 
 function _grant(data, res, next, codeForced){
   _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body, headers){

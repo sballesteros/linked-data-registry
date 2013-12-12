@@ -2,6 +2,13 @@ var lists = exports;
 
 lists.latest = function(head, req){
   var row = getRow();
+
+  if(!row){
+    start({ code: 404 })
+    return send(JSON.stringify({error: "no results"}));        
+  }
+
+
   var doc = row.doc;
 
   var util = require('dpkg-util');
