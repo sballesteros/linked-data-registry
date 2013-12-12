@@ -86,7 +86,10 @@ app.get('/:name/:version?', function(req, res, next){
 
 app.get('/:name/:version/:resource', function(req, res, next){
 
+  var qs = querystring.stringify(req.query);
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
+  rurl += (qs) ? '?' + qs : '';
+
   req.pipe(request(root + rurl)).pipe(res);
   
   //TODO: resolve cyclic dependencies
