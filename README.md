@@ -16,16 +16,18 @@ API
 ===
 
 
-### GET /install/:dpkgname/:version?
+### GET /:dpkgname/:version?
 
 Download a datapackage of name ```dpkgname``` and version
 ```version```. If version is omitted the latest version is returned.
 
-### GET /resource/:dpkgname/:version/:resourcename
+### GET /:dpkgname/:version/:resourcename
 
 Download the resource with name ```resourcename``` from the
 datapackage with name ```dpkgname``` and version ```version```.
 
+if ```?meta=true``` is added, returns only the meta information (i.e
+everything but the data of the resource)
 
 ### PUT /adduser/:name
 

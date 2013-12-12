@@ -23,11 +23,23 @@ shows.resource = function(doc, req){
     throw ['error', 'not_found', 'invalid resource name'];
   }
 
+  if(req.query && req.query.meta){
+
+    delete r.data
+    delete r.url
+    delete r.path
+
+    return {
+      headers : {"Content-Type":"application/json"},
+      body : JSON.stringify(r)
+    };
+  }
+
   if('data' in r){
     return {
       headers : {"Content-Type":"application/json"},
       body : JSON.stringify(r.data)
-    }
+    };
   } else if ('path' in r){
     return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + r.name + util.extname(r.path) } };    
   } else if ('url' in r){

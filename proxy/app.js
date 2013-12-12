@@ -71,7 +71,7 @@ app.get('/search', function(req, res, next){
 
 });
 
-app.get('/install/:name/:version?', function(req, res, next){  
+app.get('/:name/:version?', function(req, res, next){  
 
   var rurl;
   if ('version' in req.params && req.params.version){
@@ -84,7 +84,7 @@ app.get('/install/:name/:version?', function(req, res, next){
   req.pipe(request(root + rurl)).pipe(res);
 });
 
-app.get('/resource/:name/:version/:resource', function(req, res, next){
+app.get('/:name/:version/:resource', function(req, res, next){
 
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
   req.pipe(request(root + rurl)).pipe(res);

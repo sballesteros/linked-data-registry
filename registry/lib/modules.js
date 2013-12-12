@@ -10,14 +10,14 @@ exports['dpkg-util'] =
       dpkg.resources.forEach(function(r){
 
         if( ('data' in r) || ('path' in r) ){
-          r.url = 'http://' + req.query.proxy + '/resource/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
+          r.url = 'http://' + req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
           delete r.path;
         } else if('require' in r){
-          r.url = 'http://' + req.query.proxy + '/resource/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
+          r.url = 'http://' + req.query.proxy + '/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
         }
 
-      });      
+      });
       return dpkg;
     },
 
