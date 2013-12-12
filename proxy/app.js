@@ -105,7 +105,7 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 });
 
 
-app.put('/publish/:name/:version', secure, function(req, res, next){
+app.put('/:name/:version', secure, function(req, res, next){
 
 //  var headers = req.headers;
 //  delete headers.authorization;
@@ -134,7 +134,7 @@ app.put('/publish/:name/:version', secure, function(req, res, next){
 });
 
 
-app.del('/unpublish/:name/:version?', secure, function(req, res, next){
+app.del('/:name/:version?', secure, function(req, res, next){
 
   async.waterfall([
 
