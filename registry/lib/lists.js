@@ -20,6 +20,28 @@ lists.latest = function(head, req){
   send(JSON.stringify(doc));
 };
 
+lists.versions = function(head, req){
+
+  var row;
+  var versions = [];
+  while(row = getRow()){
+    versions.push(row.id.split('@')[1]);
+  }
+  
+  if(!versions.length){
+    start({ 
+      code: 404,   
+      headers: {"Content-Type": "application/json"}
+    });
+    return send(JSON.stringify({error: "no results"}));        
+  } else {
+    start({"headers": {"Content-Type": "application/json"}});
+    send(JSON.stringify(versions));
+  }
+  
+};
+
+
 lists.search = function(head, req){
   
   var row;

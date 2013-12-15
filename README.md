@@ -6,7 +6,7 @@ A CouchDB powered data registry for [data packages](http://dataprotocols.org/dat
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
-- each resource of a datapackage has it's _own URL_
+- each resource of a data package has it's _own URL_
 - semantic search for resource having [json-ld](http://json-ld.org/) is supported
 
 A client is in development [here](https://github.com/standard-analytics/dpm-stan).
@@ -15,19 +15,22 @@ A client is in development [here](https://github.com/standard-analytics/dpm-stan
 API
 ===
 
-
 ### GET /:dpkgname/:version?
 
-Download a datapackage of name ```dpkgname``` and version
+Download a data package of name ```dpkgname``` and version
 ```version```. If version is omitted the latest version is returned.
 
 ### GET /:dpkgname/:version/:resourcename
 
 Download the resource with name ```resourcename``` from the
-datapackage with name ```dpkgname``` and version ```version```.
+data package with name ```dpkgname``` and version ```version```.
 
 if ```?meta=true``` is added, returns only the meta information (i.e
 everything but the data of the resource)
+
+### GET /versions/:dpkgname
+
+Get a JSON array of all the versions of the data package with name ```dpkgname```.
 
 ### PUT /adduser/:name
 
@@ -49,18 +52,18 @@ data: Document with attachments in multipart/related format as needed by CouchDb
 [CouchDB multiple attachments](http://docs.couchdb.org/en/latest/api/document/common.html#creating-multiple-attachments)
 for details.
 
-Publish a specific ```version``` of the datapackage of name ```dpkgname```.
+Publish a specific ```version``` of the data package of name ```dpkgname```.
 
 
 ### DELETE /:dpkgname/:version?
 
-Delete datapackage of name ```dpkgname``` and version
+Delete data package of name ```dpkgname``` and version
 ```version```. If version is omitted all the versions are deleted.
 
 
 ### GET /owner/ls/:dpkgname
 
-List the maintainers of datapackage of name ```dpkgname```.
+List the maintainers of data package of name ```dpkgname```.
 
 
 ### POST /owner/add
@@ -73,7 +76,7 @@ data:
     }
 
 
-Add maintainer ```name``` to the datapackage ```dpkgname```.
+Add maintainer ```name``` to the data package ```dpkgname```.
 
 ### POST /owner/rm
 
@@ -84,7 +87,7 @@ data:
       dpkgName: dpkgname
     }
 
-Remove maintainer ```name``` from the datapackage ```dpkgname```.
+Remove maintainer ```name``` from the data package ```dpkgname```.
 
 
 ### GET /search?keys=["search", "terms"]

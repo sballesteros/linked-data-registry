@@ -20,8 +20,7 @@ var proxyOptions = { https: process.env['COUCH_HTTPS'], host: process.env['COUCH
   , port = process.env['NODE_PORT'] || 3000;
 
 var root = util.format('http://%s:%s', proxyOptions.host, proxyOptions.port)
-  , rootSecure = util.format('%s://%s:%s@%s:%d', proxyOptions.https, admin.name, admin.password, proxyOptions.host, proxyOptions.portHttps)
-  , resourceRoot = '?' + querystring.stringify({proxy:  host  + ((port != 80) ? (':' + port) : '')});
+  , rootSecure = util.format('%s://%s:%s@%s:%d', proxyOptions.https, admin.name, admin.password, proxyOptions.host, proxyOptions.portHttps);
 
 var nano = require('nano')(rootSecure); //connect as admin
 var registry = nano.db.use('registry')
@@ -146,9 +145,18 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 });
 
 
+app.get('/versions/:name', function(req, res, next){
 
-//install
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
+  req.pipe(request(root + rurl)).pipe(res);
+
+});
+
+
 app.get('/:name/:version?', function(req, res, next){  
+
+  var q = req.query || {};
+  q.proxy = host  + ((port != 80) ? (':' + port) : '');
 
   var rurl;
   if ('version' in req.params && req.params.version){
@@ -156,7 +164,7 @@ app.get('/:name/:version?', function(req, res, next){
   } else {
     rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
   }
-  rurl += resourceRoot;
+  rurl += '?' + querystring.stringify(q);
 
   req.pipe(request(root + rurl)).pipe(res);
 });

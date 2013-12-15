@@ -9,12 +9,20 @@ exports['dpkg-util'] =
       //replace resources data or path with an url from the registry serving this resource data      
       dpkg.resources.forEach(function(r){
 
-        if( ('data' in r) || ('path' in r) ){
+        if( ('data' in r) && (!req.query.clone) ){
+
           r.url = 'http://' + req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
-          delete r.path;
-        } else if('require' in r){
+
+        } else if ('path' in r){
+
+          r.url = 'http://' + req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
+          if(!req.query.clone) delete r.path;
+
+        } else if( ('require' in r) && (!req.query.clone) ){
+
           r.url = 'http://' + req.query.proxy + '/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
+
         }
 
       });

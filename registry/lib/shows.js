@@ -17,7 +17,11 @@ shows.datapackage = function(doc,req){
 shows.resource = function(doc, req){
 
   var util = require('dpkg-util');
-  
+
+  if(req.query.resource === 'debug'){
+    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + 'debug.tar.gz' } };
+  }
+
   var r = doc.resources.filter(function(x){ return x.name === req.query.resource; })[0];
   if (!r){
     throw ['error', 'not_found', 'invalid resource name'];
@@ -25,9 +29,9 @@ shows.resource = function(doc, req){
 
   if(req.query && req.query.meta){
 
-    delete r.data
-    delete r.url
-    delete r.path
+    delete r.data;
+    delete r.url;
+    delete r.path;
 
     return {
       headers : {"Content-Type":"application/json"},
