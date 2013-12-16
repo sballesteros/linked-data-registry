@@ -1,28 +1,41 @@
 var http = require('http')
   , https = require('https')
   , util = require('util')
+  , fs = require('fs')
+  , path = require('path')
   , express = require('express')
   , querystring = require('querystring')
   , auth = require('basic-auth')
   , cookie = require('cookie')
-//  , httpProxy = require('http-proxy')
   , request = require('request')
   , async = require('async')
   , url = require('url');
 
-var app = express()
-  , server = http.createServer(app);
-  //, proxy = new httpProxy.RoutingProxy();
 
-var proxyOptions = { https: process.env['COUCH_HTTPS'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], portHttps: process.env['COUCH_PORT_HTTPS'] }
+var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+
+
+var credentials = {
+  key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'stan_registry.key'), 'utf8'),
+  cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'certificate-42234.crt'), 'utf8'),
+  ca: fs.readFileSync(path.join($HOME, 'stan_ssl', 'GandiStandardSSLCA.pem'), 'utf8')
+};
+
+var app = express()
+  , httpServer = http.createServer(app)
+  , httpsServer = https.createServer(credentials, app);
+
+var couchDb = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], portHttps: process.env['COUCH_PORT_HTTPS'] } //CouchDB settings
   , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
   , host = process.env['NODE_HOST'] 
-  , port = process.env['NODE_PORT'] || 3000;
+  , port = process.env['NODE_PORT'] || 80
+  , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
-var root = util.format('http://%s:%s', proxyOptions.host, proxyOptions.port)
-  , rootSecure = util.format('%s://%s:%s@%s:%d', proxyOptions.https, admin.name, admin.password, proxyOptions.host, proxyOptions.portHttps);
+var rootHttp = util.format('http://%s:%s', couchDb.host, couchDb.port)
+  , rootHttps = util.format('%s://%s:%s', (couchDb.ssl == 1) ? 'https': 'http', couchDb.host, couchDb.portHttps) //https is optional so that we can play localy without SSL in production it should be 1
+  , rootAdmin = util.format('%s://%s:%s@%s:%d', (couchDb.ssl == 1) ? 'https': 'http', admin.name, admin.password, couchDb.host, couchDb.portHttps);
 
-var nano = require('nano')(rootSecure); //connect as admin
+var nano = require('nano')(rootAdmin); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
@@ -58,31 +71,21 @@ function secure(req, res, next){
 
 };
 
-var jsonParser = express.json();
 
-function proxy(rurl, res, next){
-  request(root + rurl)
-    .on('response', function(couchRes){      
-
-      for (var key in couchRes.headers) {
-        if (couchRes.headers.hasOwnProperty(key)) {
-          res.setHeader(key, couchRes.headers[key]);
-        }
-      }
-
-      couchRes.pipe(res.status(couchRes.statusCode));
-    })
-    .on('error', next);
+function forceHttp(req, res, next){
+  if(req.secure){
+    res.redirect("http://" + req.headers.host + req.path);
+  } else {
+    next();
+  }
 };
+
+
+var jsonParser = express.json();
 
 app.get('/search', function(req, res, next){
   var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
-
-  proxy(rurl, res, next);
-
-  //TODO: understand why this doesn't work on cloudant'
-  // req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');  
-  // proxy.proxyRequest(req, res, proxyOptions);
+  res.redirect(rootHttp + rurl);
 
 });
 
@@ -164,9 +167,7 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 app.get('/versions/:name', function(req, res, next){
 
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-
-  proxy(rurl, res, next);
-
+  res.redirect(rootHttp + rurl);
 });
 
 
@@ -184,7 +185,7 @@ app.get('/:name/:version?', function(req, res, next){
   rurl += '?' + querystring.stringify(q);
 
 
-  proxy(rurl, res, next);
+  res.redirect(rootHttp + rurl);
 
 });
 
@@ -194,10 +195,8 @@ app.get('/:name/:version/:resource', function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
   rurl += (qs) ? '?' + qs : '';
 
-
-  proxy(rurl, res, next);
+  res.redirect(rootHttp + rurl);
   
-  //TODO: resolve cyclic dependencies
 });
 
 
@@ -219,7 +218,7 @@ app.put('/:name/:version', secure, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  var reqCouch = request.put(root + '/registry/'+ id, function(err, resCouch, body){
+  var reqCouch = request.put(rootHttp + '/registry/'+ id, function(err, resCouch, body){
     if(resCouch.statusCode === 201){
       //add maintainer to maintains
       registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
@@ -311,5 +310,7 @@ function errorCode(msg, code){
   return err;
 };
 
-server.listen(port);
+httpServer.listen(port);
+httpsServer.listen(portHttps);
 console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
+console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
