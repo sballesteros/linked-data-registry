@@ -9,8 +9,7 @@ lists.maintainers = function(head, req){
   }
 
   if(!maintainers.length){
-    start({ code: 404 })
-    return send(JSON.stringify({error:"not found"}));    
+    throw ['error', 'not_found', 'no results'];
   }
 
   start({"headers": {"Content-Type": "application/json"}});

@@ -60,9 +60,18 @@ function secure(req, res, next){
 
 var jsonParser = express.json();
 
+function proxy(rurl, res, next){
+  request(root + rurl)
+    .on('response', function(couchRes){      
+      couchRes.pipe(res.status(couchRes.statusCode));
+    })
+    .on('error', next);
+};
+
 app.get('/search', function(req, res, next){
   var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
-  req.pipe(request(root +rurl)).pipe(res);
+
+  proxy(rurl, res, next);
 
   //TODO: understand why this doesn't work on cloudant'
   // req.url = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');  
@@ -148,7 +157,8 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 app.get('/versions/:name', function(req, res, next){
 
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  req.pipe(request(root + rurl)).pipe(res);
+
+  proxy(rurl, res, next);
 
 });
 
@@ -166,7 +176,9 @@ app.get('/:name/:version?', function(req, res, next){
   }
   rurl += '?' + querystring.stringify(q);
 
-  req.pipe(request(root + rurl)).pipe(res);
+
+  proxy(rurl, res, next);
+
 });
 
 app.get('/:name/:version/:resource', function(req, res, next){
@@ -175,7 +187,8 @@ app.get('/:name/:version/:resource', function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
   rurl += (qs) ? '?' + qs : '';
 
-  req.pipe(request(root + rurl)).pipe(res);
+
+  proxy(rurl, res, next);
   
   //TODO: resolve cyclic dependencies
 });
@@ -190,6 +203,14 @@ app.put('/:name/:version', secure, function(req, res, next){
 //  headers['Cookie'] = cookie.serialize('AuthSession', req.user.token);
 
   var id = encodeURIComponent(req.params.name + '@' + req.params.version);
+
+  if(!('content-length' in req.headers)){
+    return res.json(411, {error: 'Length Required'});
+  }
+
+  if(req.headers['content-length'] > 209715200){
+    return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
+  }
 
   var reqCouch = request.put(root + '/registry/'+ id, function(err, resCouch, body){
     if(resCouch.statusCode === 201){
