@@ -63,6 +63,13 @@ var jsonParser = express.json();
 function proxy(rurl, res, next){
   request(root + rurl)
     .on('response', function(couchRes){      
+
+      for (var key in couchRes.headers) {
+        if (couchRes.headers.hasOwnProperty(key)) {
+          res.setHeader(key, couchRes.headers[key]);
+        }
+      }
+
       couchRes.pipe(res.status(couchRes.statusCode));
     })
     .on('error', next);
