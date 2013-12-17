@@ -9,7 +9,7 @@ but different because:
 - each resource of a data package has it's _own URL_
 - semantic search for resource having [json-ld](http://json-ld.org/) is supported
 
-A client is in development [here](https://github.com/standard-analytics/dpm-stan).
+A client is in development [here](https://github.com/standard-analytics/dpm2).
 
 
 API

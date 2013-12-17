@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
-    "start": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 COUCH_PORT_HTTPS=5984 COUCH_USER=seb COUCH_PASS=seb NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 node proxy/app.js"
+    "start": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 COUCH_USER=seb COUCH_PASS=seb NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 node proxy/app.js"
   },
   "repository": {
     "type": "git",
@@ -34,7 +34,7 @@
     "express": "~3.4.6",
     "async": "~0.2.9",
     "cookie": "~0.1.0",
-    "request": "~2.29.0",
+    "request": "~2.30.0",
     "npm-user-validate": "0.0.3",
     "basic-auth": "0.0.1"
   }

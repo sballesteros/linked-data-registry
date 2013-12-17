@@ -18,8 +18,17 @@ shows.resource = function(doc, req){
 
   var util = require('dpkg-util');
 
+  //hacky: TO BE IMPROVED
+  function root(req){
+    var protocol = (req.query.secure) ? 'https' : 'http';
+    if(req.headers.Host.split(':')[1] == 443){
+      protocol = 'https';
+    }
+    return protocol + '://' + req.headers.Host;
+  };
+
   if(req.query.resource === 'debug'){
-    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + 'debug.tar.gz' } };
+    return { code : 301, headers : { 'Location' : root(req) + '/registry/' + doc._id + '/' + 'debug.tar.gz' } };
   }
 
   var r = doc.resources.filter(function(x){ return x.name === req.query.resource; })[0];
@@ -45,9 +54,7 @@ shows.resource = function(doc, req){
       body : JSON.stringify(r.data)
     };
   } else if ('path' in r){
-
-    log(req);
-    return { code : 301, headers : { 'Location' : 'http://' + req.headers.Host + '/registry/' + doc._id + '/' + r.name + util.extname(r.path) } };    
+    return { code : 301, headers : { 'Location' : root(req) + '/registry/' + doc._id + '/' + r.name + util.extname(r.path) } };    
   } else if ('url' in r){
     return { code : 301, headers : { 'Location' : r.url } };   
   } else {

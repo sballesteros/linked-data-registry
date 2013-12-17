@@ -11,17 +11,17 @@ exports['dpkg-util'] =
 
         if( ('data' in r) && (!req.query.clone) ){
 
-          r.url = 'http://' + req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
+          r.url = req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           delete r.data;
 
         } else if ('path' in r){
 
-          r.url = 'http://' + req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
+          r.url = req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
           if(!req.query.clone) delete r.path;
 
         } else if( ('require' in r) && (!req.query.clone) ){
 
-          r.url = 'http://' + req.query.proxy + '/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
+          r.url = req.query.proxy + '/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
 
         }
 

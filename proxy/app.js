@@ -11,31 +11,30 @@ var http = require('http')
   , async = require('async')
   , url = require('url');
 
-
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
-
 var credentials = {
-  key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'stan_registry.key'), 'utf8'),
-  cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'certificate-42234.crt'), 'utf8'),
-  ca: fs.readFileSync(path.join($HOME, 'stan_ssl', 'GandiStandardSSLCA.pem'), 'utf8')
+  //key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'server_key.pem')),
+  //cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'server_cert.pem'))
+  key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'stan_registry.key')),
+  cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'certificate-42234.crt')),
+  ca: fs.readFileSync(path.join($HOME, 'stan_ssl', 'GandiStandardSSLCA.pem'))
 };
 
 var app = express()
   , httpServer = http.createServer(app)
   , httpsServer = https.createServer(credentials, app);
 
-var couchDb = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], portHttps: process.env['COUCH_PORT_HTTPS'] } //CouchDB settings
+var couch = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'] } //CouchDB settings
   , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
   , host = process.env['NODE_HOST'] 
   , port = process.env['NODE_PORT'] || 80
   , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
-var rootHttp = util.format('http://%s:%s', couchDb.host, couchDb.port)
-  , rootHttps = util.format('%s://%s:%s', (couchDb.ssl == 1) ? 'https': 'http', couchDb.host, couchDb.portHttps) //https is optional so that we can play localy without SSL in production it should be 1
-  , rootAdmin = util.format('%s://%s:%s@%s:%d', (couchDb.ssl == 1) ? 'https': 'http', admin.name, admin.password, couchDb.host, couchDb.portHttps);
+var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port) //https is optional so that we can play localy without SSL. That being said, in production it should be 1!
+  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.name, admin.password, couch.host, couch.port);
 
-var nano = require('nano')(rootAdmin); //connect as admin
+var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
@@ -44,7 +43,8 @@ app.use(function(err, req, res, next){
   res.json(err.code || err.status_code || 400, {'error': err.message || ''});
 });
 
-function secure(req, res, next){
+
+function forceAuth(req, res, next){
 
   var user = auth(req);
   if(!user){
@@ -72,27 +72,19 @@ function secure(req, res, next){
 };
 
 
-function forceHttp(req, res, next){
-  if(req.secure){
-    res.redirect("http://" + req.headers.host + req.path);
-  } else {
-    next();
-  }
-};
 
 
 var jsonParser = express.json();
 
 app.get('/search', function(req, res, next){
   var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
-  res.redirect(rootHttp + rurl);
-
+  res.redirect(rootCouch + rurl);
 });
 
 
 app.put('/adduser/:name', jsonParser, function(req, res, next){
   var data = req.body;
-  //can only be done by an admin
+
   _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, headers){
     if(err) return next(err);
     res.json(headers['status-code'], body);
@@ -100,7 +92,7 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 });
 
 
-app.post('/owner/add', jsonParser, secure, function(req, res, next){
+app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
 
@@ -130,7 +122,7 @@ app.post('/owner/add', jsonParser, secure, function(req, res, next){
 
 });
 
-app.post('/owner/rm', jsonParser, secure, function(req, res, next){
+app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
   
@@ -167,15 +159,17 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 app.get('/versions/:name', function(req, res, next){
 
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  res.redirect(rootHttp + rurl);
+  res.redirect(rootCouch + rurl);
 });
-
 
 app.get('/:name/:version?', function(req, res, next){  
 
   var q = req.query || {};
-  q.proxy = host  + ((port != 80) ? (':' + port) : '');
-
+  if(req.secure){
+    q.proxy = 'https://' + host  + ((portHttps != 443) ? (':' + portHttps) : '');
+  } else {
+    q.proxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
+  }
   var rurl;
   if ('version' in req.params && req.params.version){
     rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
@@ -185,23 +179,26 @@ app.get('/:name/:version?', function(req, res, next){
   rurl += '?' + querystring.stringify(q);
 
 
-  res.redirect(rootHttp + rurl);
+  res.redirect(rootCouch + rurl);
 
 });
 
+
 app.get('/:name/:version/:resource', function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
 
   var qs = querystring.stringify(req.query);
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
   rurl += (qs) ? '?' + qs : '';
 
-  res.redirect(rootHttp + rurl);
-  
+  res.redirect(rootCouch + rurl);  
 });
 
 
-
-app.put('/:name/:version', secure, function(req, res, next){
+app.put('/:name/:version', forceAuth, function(req, res, next){
 
 //  var headers = req.headers;
 //  delete headers.authorization;
@@ -218,7 +215,7 @@ app.put('/:name/:version', secure, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  var reqCouch = request.put(rootHttp + '/registry/'+ id, function(err, resCouch, body){
+  var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
     if(resCouch.statusCode === 201){
       //add maintainer to maintains
       registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
@@ -238,7 +235,7 @@ app.put('/:name/:version', secure, function(req, res, next){
 });
 
 
-app.del('/:name/:version?', secure, function(req, res, next){
+app.del('/:name/:version?', forceAuth, function(req, res, next){
 
   async.waterfall([
 
@@ -304,11 +301,13 @@ function _grant(data, res, next, codeForced){
   });
 };
 
+
 function errorCode(msg, code){
   var err = new Error(msg);
   err.code = code;
   return err;
 };
+
 
 httpServer.listen(port);
 httpsServer.listen(portHttps);
