@@ -44,8 +44,7 @@ updates.create = function(userDoc, req){
       roles: [],
       type: 'user',
       email: data.email,
-      date: (new Date()).toISOString(),
-      maintains: []
+      date: (new Date()).toISOString()
     };
 
     if('password' in data){
@@ -64,7 +63,7 @@ updates.create = function(userDoc, req){
 
 
 /**
- * add req.body.dpkgName to the maitains list of userDoc. Can only be
+ * add req.body.dpkgName to the roles list of userDoc. Can only be
  * done by admins.
  */ 
 updates.add = function (userDoc, req) {
@@ -82,18 +81,18 @@ updates.add = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') )){
+    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') ) || (data.dpkgName.charAt(0) === '_') ) {
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
     }    
 
-    if(userDoc.maintains.indexOf(data.dpkgName) === -1 ){
-      userDoc.maintains.push(data.dpkgName);   
+    if(userDoc.roles.indexOf(data.dpkgName) === -1 ){
+      userDoc.roles.push(data.dpkgName);   
     }
     
     resp.code = 200;
-    resp.body = JSON.stringify(userDoc.maintains);      
+    resp.body = JSON.stringify(userDoc.roles);      
     return [userDoc, resp];
 
   } else {
@@ -120,19 +119,19 @@ updates.rm = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') )){
+    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') ) || (data.dpkgName.charAt(0) === '_') ){
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
     }    
 
-    var pos = userDoc.maintains.indexOf(data.dpkgName);
+    var pos = userDoc.roles.indexOf(data.dpkgName);
     if(pos !== -1 ){
-      userDoc.maintains.splice(pos, 1);   
+      userDoc.roles.splice(pos, 1);   
     }
     
     resp.code = 200;
-    resp.body = JSON.stringify(userDoc.maintains);      
+    resp.body = JSON.stringify(userDoc.roles);      
     return [userDoc, resp];
 
   } else {

@@ -19,12 +19,12 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
 //    throw { forbidden: 'missing password_sha' };    
 //  }
 
-  if(!Array.isArray(newDoc.maintains)){
+  if(!Array.isArray(newDoc.roles)){
     throw { forbidden: 'maintains must be an array' };
   } else {
-    newDoc.maintains.forEach(function(maintained){
+    newDoc.roles.forEach(function(maintained){
       if(typeof maintained !== 'string' || newDoc.name.toLowerCase() !== newDoc.name ){
-        throw { forbidden: 'maintains must contains valid package names' };
+        throw { forbidden: 'roles must contains valid package names' };
       }
     });
   }

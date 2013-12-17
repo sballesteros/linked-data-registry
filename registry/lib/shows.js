@@ -62,16 +62,3 @@ shows.resource = function(doc, req){
   }
 
 };
-
-shows.firstUsername = function(doc,req){
-
-  return {
-    headers : {"Content-Type":"application/json"},
-    body : JSON.stringify({
-      _id: doc._id,
-      _rev: doc._rev,
-      username: doc.username || ''
-    })
-  };
-
-};

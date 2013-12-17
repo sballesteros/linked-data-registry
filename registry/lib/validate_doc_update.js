@@ -4,8 +4,12 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if(oldDoc && ('username' in newDoc)){
-    throw { forbidden: 'document cannot have an username property' };
+  if(['versions', 'adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
+    throw { forbidden: 'data package cannot be named '+ newDoc.name };    
+  }
+
+  if(newDoc.name && ( (typeof newDoc.name !== 'string') || (newDoc.name.toLowerCase() !== newDoc.name) || (newDoc.name.charAt(0) === '_') )){
+    throw { forbidden: 'invalid data package name (data package name have to be in lower case and not start with "_")' };
   }
 
   //taken from https://github.com/isaacs/npmjs.org/blob/master/registry/validate_doc_update.js
@@ -23,21 +27,20 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   };
 
   function _canWrite () {
-    if ( !oldDoc ) return true;
     if (_isAdmin()) return true;
 
-    if(userCtx.maintains && 'name' in newDoc){
-      for (var i = 0; i< userCtx.maintains.length; i ++) {
-        if (userCtx.maintains[i] === newDoc.name) return true;
+    if('name' in newDoc){
+      for (var i = 0; i< userCtx.roles.length; i ++) {
+        if (userCtx.roles[i] === newDoc.name) return true;
       }
     }
     return false;
   };
-  
-  if(!_canWrite){
-    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to modify ' + oldDoc.name + '@' + oldDoc.version };
-  }
 
+  if(!_canWrite()){
+    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to maintain ' + newDoc.name };
+  }
+  
   if (newDoc._deleted) return;
 
   //validate newDoc using schema json
@@ -52,7 +55,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     type: 'object', 
     properties: {
       name: { type: 'string' },
-      _username: { type: 'string' },
       version: { type: 'string' },
       description: { type: 'string' },
       keywords: { type: 'array', items: { type: 'string' } },

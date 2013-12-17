@@ -215,22 +215,31 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
-    if(resCouch.statusCode === 201){
-      //add maintainer to maintains
-      registry.show('registry', 'firstUsername', id, function(err, dpkg) {      
-        if (err) return _fail(res, err);
-        if( req.user.name && (dpkg.username !== req.user.name) ){
-          return next(erroCode('not allowed', 403));
-        }
-        _grant({username: req.user.name, dpkgName: req.params.name}, res, next, 201);
-      });
-
-    } else {
+  function store(){
+    var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
+      if(err) return next(err);
       res.json(resCouch.statusCode, body);
+    });
+    req.pipe(reqCouch);
+  };
+
+  registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+    if(err) return next(err);
+    if(!body.rows.length){ //first version ever: add username to maintainers of the dpkg
+      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, dpkgName: req.params.name}, function(err, body, headers){
+        if(err) return next(err);
+
+        if(headers['status-code'] >= 400){
+          return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
+        } else {
+          store();
+        };
+
+      });
+    } else {
+      store();
     }
   });
-  req.pipe(reqCouch);
 
 });
 
