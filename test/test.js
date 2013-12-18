@@ -138,6 +138,15 @@ describe('data-registry', function(){
       });
     });
 
+    it('should retrieve the meta data of a resource only', function(done){
+      request(rurl('/test-dpkg/0.0.0/inline?meta=true'), function(err, resp, body){
+        var expected = clone(dpkg.resources[0]);
+        delete expected.data;
+        assert.deepEqual(JSON.parse(body), expected);      
+        done();
+      });
+    });
+
     it('should retrieve all the versions of test-dpkg', function(done){
       request(rurl('/test-dpkg'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), ['0.0.0', '0.0.1']);      
