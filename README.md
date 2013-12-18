@@ -18,8 +18,7 @@ API
 ### GET /:dpkgname
 
 
-Get a JSON array of all the [versions](http://semver.org/) of the data package with name
-```dpkgname```.
+Get a JSON array of all the [versions](http://semver.org/) of the data package with name ```dpkgname```.
 
 
 ### GET /:dpkgname/:version
