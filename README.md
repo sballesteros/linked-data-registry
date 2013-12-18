@@ -15,10 +15,16 @@ A client is in development [here](https://github.com/standard-analytics/dpm2).
 API
 ===
 
-### GET /:dpkgname/:version?
+### GET :dpkgname
+
+Get a JSON array of all the [versions](http://semver.org/) of the data package with name
+```dpkgname```.
+
+### GET /:dpkgname/:version
 
 Download a data package of name ```dpkgname``` and version
-```version```. If version is omitted the latest version is returned.
+```version```. If version is ```latest```, the latest version is
+returned.
 
 ### GET /:dpkgname/:version/:resourcename
 
@@ -28,9 +34,6 @@ data package with name ```dpkgname``` and version ```version```.
 if ```?meta=true``` is added, returns only the meta information (i.e
 everything but the data of the resource)
 
-### GET /versions/:dpkgname
-
-Get a JSON array of all the versions of the data package with name ```dpkgname```.
 
 ### PUT /adduser/:name
 

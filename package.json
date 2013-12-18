@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
-    "start": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 COUCH_USER=seb COUCH_PASS=seb NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 node proxy/app.js"
+    "start": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 COUCH_USER=seb COUCH_PASS=seb NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 node proxy/app.js",
+    "test": "./node_modules/.bin/mocha"
   },
   "repository": {
     "type": "git",
@@ -37,5 +38,9 @@
     "request": "~2.30.0",
     "npm-user-validate": "0.0.3",
     "basic-auth": "0.0.1"
+  },
+  "devDependencies": {
+    "mocha": "~1.15.1",
+    "clone": "~0.1.11"
   }
 }

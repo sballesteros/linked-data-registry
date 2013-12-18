@@ -122,6 +122,8 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
 });
 
+
+//TODO DO something if a package has no maintainers
 app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
@@ -156,13 +158,16 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 });
 
 
-app.get('/versions/:name', function(req, res, next){
+/**
+ * list of versions
+ */
+app.get('/:name', function(req, res, next){
 
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
   res.redirect(rootCouch + rurl);
 });
 
-app.get('/:name/:version?', function(req, res, next){  
+app.get('/:name/:version', function(req, res, next){  
 
   var q = req.query || {};
   if(req.secure){
@@ -171,10 +176,10 @@ app.get('/:name/:version?', function(req, res, next){
     q.proxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
   }
   var rurl;
-  if ('version' in req.params && req.params.version){
-    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
-  } else {
+  if (req.params.version === 'latest'){
     rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+  } else {
+    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
   }
   rurl += '?' + querystring.stringify(q);
 
@@ -199,11 +204,6 @@ app.get('/:name/:version/:resource', function(req, res, next){
 
 
 app.put('/:name/:version', forceAuth, function(req, res, next){
-
-//  var headers = req.headers;
-//  delete headers.authorization;
-//  headers['X-CouchDB-WWW-Authenticate'] = 'Cookie';
-//  headers['Cookie'] = cookie.serialize('AuthSession', req.user.token);
 
   var id = encodeURIComponent(req.params.name + '@' + req.params.version);
 
@@ -261,17 +261,34 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
     },
 
     function(ids, cb){ //delete (all) the versions
+      
       async.each(ids, function(id, cb2){
         registry.head(id, function(err, _, headers) {
           if(err) return cb2(err);
           var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
-          registry.destroy(id, etag, cb2);
+
+          //Do NOT do that as admin: otherwise doc are ALWAYS deleted so DO NOT USE registry.destroy(id, etag, cb2);
+          request.del({
+            url: rootCouch + '/registry/' + id + '?rev=' +etag,
+            headers: {
+              'X-CouchDB-WWW-Authenticate': 'Cookie',
+              'Cookie': cookie.serialize('AuthSession', req.user.token)
+            }
+          }, function(err, resp, body){
+            if(err) return cb2(err);
+            body = JSON.parse(body);
+            if(resp.statusCode === 403){
+              return cb2(errorCode(body.reason, resp.statusCode));
+            }
+            cb2(null, body);
+          });          
         });
 
       }, function(err, _){
         if(err) return cb(err);
         cb(null, req.params.name);
       });
+
     },
 
   ], function(err, name){ //remove maintainers if all version of the package have been deleted    

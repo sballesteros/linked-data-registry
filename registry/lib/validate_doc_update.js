@@ -4,7 +4,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if(['versions', 'adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
+  if(['adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
     throw { forbidden: 'data package cannot be named '+ newDoc.name };    
   }
 
@@ -29,16 +29,14 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   function _canWrite () {
     if (_isAdmin()) return true;
 
-    if('name' in newDoc){
-      for (var i = 0; i< userCtx.roles.length; i ++) {
-        if (userCtx.roles[i] === newDoc.name) return true;
-      }
+    for (var i = 0; i< userCtx.roles.length; i ++) {
+      if (userCtx.roles[i] === (newDoc.name || oldDoc.name)) return true;
     }
     return false;
   };
 
   if(!_canWrite()){
-    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to maintain ' + newDoc.name };
+    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to maintain ' + (newDoc.name || oldDoc.name) };
   }
   
   if (newDoc._deleted) return;
