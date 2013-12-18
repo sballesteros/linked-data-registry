@@ -15,18 +15,23 @@ A client is in development [here](https://github.com/standard-analytics/dpm2).
 API
 ===
 
-### GET :dpkgname
+### GET /:dpkgname
+
 
 Get a JSON array of all the [versions](http://semver.org/) of the data package with name
 ```dpkgname```.
 
+
 ### GET /:dpkgname/:version
+
 
 Download a data package of name ```dpkgname``` and version
 ```version```. If version is ```latest```, the latest version is
 returned.
 
+
 ### GET /:dpkgname/:version/:resourcename
+
 
 Download the resource with name ```resourcename``` from the
 data package with name ```dpkgname``` and version ```version```.
@@ -99,3 +104,18 @@ Search by keywords.
 
 
 
+Tests
+=====
+
+
+    couchdb
+    npm run push
+    npm start
+    npm test
+
+
+
+License
+=======
+
+MIT
