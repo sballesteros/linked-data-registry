@@ -178,7 +178,7 @@ app.get('/:name/:version?', function(req, res, next){
   }
   rurl += '?' + querystring.stringify(q);
 
-
+  
   res.redirect(rootCouch + rurl);
 
 });

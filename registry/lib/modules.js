@@ -35,7 +35,7 @@ exports['dpkg-util'] =
       delete dpkg._rev;
       delete dpkg._revisions;
       delete dpkg._attachments;
-      delete dpkg.username;
+      delete dpkg.date;
     },
 
     'exports.extname = extname',
