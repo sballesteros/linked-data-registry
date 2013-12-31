@@ -221,6 +221,23 @@ describe('data-registry', function(){
       createFixture(done);
     });
 
+    it('should let user_a remove is account', function(done){
+      request.del( { url: rurl('/rmuser/user_a'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(resp.statusCode, 200);
+        _users.get('org.couchdb.user:user_a', function(err, body, headers){
+          assert.equal(err['status-code'], 404);
+          done();
+        });
+      });
+    });
+
+    it('should not let user_a remove user_b account', function(done){
+      request.del( { url: rurl('/rmuser/user_b'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(resp.statusCode, 403);
+        done();
+      });
+    });    
+
     it('should let user_a delete the dpkg and remove test-dpkg from the roles of user_a and user_b', function(done){
       request.del( { url: rurl('/test-dpkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 200);

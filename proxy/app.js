@@ -92,6 +92,28 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 });
 
 
+app.del('/rmuser/:name', forceAuth, function(req, res, next){
+
+  if(req.user.name !== req.params.name){
+    return next(errorCode('not allowed', 403));
+  }
+
+  var id = 'org.couchdb.user:' + req.params.name;
+
+  _users.head(id, function(err, _, headers) {
+    if(err) return next(err);
+    var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
+    
+    _users.destroy(id, etag, function(err, body, headers){
+      if(err) return next(err);
+      res.json(headers['status-code'], body);
+    });
+  });
+
+});
+
+
+
 app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;

@@ -4,7 +4,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if(['adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
+  if(['rmuser', 'adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
     throw { forbidden: 'data package cannot be named '+ newDoc.name };    
   }
 
