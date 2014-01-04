@@ -48,7 +48,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { forbidden: e.message };
   }
 
-  var $schema =  {
+  var $schema = {
     $schema: 'http://json-schema.org/draft-04/schema#',
     type: 'object', 
     properties: {
@@ -57,7 +57,16 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
       description: { type: 'string' },
       keywords: { type: 'array', items: { type: 'string' } },
       dataDependencies: { type: 'object', patternProperties: {'': { 'type': 'string' } } },
-      resources: { type: 'array' }
+      resources: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            url:  { type: "string" }, path: { type: "string"}, name: { type: "string"}
+          },
+          required: ['name']
+        }
+      }
     },
     required: ['name', 'version']
   };
