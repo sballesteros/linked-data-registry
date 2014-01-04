@@ -8,8 +8,15 @@ var http = require('http')
   , auth = require('basic-auth')
   , cookie = require('cookie')
   , request = require('request')
+  , crypto = require('crypto')
   , async = require('async')
+  , mime = require('mime')
   , url = require('url');
+
+mime.define({
+  'application/ld+json': ['jsonld'],
+});
+
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
@@ -239,8 +246,66 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
 
   function store(){
     var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
+
       if(err) return next(err);
-      res.json(resCouch.statusCode, body);
+      body = JSON.parse(body);
+
+      registry.get(body.id, {att_encoding_info: true}, function(err, doc) {
+
+        if(err) return next(err);
+        
+        //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
+        var resources = doc.resources || [];
+
+        resources.forEach(function(r){
+          if('data' in r){
+
+            var s = JSON.stringify(r.data);
+            var format = (typeof r.data === 'string') ? 'txt':
+              (s.indexOf('@context') !== -1) ? 'jsonld' : 'json';
+
+            r.distribution = {
+              contentUrl: '/' + doc._id.replace('@', '/') + '/' + r.name + '.' + format,
+              contentSize: Buffer.byteLength(s, 'utf-8'),
+              encodingFormat: format,
+              hashAlgorithm: 'md5',
+              hashValue: crypto.createHash('md5').update(s).digest('hex')
+            };
+
+          } else if ('path' in r && '_attachments' in doc){
+            
+            var basename = path.basename(r.path);
+            var att = doc._attachments[basename];   
+            if(!att) return;
+
+            r.distribution = {
+              contentUrl: '/' + doc._id.replace('@', '/') + '/' + basename,
+              contentSize: att.length,
+              encodingFormat: mime.extension(att.content_type),
+              hashAlgorithm: 'md5',
+              hashValue:  (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex')
+            };
+
+            if('encoding' in att){
+              r.distribution.encoding = {
+                contentSize: att.encoded_length,
+                encodingFormat: att.encoding
+              };
+            }
+
+          } else if ('url' in r) {
+            r.distribution = { isBasedOnUrl: r.url };
+          }
+        });
+        
+        registry.atomic('registry', 'distribution', doc._id, resources, function(err, body, headers){
+          console.log(err, body);
+          if(err) return next(err);
+          res.json(headers['status-code'], body);        
+        });
+
+      });
+
     });
     req.pipe(reqCouch);
   };

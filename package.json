@@ -1,7 +1,7 @@
 {
-  "name": "data-registry",
+  "name": "linked-data-registry",
   "version": "0.0.0",
-  "description": "A registry for data packages",
+  "description": "A registry for linked data packages",
   "main": "index.js",
   "scripts": {
     "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/standard-analytics/data-registry.git"
+    "url": "git://github.com/standard-analytics/linked-data-registry.git"
   },
   "keywords": [
     "datapackage",
@@ -22,9 +22,9 @@
   "author": "Sebastien Ballesteros",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/standard-analytics/data-registry/issues"
+    "url": "https://github.com/standard-analytics/linked-data-registry/issues"
   },
-  "homepage": "https://github.com/standard-analytics/data-registry",
+  "homepage": "https://github.com/standard-analytics/linked-data-registry",
   "dependencies": {
     "semver": "~2.2.1",
     "couchapp": "~0.10.0",
@@ -37,10 +37,12 @@
     "cookie": "~0.1.0",
     "request": "~2.30.0",
     "npm-user-validate": "0.0.3",
-    "basic-auth": "0.0.1"
+    "basic-auth": "0.0.1",
+    "mime": "~1.2.11"
   },
   "devDependencies": {
     "mocha": "~1.15.1",
-    "clone": "~0.1.11"
+    "clone": "~0.1.11",
+    "couch-multipart-stream": "0.0.0"
   }
 }

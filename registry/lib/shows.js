@@ -3,7 +3,6 @@ var shows = exports;
 shows.datapackage = function(doc,req){
 
   var util = require('dpkg-util');
-  util.urlify(doc, req);
   util.clean(doc);
 
   return {
@@ -37,10 +36,7 @@ shows.resource = function(doc, req){
   }
 
   if(req.query && req.query.meta){
-
-    delete r.data;
-    delete r.url;
-    delete r.path;
+    //TODO ldjsonify
 
     return {
       headers : {"Content-Type":"application/json"},
@@ -49,6 +45,7 @@ shows.resource = function(doc, req){
   }
 
   if('data' in r){
+    //TODO format check
     return {
       headers : {"Content-Type":"application/json"},
       body : JSON.stringify(r.data)

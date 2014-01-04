@@ -6,6 +6,7 @@ var ddoc = module.exports = {
   shows: require("./lib/shows"),
   lists: require("./lib/lists"),
   views: require("./lib/views"),
+  updates: require("./lib/updates.js"),
   validate_doc_update: require("./lib/validate_doc_update.js"),
   language: "javascript"
 };

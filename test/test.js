@@ -1,9 +1,12 @@
 var util = require('util')
+  , http = require('http')
   , fs = require('fs')
   , assert = require('assert')
   , nano = require('nano')
   , clone = require('clone')
   , request = require('request')
+  , Readable = require('stream').Readable
+  , cms = require('couch-multipart-stream')
   , path = require('path');
 
 var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
@@ -41,8 +44,7 @@ var dpkg = {
       'schema': { 'fields': [ {'name': 'a', 'type': 'string'}, {'name': 'b', 'type': 'integer'}] },
       'data': [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
     }
-  ],
-  date: (new Date()).toISOString()
+  ]
 };
 
 var maintainers = [{'name': 'user_a', 'email': 'user@domain.io'}, {'name': 'user_b','email': 'user@domain.io'}];
@@ -88,10 +90,9 @@ function rmAll(done){
   });
 };
 
-
 describe('data-registry', function(){
 
-  describe('no side effect', function(){
+  describe.skip('no side effect', function(){
 
     before(function(done){
       createFixture(done);
@@ -115,7 +116,6 @@ describe('data-registry', function(){
       request(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         var expected = clone(dpkg);
         delete expected.resources[0].data;
-        delete expected.date;
         expected.resources[0].url = 'http://localhost:3000/test-dpkg/0.0.0/inline'
         assert.deepEqual(JSON.parse(body), expected);      
         done();
@@ -125,7 +125,6 @@ describe('data-registry', function(){
     it('should retrieve dpkg as is', function(done){
       request(rurl('/test-dpkg/0.0.0?clone=true'), function(err, resp, body){
         var expected = clone(dpkg);
-        delete expected.date;
         assert.deepEqual(JSON.parse(body), expected);      
         done();
       });
@@ -141,7 +140,6 @@ describe('data-registry', function(){
     it('should retrieve the meta data of a resource only', function(done){
       request(rurl('/test-dpkg/0.0.0/inline?meta=true'), function(err, resp, body){
         var expected = clone(dpkg.resources[0]);
-        delete expected.data;
         assert.deepEqual(JSON.parse(body), expected);      
         done();
       });
@@ -215,7 +213,7 @@ describe('data-registry', function(){
   });
 
 
-  describe('side effects', function(){
+  describe.skip('side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -285,6 +283,96 @@ describe('data-registry', function(){
 
   });
 
+  describe('attachments', function(){
+
+    before(function(done){     
+      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
+
+        var mydpkg = clone(dpkg);
+
+        var x1 = [["a","b"],[1,2],[3,4]].join('\n');
+        var s1 = new Readable();
+        s1.push(x1);
+        s1.push(null);
+
+        mydpkg.resources.push({name: 'x1', path: 'x1.csv'});
+        mydpkg._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
+
+        var s = cms(mydpkg);
+
+        var options = { 
+          port: 3000,
+          hostname: '127.0.0.1',
+          method: 'PUT',
+          path: '/' + mydpkg.name + '/' + mydpkg.version,
+          auth: userData.name + ':' + pass,
+          headers: s.headers
+        };
+
+        var req = http.request(options, function(res){
+          res.resume();
+          res.on('end', function(){        
+            done();
+          });
+        });
+        s.pipe(req);
+
+      });
+    });
+
+    it('should add distribution property to resources', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
+        body = JSON.parse(body);
+        delete body.datePublished;
+
+        var expected = {
+          name: 'test-dpkg',
+          version: '0.0.0',
+          resources: [
+            {
+              name: 'inline',
+              format: 'json',
+              schema: { fields: [ { name: 'a', type: 'string' }, { name: 'b', type: 'integer' } ] },
+              data: [ { a: 'a', b: 1 }, { a: 'x', b: 2 } ],
+              distribution: {
+                contentUrl: '/test-dpkg/0.0.0/inline.json',
+                contentSize: 33,
+                encodingFormat: 'json',
+                hashAlgorithm: 'md5',
+                hashValue: '9c25c6c3f5a37454d9c5d6a772212821' 
+              }
+            },
+            {
+              name: 'x1',
+              path: 'x1.csv',
+              distribution: {
+                contentUrl: '/test-dpkg/0.0.0/x1.csv',
+                contentSize: 11,
+                encodingFormat: 'csv',
+                hashAlgorithm: 'md5',
+                hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
+                encoding: { contentSize: 31, encodingFormat: 'gzip' } 
+              }
+            }
+          ]
+        };
+
+        assert.deepEqual(body, expected);   
+        done();
+      });
+    });
+
+    after(function(done){
+
+      rm(_users, 'org.couchdb.user:user_a', function(){
+        rm(registry, 'test-dpkg@0.0.0', function(){
+          done();
+        });
+      });
+      
+    });
+    
+  });
 
 });
 

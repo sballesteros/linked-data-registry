@@ -4,8 +4,8 @@ exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8') + '\n'; //note the
 exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
 exports['dpkg-util'] =
-  [ 'exports.urlify = urlify',
-    function urlify(dpkg, req){
+  [ 'exports.distributionify = distributionify',
+    function distributionify(dpkg, req){
       //replace resources data or path with an url from the registry serving this resource data      
       dpkg.resources.forEach(function(r){
 
@@ -30,12 +30,11 @@ exports['dpkg-util'] =
     },
 
     'exports.clean = clean',
-    function clean(dpkg){      
+    function clean(dpkg){
       delete dpkg._id; 
       delete dpkg._rev;
       delete dpkg._revisions;
       delete dpkg._attachments;
-      delete dpkg.date;
     },
 
     'exports.extname = extname',
