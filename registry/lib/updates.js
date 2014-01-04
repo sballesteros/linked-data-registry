@@ -5,6 +5,8 @@ var updates = exports;
  */
 updates.distribution = function(doc, req){
 
+  var ldpkgJsonLd = require('ldpkgJsonLd');
+
   var resp = {headers : {"Content-Type" : "application/json"}};
 
   if(!doc){
@@ -22,10 +24,13 @@ updates.distribution = function(doc, req){
 
     doc.datePublished = (new Date()).toISOString();
     doc.resources = data;
+
+    
+    
     
     resp.code = 200;
     resp.body = JSON.stringify({ok: 'distribution added'});
-    return [doc, resp];
+    return [ldpkgJsonLd.ify(doc, {addCtx:false}), resp];
 
   } else {
     resp.body = JSON.stringify({error: "not allowed"});

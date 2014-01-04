@@ -6,6 +6,7 @@ var util = require('util')
   , clone = require('clone')
   , request = require('request')
   , Readable = require('stream').Readable
+  , ldpkgJsonLd = require('datapackage-jsonld')
   , cms = require('couch-multipart-stream')
   , path = require('path');
 
@@ -92,7 +93,7 @@ function rmAll(done){
 
 describe('data-registry', function(){
 
-  describe.skip('no side effect', function(){
+  describe('auth: no side effect and versions', function(){
 
     before(function(done){
       createFixture(done);
@@ -112,39 +113,6 @@ describe('data-registry', function(){
       });
     });
 
-    it('should retrieve dpkg with url instead of resources', function(done){
-      request(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
-        var expected = clone(dpkg);
-        delete expected.resources[0].data;
-        expected.resources[0].url = 'http://localhost:3000/test-dpkg/0.0.0/inline'
-        assert.deepEqual(JSON.parse(body), expected);      
-        done();
-      });
-    });
-
-    it('should retrieve dpkg as is', function(done){
-      request(rurl('/test-dpkg/0.0.0?clone=true'), function(err, resp, body){
-        var expected = clone(dpkg);
-        assert.deepEqual(JSON.parse(body), expected);      
-        done();
-      });
-    });
-
-    it('should retrieve a resource', function(done){
-      request(rurl('/test-dpkg/0.0.0/inline'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), dpkg.resources[0].data);      
-        done();
-      });
-    });
-
-    it('should retrieve the meta data of a resource only', function(done){
-      request(rurl('/test-dpkg/0.0.0/inline?meta=true'), function(err, resp, body){
-        var expected = clone(dpkg.resources[0]);
-        assert.deepEqual(JSON.parse(body), expected);      
-        done();
-      });
-    });
-
     it('should retrieve all the versions of test-dpkg', function(done){
       request(rurl('/test-dpkg'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), ['0.0.0', '0.0.1']);      
@@ -152,8 +120,9 @@ describe('data-registry', function(){
       });
     });
 
-    it('should retrieve the latest version of test-dpkg', function(done){
+    it('should retrieve the latest version of test-dpkg as JSON interpreded as JSON-LD', function(done){
       request(rurl('/test-dpkg/latest'), function(err, resp, body){
+        assert.equal(ldpkgJsonLd.link, resp.headers.link);
         assert.equal(JSON.parse(body).version, '0.0.1');      
         done();
       });
@@ -182,7 +151,7 @@ describe('data-registry', function(){
       });
     });
 
-    it('should not let user_c delete the dpkg and remove test-dpkg from teh roles of user_a and user_b', function(done){
+    it('should not let user_c delete the dpkg and remove test-dpkg from the roles of user_a and user_b', function(done){
       request.del( { url: rurl('/test-dpkg'), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
@@ -213,7 +182,7 @@ describe('data-registry', function(){
   });
 
 
-  describe.skip('side effects', function(){
+  describe('auth: side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -283,14 +252,49 @@ describe('data-registry', function(){
 
   });
 
-  describe('attachments', function(){
+
+  describe('resources and attachments', function(){
+
+    var x1 = [["a","b"],[1,2],[3,4]].join('\n');
+
+    var expected = {
+      name: 'test-dpkg',
+      version: '0.0.0',
+      resources: [
+        {
+          name: 'inline',
+          format: 'json',
+          schema: { fields: [ { name: 'a', type: 'string' }, { name: 'b', type: 'integer' } ] },
+          data: [ { a: 'a', b: 1 }, { a: 'x', b: 2 } ],
+          distribution: {
+            contentUrl: '/test-dpkg/0.0.0/inline.json',
+            contentSize: 33,
+            encodingFormat: 'json',
+            hashAlgorithm: 'md5',
+            hashValue: '9c25c6c3f5a37454d9c5d6a772212821' 
+          }
+        },
+        {
+          name: 'x1',
+          path: 'x1.csv',
+          distribution: {
+            contentUrl: '/test-dpkg/0.0.0/x1.csv',
+            contentSize: 11,
+            encodingFormat: 'csv',
+            hashAlgorithm: 'md5',
+            hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
+            encoding: { contentSize: 31, encodingFormat: 'gzip' } 
+          }
+        }
+      ]
+    };
+    expected = ldpkgJsonLd.ify(expected, {addCtx:false});
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
 
         var mydpkg = clone(dpkg);
 
-        var x1 = [["a","b"],[1,2],[3,4]].join('\n');
         var s1 = new Readable();
         s1.push(x1);
         s1.push(null);
@@ -316,63 +320,57 @@ describe('data-registry', function(){
           });
         });
         s.pipe(req);
-
       });
     });
 
-    it('should add distribution property to resources', function(done){      
+    it('should have added a distribution property to resources at publication and now serve the dpkg as JSON interpreted as JSON-LD ', function(done){      
       request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         delete body.datePublished;
 
-        var expected = {
-          name: 'test-dpkg',
-          version: '0.0.0',
-          resources: [
-            {
-              name: 'inline',
-              format: 'json',
-              schema: { fields: [ { name: 'a', type: 'string' }, { name: 'b', type: 'integer' } ] },
-              data: [ { a: 'a', b: 1 }, { a: 'x', b: 2 } ],
-              distribution: {
-                contentUrl: '/test-dpkg/0.0.0/inline.json',
-                contentSize: 33,
-                encodingFormat: 'json',
-                hashAlgorithm: 'md5',
-                hashValue: '9c25c6c3f5a37454d9c5d6a772212821' 
-              }
-            },
-            {
-              name: 'x1',
-              path: 'x1.csv',
-              distribution: {
-                contentUrl: '/test-dpkg/0.0.0/x1.csv',
-                contentSize: 11,
-                encodingFormat: 'csv',
-                hashAlgorithm: 'md5',
-                hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
-                encoding: { contentSize: 31, encodingFormat: 'gzip' } 
-              }
-            }
-          ]
-        };
-
+        assert.equal(ldpkgJsonLd.link, resp.headers.link);
         assert.deepEqual(body, expected);   
         done();
       });
     });
 
-    after(function(done){
+    it('should get a JSON resource interpreted as JSON-LD', function(done){      
+      request.get(rurl('/' + expected.resources[1]['@id']), function(err, resp, body){
+        assert.equal(ldpkgJsonLd.link, resp.headers.link);
+        assert.deepEqual(JSON.parse(body), expected.resources[1]);
+        done();
+      });
+    });
 
+    it('should get an attachment coming from a file', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/x1.csv'), function(err, resp, body){
+        assert.equal(body, x1);
+        done();
+      });
+    });
+
+    it('should error on invalid attachment location', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/x1xxxxx.csv'), function(err, resp, body){
+        assert(resp.statusCode, 404);
+        done();
+      });
+    });
+
+    it('should get a pseudo attachment coming from a inline data', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/inline.json'), function(err, resp, body){
+        assert.deepEqual(JSON.parse(body), dpkg.resources[0].data);           
+        done();
+      });
+    });
+
+    after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-dpkg@0.0.0', function(){
           done();
         });
-      });
-      
+      });      
     });
     
   });
 
 });
-

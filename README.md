@@ -1,15 +1,15 @@
 datapackage registry
 ====================
 
-A CouchDB powered data registry for [data packages](http://dataprotocols.org/data-packages/).
+A CouchDB powered data registry for linked data packages.
 
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
-- each resource of a data package has it's _own URL_
-- semantic search for resource having [json-ld](http://json-ld.org/) is supported
+- data package are served as JSON interpreded as [JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
+- semantic search is supported
 
-A client is in development [here](https://github.com/standard-analytics/dpm2).
+A client is in development [here](https://github.com/standard-analytics/ldpm).
 
 
 API
@@ -17,27 +17,24 @@ API
 
 ### GET /:dpkgname
 
-
-Get a JSON array of all the [versions](http://semver.org/) of the data package with name ```dpkgname```.
-
+Get a JSON array of all the [versions](http://semver.org/) of the data
+package with name ```dpkgname```.
 
 ### GET /:dpkgname/:version
 
-
 Download a data package of name ```dpkgname``` and version
-```version```. If version is ```latest```, the latest version is
-returned.
+```version``` as JSON interpreted as JSON-LD. If version is
+```latest```, the latest version is returned.
 
 
-### GET /:dpkgname/:version/:resourcename
+### GET /:dpkgname/:version/:content
 
+Download content from a data package with name ```dpkgname``` and
+version ```version```.
 
-Download the resource with name ```resourcename``` from the
-data package with name ```dpkgname``` and version ```version```.
-
-if ```?meta=true``` is added, returns only the meta information (i.e
-everything but the data of the resource)
-
+Content can be either:
+- the resource metadata (served as JSON interpreted as JSON-LD)
+- the resource content as indicated by distribution.contentUrl
 
 ### PUT /adduser/:name
 
@@ -106,12 +103,10 @@ Search by keywords.
 Tests
 =====
 
-
     couchdb
     npm run push
     npm start
     npm test
-
 
 
 License

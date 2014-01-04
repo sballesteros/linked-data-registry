@@ -17,7 +17,6 @@ mime.define({
   'application/ld+json': ['jsonld'],
 });
 
-
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
 var credentials = {
@@ -244,14 +243,17 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  function store(){
+  function addDistributionAndstore(){
     var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
       body = JSON.parse(body);
 
-      registry.get(body.id, {att_encoding_info: true}, function(err, doc) {
+      if(resCouch.statusCode >= 400){
+        return next(errorCode('publish aborted', resCouch.statusCode));
+      }
 
+      registry.get(body.id, {att_encoding_info: true}, function(err, doc) {
         if(err) return next(err);
         
         //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
@@ -299,9 +301,8 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         });
         
         registry.atomic('registry', 'distribution', doc._id, resources, function(err, body, headers){
-          console.log(err, body);
           if(err) return next(err);
-          res.json(headers['status-code'], body);        
+          res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
         });
 
       });
@@ -319,12 +320,12 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         if(headers['status-code'] >= 400){
           return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
         } else {
-          store();
+          addDistributionAndstore();
         };
 
       });
     } else {
-      store();
+      addDistributionAndstore();
     }
   });
 

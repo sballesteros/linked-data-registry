@@ -9,10 +9,12 @@ lists.latest = function(head, req){
   
   var doc = row.doc;
 
-  var util = require('dpkg-util');
+  var util = require('dpkg-util')
+    , ldpkgJsonLd = require('ldpkgJsonLd');
+
   util.clean(doc);
 
-  start({"headers": {"Content-Type": "application/json"}});
+  start({"headers": {"Content-Type": "application/json", 'Link': ldpkgJsonLd.link}});
   send(JSON.stringify(doc));
 };
 
