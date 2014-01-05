@@ -45,10 +45,10 @@ shows.resource = function(doc, req){
 
     var splt = req.query.resource.split('.');
     r = doc.resources.filter(function(x){ return x.name === splt[0]; })[0];     
-    if(r && ['json', 'ldjson', 'txt'].indexOf(splt[1]) !== -1){
+    if(r && splt.length > 1 ){
       return {
         headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
-        body: JSON.stringify(r.data)
+        body: (typeof r.data === 'string') ? r.data: JSON.stringify(r.data)
       };
     }
     

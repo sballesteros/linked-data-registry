@@ -16,6 +16,7 @@ var http = require('http')
 
 mime.define({
   'application/ld+json': ['jsonld'],
+  'application/x-ldjson': ['ldjson', 'ldj']
 });
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
@@ -292,12 +293,21 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
         var resources = doc.resources || [];
 
+        //TODO support encoding (MediaObject) for resources (@type === 'DataSet')
+        //encoding: {encodingFormat: csv} -> usefull for inline data
+
         resources.forEach(function(r){
           if('data' in r){
 
-            var s = JSON.stringify(r.data);
-            var format = (typeof r.data === 'string') ? 'txt':
-              (s.indexOf('@context') !== -1) ? 'jsonld' : 'json';
+            var s = (typeof r.data === 'string') ? r.data: JSON.stringify(r.data);
+
+            var format;
+            if( ('encoding' in r) && (typeof r.encoding === 'object') && !Array.isArray(r.encoding) && (typeof r.encoding.encodingFormat === 'string') ){
+              format =  r.encoding.encodingFormat;
+            } else {
+              format = (typeof r.data === 'string') ? 'txt':
+                (s.indexOf('@context') !== -1) ? 'jsonld' : 'json';
+            }
 
             r.distribution = {
               contentUrl: '/' + doc._id.replace('@', '/') + '/' + r.name + '.' + format,
