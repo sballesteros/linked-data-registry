@@ -1,6 +1,7 @@
 var http = require('http')
   , https = require('https')
   , util = require('util')
+  , semver = require('semver')
   , fs = require('fs')
   , path = require('path')
   , express = require('express')
@@ -195,7 +196,39 @@ app.get('/:name', function(req, res, next){
   res.redirect(rootCouch + rurl);
 });
 
-app.get('/:name/:version', function(req, res, next){  
+
+/**
+ * middleware to get maxSatisfying version of a Semver range 
+ */
+function maxSatisfyingVersion(req, res, next){
+  
+  var q = req.query || {};
+
+  if (! ('range' in q)) {
+    return next();
+  }
+
+  //get all the versions of the dpkg
+  request(rootCouch + '/registry/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
+    if(err) return next(err);
+
+    if (res.statusCode >= 400){
+      return next(errorCode('oops something went wrong when trying to validate the version', resCouch.statusCode));
+    }
+
+    versions = JSON.parse(versions);
+    req.params.version = semver.maxSatisfying(versions, q.range);
+    if(!req.params.version){
+      return next(errorCode('no version could satisfy the range ' + q.range, 404));
+    }
+
+    next();
+  });
+
+};
+
+
+app.get('/:name/:version', maxSatisfyingVersion, function(req, res, next){  
 
   var q = req.query || {};
   if(req.secure){
@@ -217,7 +250,7 @@ app.get('/:name/:version', function(req, res, next){
 });
 
 
-app.get('/:name/:version/:resource', function(req, res, next){
+app.get('/:name/:version/:resource', maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;

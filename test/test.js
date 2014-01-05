@@ -6,6 +6,7 @@ var util = require('util')
   , clone = require('clone')
   , request = require('request')
   , Readable = require('stream').Readable
+  , querystring = require('querystring')
   , ldpkgJsonLd = require('datapackage-jsonld')
   , cms = require('couch-multipart-stream')
   , path = require('path');
@@ -124,6 +125,20 @@ describe('data-registry', function(){
       request(rurl('/test-dpkg/latest'), function(err, resp, body){
         assert.equal(ldpkgJsonLd.link, resp.headers.link);
         assert.equal(JSON.parse(body).version, '0.0.1');      
+        done();
+      });
+    });
+
+    it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
+      request(rurl('/test-dpkg/latest?' + querystring.stringify({range: '<0.0.1'})), function(err, resp, body){
+        assert.equal(JSON.parse(body).version, '0.0.0');
+        done();
+      });
+    });
+
+    it('should 404 on range that cannot be statisfied', function(done){
+      request(rurl('/test-dpkg/latest?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, body){
+        assert.equal(resp.statusCode, 404);
         done();
       });
     });

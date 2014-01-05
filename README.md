@@ -22,15 +22,19 @@ package with name ```dpkgname```.
 
 ### GET /:dpkgname/:version
 
-Download a data package of name ```dpkgname``` and version
-```version``` as JSON interpreted as JSON-LD. If version is
-```latest```, the latest version is returned.
+Download a data package of name ```dpkgname``` and
+[version](http://semver.org/) ```version``` as JSON interpreted as
+JSON-LD. If version is ```latest```, the latest version is returned.
 
+Version range can be specified as an
+([encoreURIComponent](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent))
+[range](https://github.com/isaacs/node-semver#ranges) passed as query string parameter ```range```.
 
 ### GET /:dpkgname/:version/:content
 
 Download content from a data package with name ```dpkgname``` and
-version ```version```.
+[version](http://semver.org/) ```version```. Version can be specifyied
+as ```latest``` and a qery string parameter ```range```.
 
 Content can be either:
 - the resource metadata (served as JSON interpreted as JSON-LD)
@@ -52,7 +56,8 @@ Create an user of username ```name```.
 
 ### PUT /:dpkgname/:version
 
-data: Document with attachments in multipart/related format as needed by CouchDb. See
+data: Document with attachments in multipart/related format as needed
+by CouchDb. See
 [CouchDB multiple attachments](http://docs.couchdb.org/en/latest/api/document/common.html#creating-multiple-attachments)
 for details.
 
