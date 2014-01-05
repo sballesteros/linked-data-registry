@@ -1,7 +1,8 @@
-datapackage registry
-====================
+linked data package registry
+============================
 
-A CouchDB powered data registry for linked data packages.
+A [CouchDB](http://couchdb.apache.org/) powered data registry for
+linked data packages.
 
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
