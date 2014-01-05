@@ -21,21 +21,23 @@ views.byNameAndVersion = {
 views.byKeyword = {
   map: function (doc) {
 
-    var obj = { _id: doc._id, description: doc.description };
+    var objTop = { _id: doc._id, description: '[' + doc['@type'] + '] ' + doc.name + (('description' in doc) ? ': ' + doc.description : '') };
 
-    doc.name.trim.toLowerCase().split('-').forEach(function(n){
-      emit(n, obj);
+    doc.name.trim().toLowerCase().split('-').forEach(function(n){
+      emit(n, objTop);
     });
 
     
     if('resources' in doc){
       doc.resources.forEach(function(r) {      
         if('@type' in r){
+          var objr = { _id: doc._id, description: '[' + r['@type'] + '] ' + doc.name + '/' + r.name  + (('description' in r) ? ': ' + r.description : '') };
+
           if (typeof r['@type'] === 'string'){
-            emit(r['@type'], obj);
+            emit(r['@type'], objr);
           } else if (Array.isArray(r['@type'])){
             r['@type'].forEach(function (t) {
-              emit(t, obj);              
+              emit(t, objr);              
             });
           }
         }
@@ -44,7 +46,7 @@ views.byKeyword = {
 
     if('keywords' in doc){
       doc.keywords.forEach(function(kw) {
-        emit(kw.trim().toLowerCase(), obj);
+        emit(kw.trim().toLowerCase(), objTop);
       });
     }
 
