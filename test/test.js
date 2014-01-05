@@ -116,7 +116,7 @@ describe('data-registry', function(){
 
     it('should retrieve all the versions of test-dpkg', function(done){
       request(rurl('/test-dpkg'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), ['0.0.0', '0.0.1']);      
+        assert.deepEqual(JSON.parse(body).catalog.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
         done();
       });
     });

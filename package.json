@@ -1,7 +1,7 @@
 {
   "name": "linked-data-registry",
-  "version": "0.0.0",
-  "description": "A registry for linked data packages",
+  "version": "0.1.0",
+  "description": "Standard Analytics IO registry for linked data packages",
   "main": "index.js",
   "scripts": {
     "push": "(cd registry && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
@@ -13,10 +13,14 @@
     "url": "git://github.com/standard-analytics/linked-data-registry.git"
   },
   "keywords": [
+    "linked-data",
+    "hyperdata",
+    "publishing",
     "datapackage",
     "registry",
-    "open",
+    "open-data",
     "data",
+    "JSON-LD",
     "CouchDB"
   ],
   "author": "Sebastien Ballesteros",

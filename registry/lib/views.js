@@ -11,9 +11,17 @@ views.lib = {
   paddedSemver: paddedSemverPatched
 },
 
+views.byName = {
+  map: function(doc){     
+    emit(doc.name, { _id: doc._id, name: doc.name, version: doc.version, description: (('description' in doc) ? doc.description : '') } );
+  },
+  reduce: '_count'
+};
+
+
 views.byNameAndVersion = {
   map: function(doc){     
-    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id});
+    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id, name: doc.name, version: doc.version, description: (('description' in doc) ? doc.description : '') } );
   },
   reduce: '_count'
 };

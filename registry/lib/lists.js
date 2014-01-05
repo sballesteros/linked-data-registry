@@ -23,28 +23,41 @@ lists.latest = function(head, req){
 
 lists.versions = function(head, req){
 
+  var ldpkgJsonLd = require('ldpkgJsonLd');
+
   var row;
-  var versions = [];
+  var catalogs = [];
   while(row = getRow()){
-    versions.push(row.id.split('@')[1]);
+    catalogs.push({
+      '@type': 'DataCatalog',
+      name: row.value.name,
+      version: row.value.version,
+      description: row.value.description,
+      url: row.value.name + '/' + row.value.version,
+    });
   }
   
-  if(!versions.length){
+  if(!catalogs.length){
     start({ 
       code: 404,   
       headers: {"Content-Type": "application/json"}
     });
     return send(JSON.stringify({error: "no results"}));        
   } else {
-    start({"headers": {"Content-Type": "application/json"}});
-    send(JSON.stringify(versions));
-  }
-  
+    start({"headers": {
+      "Content-Type": "application/json",
+      'Link': ldpkgJsonLd.link
+    }});
+    send(JSON.stringify({
+      '@id': req.query.name,
+      '@type': 'DataCatalog',
+      catalog: catalogs
+    }));
+  }  
 };
 
 
-lists.search = function(head, req){
-  
+lists.search = function(head, req){  
   var row;
   var cnt = 0;
   start({"headers": {"Content-Type": "application/x-ldjson"}});

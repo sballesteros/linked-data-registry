@@ -12,7 +12,9 @@ var http = require('http')
   , crypto = require('crypto')
   , async = require('async')
   , mime = require('mime')
-  , url = require('url');
+  , url = require('url')
+  , pkgJson = require('../package.json');
+
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -83,6 +85,64 @@ function forceAuth(req, res, next){
 
 
 var jsonParser = express.json();
+
+app.get('/', function(req, res, next){
+  registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
+
+    if (err) return next(err);    
+    res.set('Link', [
+      '<https://raw.github.com/standard-analytics/linked-data-registry/master/README.md> rel="profile"',
+      '<http://schema.org>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
+    ].join(','));
+
+    var proxy;
+    if(req.secure){
+      proxy = 'https://' + host  + ((portHttps != 443) ? (':' + portHttps) : '');
+    } else {
+      proxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
+    }
+
+    res.json(headers['status-code'], { 
+      '@id': proxy,
+      '@type': 'DataCatalog',
+      name: 'linked-data-registry',
+      version: pkgJson.version,
+      keywords: pkgJson.keywords,
+      description: pkgJson.description,
+      author: {
+        '@type': 'Organization',
+        name: 'Standard Analytics IO',
+        description: 'The science you want in the format you need',
+        url: 'http://standardanalytics.io',
+        founder: [
+          {
+            '@type': 'Person',
+            name: 'Sebastien Ballesteros',
+            email: 'sebastien@standardanalytics.io'
+          },
+          {
+            '@type': 'Person',
+            name: 'Tiffany Bogich',
+            email: 'tiff@standardanalytics.io'
+          },
+          {
+            '@type': 'Person',
+            name: 'Joseph Dureau',
+            email: 'joseph@standardanalytics.io'
+          }
+        ]
+      },
+      discussionUrl: pkgJson.bugs.url,
+      isBasedOnUrl: pkgJson.homepage,
+      publishingPrinciples: 'http://opendatacommons.org/licenses/odbl/1.0/',
+      catalog: body.rows.map(function(x){ return {
+        '@type': 'DataCatalog',
+        'name': x.key,
+        'url': proxy + '/' + x.key
+      };})
+    });
+  });
+});
 
 app.get('/search', function(req, res, next){
   var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
@@ -192,7 +252,6 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
  * list of versions
  */
 app.get('/:name', function(req, res, next){
-
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
   res.redirect(rootCouch + rurl);
 });
@@ -217,7 +276,7 @@ function maxSatisfyingVersion(req, res, next){
       return next(errorCode('oops something went wrong when trying to validate the version', resCouch.statusCode));
     }
 
-    versions = JSON.parse(versions);
+    versions = JSON.parse(versions).catalog.map(function(x){return x.version;});
     req.params.version = semver.maxSatisfying(versions, q.range);
     if(!req.params.version){
       return next(errorCode('no version could satisfy the range ' + q.range, 404));
