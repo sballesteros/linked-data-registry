@@ -7,7 +7,7 @@ linked data packages.
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
-- data package are served as JSON interpreded as [JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
+- data package are served as [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
 - semantic search is supported
 
 A client is in development [here](https://github.com/standard-analytics/ldpm).
@@ -24,8 +24,9 @@ package with name ```dpkgname```.
 ### GET /:dpkgname/:version
 
 Download a data package of name ```dpkgname``` and
-[version](http://semver.org/) ```version``` as JSON interpreted as
-JSON-LD. If version is ```latest```, the latest version is returned.
+[version](http://semver.org/) ```version``` as
+[JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld). If
+version is ```latest```, the latest version is returned.
 
 Version range can be specified as an
 ([encoreURIComponent](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent))
@@ -39,7 +40,7 @@ as ```latest``` and a qery string parameter ```range```.
 
 Content can be either:
 - the resource metadata (served as JSON interpreted as JSON-LD)
-- the resource content as indicated by distribution.contentUrl
+- the resource content as indicated by ```distribution.contentUrl```
 
 ### PUT /adduser/:name
 
@@ -60,7 +61,9 @@ Create an user of username ```name```.
 data: Document with attachments in multipart/related format as needed
 by CouchDb. See
 [CouchDB multiple attachments](http://docs.couchdb.org/en/latest/api/document/common.html#creating-multiple-attachments)
-for details.
+for details. You might want to look at the
+[couch-multipart-stream](https://github.com/standard-analytics/couch-multipart-stream)
+node module.
 
 Publish a specific ```version``` of the data package of name ```dpkgname```.
 
