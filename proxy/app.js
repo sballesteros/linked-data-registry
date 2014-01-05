@@ -310,14 +310,14 @@ app.get('/:name/:version', maxSatisfyingVersion, function(req, res, next){
 });
 
 
-app.get('/:name/:version/:resource', maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/:dataset', maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.resource);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.dataset);
   rurl += (qs) ? '?' + qs : '';
 
   res.redirect(rootCouch + rurl);  
@@ -353,12 +353,9 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         if(err) return next(err);
         
         //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
-        var resources = doc.resources || [];
+        var dataset = doc.dataset || [];
 
-        //TODO support encoding (MediaObject) for resources (@type === 'DataSet')
-        //encoding: {encodingFormat: csv} -> usefull for inline data
-
-        resources.forEach(function(r){
+        dataset.forEach(function(r){
           if('data' in r){
 
             var s = (typeof r.data === 'string') ? r.data: JSON.stringify(r.data);
@@ -405,7 +402,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           }
         });
         
-        registry.atomic('registry', 'distribution', doc._id, resources, function(err, body, headers){
+        registry.atomic('registry', 'distribution', doc._id, dataset, function(err, body, headers){
           if(err) return next(err);
           res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
         });

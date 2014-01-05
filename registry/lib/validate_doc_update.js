@@ -57,7 +57,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
       description: { type: 'string' },
       keywords: { type: 'array', items: { type: 'string' } },
       dataDependencies: { type: 'object', patternProperties: {'': { 'type': 'string' } } },
-      resources: {
+      dataset: {
         type: 'array',
         items: {
           type: 'object',

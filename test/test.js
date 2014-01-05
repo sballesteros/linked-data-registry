@@ -39,7 +39,7 @@ var userData = {
 var dpkg = {
   name: 'test-dpkg',
   version: '0.0.0',
-  resources: [
+  dataset: [
     {
       'name': 'inline',
       'format': 'json',
@@ -268,14 +268,14 @@ describe('data-registry', function(){
   });
 
 
-  describe('resources and attachments', function(){
+  describe('dataset and attachments', function(){
 
     var x1 = [["a","b"],[1,2],[3,4]].join('\n');
 
     var expected = {
       name: 'test-dpkg',
       version: '0.0.0',
-      resources: [
+      dataset: [
         {
           name: 'inline',
           format: 'json',
@@ -314,7 +314,7 @@ describe('data-registry', function(){
         s1.push(x1);
         s1.push(null);
 
-        mydpkg.resources.push({name: 'x1', path: 'x1.csv'});
+        mydpkg.dataset.push({name: 'x1', path: 'x1.csv'});
         mydpkg._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
 
         var s = cms(mydpkg);
@@ -338,7 +338,7 @@ describe('data-registry', function(){
       });
     });
 
-    it('should have added a distribution property to resources at publication and now serve the dpkg as JSON interpreted as JSON-LD ', function(done){      
+    it('should have added a distribution property to dataset at publication and now serve the dpkg as JSON interpreted as JSON-LD ', function(done){      
       request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         delete body.datePublished;
@@ -349,10 +349,10 @@ describe('data-registry', function(){
       });
     });
 
-    it('should get a JSON resource interpreted as JSON-LD', function(done){      
-      request.get(rurl('/' + expected.resources[1]['@id']), function(err, resp, body){
+    it('should get a JSON dataset interpreted as JSON-LD', function(done){      
+      request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
         assert.equal(ldpkgJsonLd.link, resp.headers.link);
-        assert.deepEqual(JSON.parse(body), expected.resources[1]);
+        assert.deepEqual(JSON.parse(body), expected.dataset[1]);
         done();
       });
     });
@@ -373,7 +373,7 @@ describe('data-registry', function(){
 
     it('should get a pseudo attachment coming from a inline data', function(done){      
       request.get(rurl('/test-dpkg/0.0.0/inline.json'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), dpkg.resources[0].data);           
+        assert.deepEqual(JSON.parse(body), dpkg.dataset[0].data);           
         done();
       });
     });

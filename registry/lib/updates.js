@@ -23,7 +23,7 @@ updates.distribution = function(doc, req){
     }
 
     doc.datePublished = (new Date()).toISOString();
-    doc.resources = data;
+    doc.dataset = data;
     
     resp.code = 200;
     resp.body = JSON.stringify({ok: 'distribution added'});

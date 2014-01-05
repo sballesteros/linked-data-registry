@@ -15,6 +15,5 @@ module.exports = [
 
   { from: '/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
   { from: '/first/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
-  { from: '/:dpkg_id/:resource', to: '/_show/resource/:dpkg_id', method: 'GET' }
-
+  { from: '/:dpkg_id/:dataset', to: '/_show/dataset/:dpkg_id', method: 'GET' }
 ];
