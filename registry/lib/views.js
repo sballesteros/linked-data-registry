@@ -20,10 +20,35 @@ views.byNameAndVersion = {
 
 views.byKeyword = {
   map: function (doc) {
-    if (!doc.keywords) return;
-    doc.keywords.forEach(function (kw) {
-      emit(kw.toLowerCase(), {_id: doc._id, description: doc.description});
+
+    var obj = { _id: doc._id, description: doc.description };
+
+    doc.name.trim.toLowerCase().split('-').forEach(function(n){
+      emit(n, obj);
     });
-  }, 
+
+    
+    if('resources' in doc){
+      doc.resources.forEach(function(r) {      
+        if('@type' in r){
+          if (typeof r['@type'] === 'string'){
+            emit(r['@type'], obj);
+          } else if (Array.isArray(r['@type'])){
+            r['@type'].forEach(function (t) {
+              emit(t, obj);              
+            });
+          }
+        }
+      });
+    }
+
+    if('keywords' in doc){
+      doc.keywords.forEach(function(kw) {
+        emit(kw.trim().toLowerCase(), obj);
+      });
+    }
+
+  },
+    
   reduce: "_count"
 };
