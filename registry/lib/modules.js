@@ -5,29 +5,14 @@ exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 exports.ldpkgJsonLd = fs.readFileSync(require.resolve('datapackage-jsonld'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
 exports['dpkg-util'] =
-  [ 'exports.distributionify = distributionify',
-    function distributionify(dpkg, req){
-      //replace resources data or path with an url from the registry serving this resource data      
-      dpkg.resources.forEach(function(r){
-
-        if( ('data' in r) && (!req.query.clone) ){
-
-          r.url = req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
-          delete r.data;
-
-        } else if ('path' in r){
-
-          r.url = req.query.proxy + '/' + dpkg.name + '/' + dpkg.version + '/' + r.name;
-          if(!req.query.clone) delete r.path;
-
-        } else if( ('require' in r) && (!req.query.clone) ){
-
-          r.url = req.query.proxy + '/' + r.require.datapackage + '/' + dpkg.dataDependencies[r.require.datapackage] + '/' + r.require.resource;
-
-        }
-
-      });
-      return dpkg;
+  [ 'exports.root = root',
+    function root(req){     
+      //hacky: TO BE IMPROVED
+      var protocol = (req.query.secure) ? 'https' : 'http';
+      if(req.headers.Host.split(':')[1] == 443){
+        protocol = 'https';
+      }
+      return protocol + '://' + req.headers.Host;
     },
 
     'exports.clean = clean',
@@ -36,6 +21,8 @@ exports['dpkg-util'] =
       delete dpkg._rev;
       delete dpkg._revisions;
       delete dpkg._attachments;
+
+      return dpkg;
     },
 
     'exports.extname = extname',

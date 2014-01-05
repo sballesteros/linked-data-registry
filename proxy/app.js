@@ -277,14 +277,17 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  function addDistributionAndstore(){
+  function addDistributionAndstore(dpkgNameIfIsFirst){
     var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
-      body = JSON.parse(body);
 
+      body = JSON.parse(body);
       if(resCouch.statusCode >= 400){
-        return next(errorCode('publish aborted', resCouch.statusCode));
+        if(dpkgNameIfIsFirst){
+          _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, dpkgName: dpkgNameIfIsFirst});
+        }
+        return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
       }
 
       registry.get(body.id, {att_encoding_info: true}, function(err, doc) {
@@ -363,7 +366,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         if(headers['status-code'] >= 400){
           return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
         } else {
-          addDistributionAndstore();
+          addDistributionAndstore(req.params.name);
         };
 
       });
@@ -433,7 +436,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
           if (err) return next(err);
 
           async.each(maintainers, function(maintainer, cb){
-            _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, dpkgName: name}, cb);          
+            _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, dpkgName: name}, cb);
           }, function(err){
             if(err) return next(err);
             res.json({ok:true});

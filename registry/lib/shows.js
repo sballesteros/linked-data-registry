@@ -4,12 +4,13 @@ shows.datapackage = function(doc,req){
 
   var util = require('dpkg-util')
     , ldpkgJsonLd = require('ldpkgJsonLd');
-  
-  util.clean(doc);
 
   return {
-    headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
-    body: JSON.stringify(doc)
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
+    },
+    body: JSON.stringify(util.clean(doc))
   };
 
 };
@@ -19,15 +20,6 @@ shows.resource = function(doc, req){
 
   var util = require('dpkg-util')
     , ldpkgJsonLd = require('ldpkgJsonLd');
-
-  //hacky: TO BE IMPROVED
-  function root(req){
-    var protocol = (req.query.secure) ? 'https' : 'http';
-    if(req.headers.Host.split(':')[1] == 443){
-      protocol = 'https';
-    }
-    return protocol + '://' + req.headers.Host;
-  };
 
   var r = doc.resources.filter(function(x){ return x.name === req.query.resource; })[0];
   if(r){
@@ -39,7 +31,7 @@ shows.resource = function(doc, req){
 
   } else if (req.query.resource in doc._attachments){ // attachments
 
-    return { code : 301, headers : { 'Location' : root(req) + '/registry/' + doc._id + '/' + req.query.resource } };
+    return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.resource } };
 
   } else { //inline data or invalid URL
 

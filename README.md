@@ -7,6 +7,7 @@ linked data packages.
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
+- build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
 - data package are served as [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
 - semantic search is supported
 

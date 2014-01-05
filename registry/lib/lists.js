@@ -12,10 +12,13 @@ lists.latest = function(head, req){
   var util = require('dpkg-util')
     , ldpkgJsonLd = require('ldpkgJsonLd');
 
-  util.clean(doc);
-
-  start({"headers": {"Content-Type": "application/json", 'Link': ldpkgJsonLd.link}});
-  send(JSON.stringify(doc));
+  start({
+    "headers": {
+      "Content-Type": "application/json",
+      'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
+    }
+  });
+  send(JSON.stringify(util.clean(doc)));
 };
 
 lists.versions = function(head, req){
