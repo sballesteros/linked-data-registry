@@ -4,7 +4,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if(['rmuser', 'adduser', 'owner', 'search'].indexOf(newDoc.name) !==-1){
+  if(['rmuser', 'adduser', 'owner', 'search', 'contexts', 'ontologies'].indexOf(newDoc.name) !==-1){
     throw { forbidden: 'data package cannot be named '+ newDoc.name };    
   }
 
@@ -56,7 +56,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
       version: { type: 'string' },
       description: { type: 'string' },
       keywords: { type: 'array', items: { type: 'string' } },
-      dataDependencies: { type: 'object', patternProperties: {'': { 'type': 'string' } } },
+      dataDependencies: { type: 'array', items: { type: 'string' } },
       dataset: {
         type: 'array',
         items: {

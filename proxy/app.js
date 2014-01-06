@@ -13,8 +13,8 @@ var http = require('http')
   , async = require('async')
   , mime = require('mime')
   , url = require('url')
+  , ldpkgJsonLd = require('datapackage-jsonld')
   , pkgJson = require('../package.json');
-
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -47,6 +47,7 @@ var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', co
 var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
+
 
 app.use(app.router);
 app.use(function(err, req, res, next){
@@ -82,11 +83,25 @@ function forceAuth(req, res, next){
 };
 
 
-
-
 var jsonParser = express.json();
 
-app.get('/', function(req, res, next){
+
+/**
+ * middleware to get proxy URL (store it in req.stanProxy)
+ */
+function getStanProxyUrl(req, res, next){
+
+  if(req.secure){
+    req.stanProxy = 'https://' + host  + ((portHttps != 443) ? (':' + portHttps) : '');
+  } else {
+    req.stanProxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
+  }
+
+  next();
+};
+
+
+app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
 
     if (err) return next(err);    
@@ -95,15 +110,9 @@ app.get('/', function(req, res, next){
       '<http://schema.org>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
     ].join(','));
 
-    var proxy;
-    if(req.secure){
-      proxy = 'https://' + host  + ((portHttps != 443) ? (':' + portHttps) : '');
-    } else {
-      proxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
-    }
 
     res.json(headers['status-code'], { 
-      '@id': proxy,
+      '@id': req.stanProxy,
       '@type': 'DataCatalog',
       name: 'linked-data-registry',
       version: pkgJson.version,
@@ -138,11 +147,21 @@ app.get('/', function(req, res, next){
       catalog: body.rows.map(function(x){ return {
         '@type': 'DataCatalog',
         'name': x.key,
-        'url': proxy + '/' + x.key
+        'url': req.stanProxy + '/' + x.key
       };})
     });
   });
 });
+
+
+
+app.get('/contexts/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
+  res.set('Content-Type', 'application/ld+json');  
+
+  ldpkgJsonLd.context['@base'] = req.stanProxy + '/';
+  res.send(JSON.stringify(ldpkgJsonLd.context));
+});
+
 
 app.get('/search', function(req, res, next){
   var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
@@ -288,14 +307,11 @@ function maxSatisfyingVersion(req, res, next){
 };
 
 
-app.get('/:name/:version', maxSatisfyingVersion, function(req, res, next){  
+app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){  
 
   var q = req.query || {};
-  if(req.secure){
-    q.proxy = 'https://' + host  + ((portHttps != 443) ? (':' + portHttps) : '');
-  } else {
-    q.proxy = 'http://' + host  + ((port != 80) ? (':' + port) : '');
-  }
+  q.proxy = req.stanProxy;
+
   var rurl;
   if (req.params.version === 'latest'){
     rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
@@ -380,6 +396,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             
             var basename = path.basename(r.path);
             var att = doc._attachments[basename];   
+
             if(!att) return;
 
             r.distribution = {
@@ -509,7 +526,6 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
 });
 
-
 function _grant(data, res, next, codeForced){
   _users.atomic('maintainers', 'add', 'org.couchdb.user:' + data.username, data, function(err, body, headers){
     if(err) return next(err);
@@ -517,13 +533,11 @@ function _grant(data, res, next, codeForced){
   });
 };
 
-
 function errorCode(msg, code){
   var err = new Error(msg);
   err.code = code;
   return err;
 };
-
 
 httpServer.listen(port);
 httpsServer.listen(portHttps);
