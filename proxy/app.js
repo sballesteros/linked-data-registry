@@ -272,7 +272,8 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
  */
 app.get('/:name', function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  res.redirect(rootCouch + rurl);
+  req.pipe(request(rootCouch + rurl)).pipe(res);
+  //res.redirect(rootCouch + rurl);
 });
 
 
@@ -320,8 +321,10 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
   }
   rurl += '?' + querystring.stringify(q);
 
+  res.set('Link', ldpkgJsonLd.link);
+  req.pipe(request(rootCouch + rurl)).pipe(res);
   
-  res.redirect(rootCouch + rurl);
+  //res.redirect(rootCouch + rurl);
 
 });
 
@@ -336,7 +339,8 @@ app.get('/:name/:version/:dataset', maxSatisfyingVersion, function(req, res, nex
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.dataset);
   rurl += (qs) ? '?' + qs : '';
 
-  res.redirect(rootCouch + rurl);  
+  req.pipe(request(rootCouch + rurl)).pipe(res);
+  //res.redirect(rootCouch + rurl);  
 });
 
 

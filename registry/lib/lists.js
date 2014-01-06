@@ -18,7 +18,8 @@ lists.latest = function(head, req){
       'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
     }
   });
-  send(JSON.stringify(util.clean(doc)));
+  send(JSON.stringify(util.clean(doc), null, 2));
+
 };
 
 lists.versions = function(head, req){
@@ -52,8 +53,8 @@ lists.versions = function(head, req){
       '@id': req.query.name,
       '@type': 'DataCatalog',
       catalog: catalogs
-    }));
-  }  
+    }, null, 2));
+  }
 };
 
 

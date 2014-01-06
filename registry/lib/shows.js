@@ -10,7 +10,7 @@ shows.datapackage = function(doc,req){
       'Content-Type': 'application/json', 
       'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
     },
-    body: JSON.stringify(util.clean(doc))
+    body: JSON.stringify(util.clean(doc), null, 2)
   };
 
 };
@@ -26,7 +26,7 @@ shows.dataset = function(doc, req){
 
     return {
       headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
-      body: JSON.stringify(r)
+      body: JSON.stringify(r, null, 2)
     };
 
   } else if (req.query.dataset in doc._attachments){ // attachments
@@ -40,7 +40,7 @@ shows.dataset = function(doc, req){
     if(r && splt.length > 1 ){
       return {
         headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
-        body: (typeof r.data === 'string') ? r.data: JSON.stringify(r.data)
+        body: (typeof r.data === 'string') ? r.data: JSON.stringify(r.data, null, 2)
       };
     }
     
