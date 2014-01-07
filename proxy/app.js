@@ -293,7 +293,7 @@ function maxSatisfyingVersion(req, res, next){
     if(err) return next(err);
 
     if (res.statusCode >= 400){
-      return next(errorCode('oops something went wrong when trying to validate the version', resCouch.statusCode));
+      return next(errorCode('oops something went wrong when trying to validate the version', res.statusCode));
     }
 
     versions = JSON.parse(versions).catalog.map(function(x){return x.version;});

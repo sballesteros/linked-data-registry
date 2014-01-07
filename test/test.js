@@ -93,6 +93,7 @@ function rmAll(done){
 };
 
 describe('data-registry', function(){
+  this.timeout(4000);
 
   describe('auth: no side effect and versions', function(){
 

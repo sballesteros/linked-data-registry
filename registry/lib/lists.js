@@ -10,7 +10,7 @@ lists.latest = function(head, req){
   var doc = row.doc;
 
   var util = require('dpkg-util')
-    , ldpkgJsonLd = require('ldpkgJsonLd');
+    , ldpkgJsonLd = require('datapackage-jsonld');
 
   start({
     "headers": {

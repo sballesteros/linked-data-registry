@@ -3,7 +3,7 @@ var shows = exports;
 shows.datapackage = function(doc,req){
 
   var util = require('dpkg-util')
-    , ldpkgJsonLd = require('ldpkgJsonLd');
+    , ldpkgJsonLd = require('datapackage-jsonld');
 
   return {
     headers: { 
@@ -19,7 +19,7 @@ shows.datapackage = function(doc,req){
 shows.dataset = function(doc, req){
 
   var util = require('dpkg-util')
-    , ldpkgJsonLd = require('ldpkgJsonLd');
+    , ldpkgJsonLd = require('datapackage-jsonld');
 
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){

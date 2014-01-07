@@ -1,4 +1,14 @@
 module.exports = function(newDoc, oldDoc, userCtx, secObj){
+
+  try {
+    var url = require('url')
+      , isUrl = require('is-url')
+      , semver = require('semver')
+      , ldpkgJsonLd = require('datapackage-jsonld')
+      , tv4 = require('tv4');
+  } catch(e){
+    throw { forbidden: e.message };
+  }
   
   if (!userCtx || (userCtx && !userCtx.name)) {
     throw { unauthorized: 'Please log in before writing to the db' };
@@ -42,46 +52,11 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   if (newDoc._deleted) return;
 
   //validate newDoc using schema json
-  try {
-    var tv4 = require('tv4');
-  } catch(e){
-    throw { forbidden: e.message };
-  }
-
-  var $schema = {
-    $schema: 'http://json-schema.org/draft-04/schema#',
-    type: 'object', 
-    properties: {
-      name: { type: 'string' },
-      version: { type: 'string' },
-      description: { type: 'string' },
-      keywords: { type: 'array', items: { type: 'string' } },
-      dataDependencies: { type: 'array', items: { type: 'string' } },
-      dataset: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            url:  { type: "string" }, path: { type: "string"}, name: { type: "string"}
-          },
-          required: ['name']
-        }
-      }
-    },
-    required: ['name', 'version']
-  };
-
-  if( !tv4.validate(newDoc, $schema) ){
+  if( !tv4.validate(newDoc, ldpkgJsonLd.schema) ){
     throw { forbidden: tv4.error.message };
   }
   
-  //validate version
-  try{
-    var semver = require('semver');
-  } catch(e){
-    throw { forbidden: e.message };
-  }
-  
+  //validate version  
   if(!semver.valid(newDoc.version)){
     throw { forbidden: 'invalid version ' + newDoc.version };    
   }
@@ -90,6 +65,13 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   var _id = newDoc.name + '@' + newDoc.version;
   if(newDoc._id !== _id){
     throw { forbidden: 'invalid _id ' + newDoc._id };    
+  }
+
+  //validate dependencies and that links are version compatible (i.e a document cannot require url from a version !== from the current doc)
+  try {
+    ldpkgJsonLd.validateRequire(newDoc);
+  } catch(e){
+    throw { forbidden: e.message };    
   }
 
   if('datePublished' in newDoc){

@@ -1,8 +1,18 @@
-var fs = require('fs');
+var fs = require('fs')
+  , path = require('path');
+
+
+//want to use url and datapackage-jsonld in couchdb => install all the deps.
+//TODO find a better way to do this, this is hacky and shitty
+exports.punycode = fs.readFileSync(require.resolve('../../node_modules/url/node_modules/punycode'), 'utf8');
+exports.querystring = fs.readFileSync(require.resolve('../../node_modules/url/node_modules/querystring'), 'utf8');
+exports.url = fs.readFileSync(require.resolve('../../node_modules/url'), 'utf8');
+exports['is-url'] = fs.readFileSync(require.resolve('is-url'), 'utf8');
+
+exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8'); 
 
 exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8') + '\n'; //note the '\n' (fuck my life)
-exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
-exports.ldpkgJsonLd = fs.readFileSync(require.resolve('datapackage-jsonld'), 'utf8');
+exports['datapackage-jsonld'] = fs.readFileSync(require.resolve('datapackage-jsonld'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
 exports['dpkg-util'] =
   [ 'exports.root = root',
