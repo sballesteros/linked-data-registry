@@ -26,6 +26,8 @@ views.byNameAndVersion = {
   reduce: '_count'
 };
 
+
+//TODO remove @type
 views.byKeyword = {
   map: function (doc) {
 
@@ -34,7 +36,6 @@ views.byKeyword = {
     doc.name.trim().toLowerCase().split('-').forEach(function(n){
       emit(n, objTop);
     });
-
     
     if('resources' in doc){
       doc.resources.forEach(function(r) {      
@@ -59,6 +60,6 @@ views.byKeyword = {
     }
 
   },
-    
+  
   reduce: "_count"
 };

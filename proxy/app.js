@@ -13,7 +13,8 @@ var http = require('http')
   , async = require('async')
   , mime = require('mime')
   , url = require('url')
-  , ldpkgJsonLd = require('datapackage-jsonld')
+  , jsonld = require('jsonld')
+  , dpkgJsonLd = require('datapackage-jsonld')
   , pkgJson = require('../package.json');
 
 mime.define({
@@ -110,7 +111,6 @@ app.get('/', getStanProxyUrl, function(req, res, next){
       '<http://schema.org>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
     ].join(','));
 
-
     res.json(headers['status-code'], { 
       '@id': req.stanProxy,
       '@type': 'DataCatalog',
@@ -158,8 +158,8 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 app.get('/contexts/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
   res.set('Content-Type', 'application/ld+json');  
 
-  ldpkgJsonLd.context['@base'] = req.stanProxy + '/';
-  res.send(JSON.stringify(ldpkgJsonLd.context));
+  dpkgJsonLd.context['@base'] = req.stanProxy + '/';
+  res.send(JSON.stringify(dpkgJsonLd.context));
 });
 
 
@@ -228,7 +228,6 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
   });
 
-
 });
 
 
@@ -258,7 +257,6 @@ app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 });
 
 
-
 app.get('/owner/ls/:dpkgName', function(req, res, next){
   _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.dpkgName}, function(err, body, headers) {
     if (err) return next(err);
@@ -272,8 +270,8 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
  */
 app.get('/:name', function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  req.pipe(request(rootCouch + rurl)).pipe(res);
-  //res.redirect(rootCouch + rurl);
+
+  serveJsonLd(rootCouch + rurl, function(x){return x;}, req, res, next);
 });
 
 
@@ -308,6 +306,68 @@ function maxSatisfyingVersion(req, res, next){
 };
 
 
+/**
+ * get a doc from couchdb located at docUrl and serve it according to
+ * the profile parameter of the Accept header
+ * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
+ */
+function serveJsonLd(docUrl, linkify, req, res, next){
+
+  request(docUrl, function(err, resp, body){
+    if(err) return next(err);
+
+    //TODO handle 400
+    body = JSON.parse(body);
+
+    //patch context
+    var context = dpkgJsonLd.context;
+    context['@base'] = req.stanProxy + '/';
+
+    res.format({
+      'application/json': function(){
+        res.set('Link', dpkgJsonLd.link);
+        res.send(resp.statusCode, linkify(body, {addCtx:false}));
+      },
+      
+      'application/ld+json': function(){
+        var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
+
+        if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
+
+          var profile = accepted.params.profile.replace(/^"(.*)"$/, '$1') //remove double quotes
+
+          switch(profile){
+
+          case 'http://www.w3.org/ns/json-ld#expanded':
+            jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
+              res.json(resp.statusCode, expanded);
+            });
+            break;
+
+          case 'http://www.w3.org/ns/json-ld#flattened':
+            jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
+              res.json(resp.statusCode, flattened);
+            });
+            break;
+            
+          default: //#compacted and everything else
+            res.json(resp.statusCode, linkify(body));        
+            break;
+          }
+          
+        } else {
+          res.json(resp.statusCode, linkify(body));        
+        }
+      }
+      
+      //TODO text/html / RDFa 1.1 lite case
+
+    });
+  });
+
+};
+
+
 app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){  
 
   var q = req.query || {};
@@ -321,11 +381,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
   }
   rurl += '?' + querystring.stringify(q);
 
-  res.set('Link', ldpkgJsonLd.link);
-  req.pipe(request(rootCouch + rurl)).pipe(res);
-  
-  //res.redirect(rootCouch + rurl);
-
+  serveJsonLd(rootCouch + rurl, dpkgJsonLd.linkDpkg, req, res, next);
 });
 
 
@@ -339,8 +395,25 @@ app.get('/:name/:version/:dataset', maxSatisfyingVersion, function(req, res, nex
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.dataset);
   rurl += (qs) ? '?' + qs : '';
 
-  req.pipe(request(rootCouch + rurl)).pipe(res);
-  //res.redirect(rootCouch + rurl);  
+  function linkify(dataset, options){
+    return dpkgJsonLd.linkDataset(dataset, req.params.name, req.params.version);
+  };
+
+  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+});
+
+
+app.get('/:name/:version/:dataset/:content', maxSatisfyingVersion, function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);
+  rurl += (qs) ? '?' + qs : '';
+
+  res.redirect(rootCouch + rurl);  
 });
 
 
@@ -389,7 +462,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             }
 
             r.distribution = {
-              contentUrl: '/' + doc._id.replace('@', '/') + '/' + r.name + '.' + format,
+              contentUrl:  doc._id.replace('@', '/') + '/' + r.name + '/' + r.name + '.' + format,
               contentSize: Buffer.byteLength(s, 'utf-8'),
               encodingFormat: format,
               hashAlgorithm: 'md5',
@@ -404,7 +477,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             if(!att) return;
 
             r.distribution = {
-              contentUrl: '/' + doc._id.replace('@', '/') + '/' + basename,
+              contentUrl: doc._id.replace('@', '/') + '/' + r.name + '/' + basename,
               contentSize: att.length,
               encodingFormat: mime.extension(att.content_type),
               hashAlgorithm: 'md5',

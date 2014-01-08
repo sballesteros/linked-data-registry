@@ -33,15 +33,20 @@ Version range can be specified as an
 ([encoreURIComponent](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent))
 [range](https://github.com/isaacs/node-semver#ranges) passed as query string parameter ```range```.
 
-### GET /:dpkgname/:version/:content
+### GET /:dpkgname/:version/:dataset
 
-Download content from a data package with name ```dpkgname``` and
+Download _metadata_ from a dataset named ```dataset``` from a data
+package with name ```dpkgname``` and [version](http://semver.org/)
+```version```. Version can be specifyied as ```latest``` and a qery
+string parameter ```range```.
+
+### GET /:dpkgname/:version/:dataset/:content
+
+Download _data_ (```content```) from a dataset named ```dataset```
+from a data package with name ```dpkgname``` and
 [version](http://semver.org/) ```version```. Version can be specifyied
 as ```latest``` and a qery string parameter ```range```.
 
-Content can be either:
-- the resource metadata (served as JSON interpreted as JSON-LD)
-- the resource content as indicated by ```distribution.contentUrl```
 
 ### PUT /adduser/:name
 

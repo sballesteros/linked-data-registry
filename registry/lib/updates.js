@@ -5,8 +5,6 @@ var updates = exports;
  */
 updates.distribution = function(doc, req){
 
-  var ldpkgJsonLd = require('ldpkgJsonLd');
-
   var resp = {headers : {"Content-Type" : "application/json"}};
 
   if(!doc){
@@ -27,7 +25,7 @@ updates.distribution = function(doc, req){
     
     resp.code = 200;
     resp.body = JSON.stringify({ok: 'distribution added'});
-    return [ldpkgJsonLd.ify(doc, {addCtx:false}), resp];
+    return [doc, resp];
 
   } else {
     resp.body = JSON.stringify({error: "not allowed"});

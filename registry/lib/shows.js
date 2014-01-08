@@ -2,14 +2,10 @@ var shows = exports;
 
 shows.datapackage = function(doc,req){
 
-  var util = require('dpkg-util')
-    , ldpkgJsonLd = require('datapackage-jsonld');
+  var util = require('dpkg-util');
 
   return {
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(util.clean(doc), null, 2)
   };
 
@@ -18,14 +14,13 @@ shows.datapackage = function(doc,req){
 
 shows.dataset = function(doc, req){
 
-  var util = require('dpkg-util')
-    , ldpkgJsonLd = require('datapackage-jsonld');
+  var util = require('dpkg-util');
 
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){
 
     return {
-      headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(r, null, 2)
     };
 
@@ -39,11 +34,11 @@ shows.dataset = function(doc, req){
     r = doc.dataset.filter(function(x){ return x.name === splt[0]; })[0];     
     if(r && splt.length > 1 ){
       return {
-        headers: { 'Content-Type': 'application/json', 'Link': ldpkgJsonLd.link },
+        headers: { 'Content-Type': 'application/json' },
         body: (typeof r.data === 'string') ? r.data: JSON.stringify(r.data, null, 2)
       };
     }
-    
+
     throw ['error', 'not_found', 'invalid dataset name'];
   }
 

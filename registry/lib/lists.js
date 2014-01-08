@@ -9,23 +9,15 @@ lists.latest = function(head, req){
   
   var doc = row.doc;
 
-  var util = require('dpkg-util')
-    , ldpkgJsonLd = require('datapackage-jsonld');
+  var util = require('dpkg-util');
 
-  start({
-    "headers": {
-      "Content-Type": "application/json",
-      'Link': ldpkgJsonLd.link + ((doc._attachments && 'README.md' in doc._attachments) ? ', <' + util.root(req) + '/registry/' + doc._id + '/' +'README.md>; rel="profile"' :'')
-    }
-  });
+  start({ "headers": { "Content-Type": "application/json" } });
   send(JSON.stringify(util.clean(doc), null, 2));
 
 };
 
+
 lists.versions = function(head, req){
-
-  var ldpkgJsonLd = require('ldpkgJsonLd');
-
   var row;
   var catalogs = [];
   while(row = getRow()){
@@ -45,10 +37,7 @@ lists.versions = function(head, req){
     });
     return send(JSON.stringify({error: "no results"}));        
   } else {
-    start({"headers": {
-      "Content-Type": "application/json",
-      'Link': ldpkgJsonLd.link
-    }});
+    start({"headers": {"Content-Type": "application/json"}});
     send(JSON.stringify({
       '@id': req.query.name,
       '@type': 'DataCatalog',

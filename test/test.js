@@ -7,7 +7,7 @@ var util = require('util')
   , request = require('request')
   , Readable = require('stream').Readable
   , querystring = require('querystring')
-  , ldpkgJsonLd = require('datapackage-jsonld')
+  , dpkgJsonLd = require('datapackage-jsonld')
   , cms = require('couch-multipart-stream')
   , path = require('path');
 
@@ -124,7 +124,7 @@ describe('data-registry', function(){
 
     it('should retrieve the latest version of test-dpkg as JSON interpreded as JSON-LD', function(done){
       request(rurl('/test-dpkg/latest'), function(err, resp, body){
-        assert.equal(ldpkgJsonLd.link, resp.headers.link);
+        assert.equal(dpkgJsonLd.link, resp.headers.link);
         assert.equal(JSON.parse(body).version, '0.0.1');      
         done();
       });
@@ -283,7 +283,7 @@ describe('data-registry', function(){
           schema: { fields: [ { name: 'a', type: 'string' }, { name: 'b', type: 'integer' } ] },
           data: [ { a: 'a', b: 1 }, { a: 'x', b: 2 } ],
           distribution: {
-            contentUrl: '/test-dpkg/0.0.0/inline.json',
+            contentUrl: 'test-dpkg/0.0.0/inline/inline.json',
             contentSize: 33,
             encodingFormat: 'json',
             hashAlgorithm: 'md5',
@@ -294,7 +294,7 @@ describe('data-registry', function(){
           name: 'x1',
           path: 'x1.csv',
           distribution: {
-            contentUrl: '/test-dpkg/0.0.0/x1.csv',
+            contentUrl: 'test-dpkg/0.0.0/x1/x1.csv',
             contentSize: 11,
             encodingFormat: 'csv',
             hashAlgorithm: 'md5',
@@ -304,7 +304,7 @@ describe('data-registry', function(){
         }
       ]
     };
-    expected = ldpkgJsonLd.ify(expected, {addCtx:false});
+    expected = dpkgJsonLd.linkDpkg(expected, {addCtx:false});
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -339,46 +339,69 @@ describe('data-registry', function(){
       });
     });
 
-    it('should have added a distribution property to dataset at publication and now serve the dpkg as JSON interpreted as JSON-LD ', function(done){      
+    it('should have added a distribution property to dataset at publication and now serve the dpkg as JSON interpreted as JSON-LD', function(done){      
       request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         delete body.datePublished;
-
-        assert.equal(ldpkgJsonLd.link, resp.headers.link);
+        assert.equal(dpkgJsonLd.link, resp.headers.link);
         assert.deepEqual(body, expected);   
         done();
       });
     });
 
-    it('should get a JSON dataset interpreted as JSON-LD', function(done){      
+    it('should get the datapackage as compacted JSON-LD', function(done){      
+      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
+        body = JSON.parse(body);
+        assert('@context' in body);
+        done();
+      });
+    });
+
+    it('should get the datapackage as expanded JSON-LD', function(done){      
+      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
+        body = JSON.parse(body);
+        assert(Array.isArray(body));
+        done();
+      });
+    });
+
+    it('should get the datapackage as flattened JSON-LD', function(done){      
+      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
+        body = JSON.parse(body);
+        assert('@graph' in body);
+        done();
+      });
+    });
+
+    it('should get a JSON dataset interpreted as JSON-LD', function(done){           
       request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
-        assert.equal(ldpkgJsonLd.link, resp.headers.link);
+        assert.equal(dpkgJsonLd.link, resp.headers.link);
         assert.deepEqual(JSON.parse(body), expected.dataset[1]);
         done();
       });
     });
 
     it('should get an attachment coming from a file', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/x1.csv'), function(err, resp, body){
+      request.get(rurl('/test-dpkg/0.0.0/x1/x1.csv'), function(err, resp, body){
         assert.equal(body, x1);
         done();
       });
     });
 
     it('should error on invalid attachment location', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/x1xxxxx.csv'), function(err, resp, body){
+      request.get(rurl('/test-dpkg/0.0.0/x1/x1xxxxx.csv'), function(err, resp, body){
         assert(resp.statusCode, 404);
         done();
       });
     });
 
     it('should get a pseudo attachment coming from a inline data', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/inline.json'), function(err, resp, body){
+      request.get(rurl('/test-dpkg/0.0.0/inline/inline.json'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), dpkg.dataset[0].data);           
         done();
       });
     });
-
+    
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-dpkg@0.0.0', function(){
