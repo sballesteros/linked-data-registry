@@ -95,7 +95,7 @@ function rmAll(done){
 describe('data-registry', function(){
   this.timeout(4000);
 
-  describe('auth: no side effect and versions', function(){
+  describe('auth: no side effect search and versions', function(){
 
     before(function(done){
       createFixture(done);
@@ -111,6 +111,18 @@ describe('data-registry', function(){
     it('should have a dpkg', function(done){
       registry.get('test-dpkg@0.0.0', function(err, body){
         assert.equal(body._id, 'test-dpkg@0.0.0');      
+        done();
+      });
+    });
+
+    it('should search', function(done){
+      request(rurl('/search?keys=["test"]'), function(err, resp, body){
+        var expected = [
+          {"id":"test-dpkg@0.0.0","key":"test","value":{"_id":"test-dpkg@0.0.0","name":"test-dpkg","description":""}},
+          {"id":"test-dpkg@0.0.1","key":"test","value":{"_id":"test-dpkg@0.0.1","name":"test-dpkg","description":""}}
+        ].map(function(x){ return JSON.stringify(x); }).join('\n') + '\n';
+
+        assert.equal(body, expected);
         done();
       });
     });
