@@ -101,7 +101,7 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
-
+//TODO content negot
 app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
 
@@ -158,7 +158,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 app.get('/contexts/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
   res.set('Content-Type', 'application/ld+json');  
 
-  dpkgJsonLd.context['@base'] = req.stanProxy + '/';
+  dpkgJsonLd.context['@context']['@base'] = req.stanProxy + '/';
   res.send(JSON.stringify(dpkgJsonLd.context));
 });
 
@@ -268,7 +268,7 @@ app.get('/owner/ls/:dpkgName', function(req, res, next){
 /**
  * list of versions
  */
-app.get('/:name', function(req, res, next){
+app.get('/:name', getStanProxyUrl, function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
 
   serveJsonLd(rootCouch + rurl, function(x){return x;}, req, res, next);
@@ -316,16 +316,26 @@ function serveJsonLd(docUrl, linkify, req, res, next){
   request(docUrl, function(err, resp, body){
     if(err) return next(err);
 
-    //TODO handle 400
-    body = JSON.parse(body);
+    if (resp.statusCode >= 400){
+      errorCode(body || 'fail', resp.statusCode);
+      return next(err);
+    }
+    
+    try {
+      body = JSON.parse(body);
+    } catch(e){
+      return next(e);      
+    }
 
     //patch context
     var context = dpkgJsonLd.context;
-    context['@base'] = req.stanProxy + '/';
+
+    context['@context']['@base'] = req.stanProxy + '/';
 
     res.format({
       'application/json': function(){
-        res.set('Link', dpkgJsonLd.link);
+        var linkHeader = '<' + context['@context']['@base'] + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+        res.set('Link', linkHeader);
         res.send(resp.statusCode, linkify(body, {addCtx:false}));
       },
       
@@ -351,12 +361,12 @@ function serveJsonLd(docUrl, linkify, req, res, next){
             break;
             
           default: //#compacted and everything else
-            res.json(resp.statusCode, linkify(body));        
+            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/contexts/datapackage.jsonld'}));
             break;
           }
           
         } else {
-          res.json(resp.statusCode, linkify(body));        
+          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/contexts/datapackage.jsonld'}));        
         }
       }
       
@@ -385,7 +395,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
 });
 
 
-app.get('/:name/:version/:dataset', maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/:dataset', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;

@@ -19,6 +19,8 @@ function rurl(path){
   return 'http://127.0.0.1:3000' + path
 };
 
+var linkHeader = '<http://localhost:3000/>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+
 function rm(db, id, cb){
   db['head'](id, function(err, _, headers){
     var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';    
@@ -136,7 +138,7 @@ describe('data-registry', function(){
 
     it('should retrieve the latest version of test-dpkg as JSON interpreded as JSON-LD', function(done){
       request(rurl('/test-dpkg/latest'), function(err, resp, body){
-        assert.equal(dpkgJsonLd.link, resp.headers.link);
+        assert.equal(linkHeader, resp.headers.link);
         assert.equal(JSON.parse(body).version, '0.0.1');      
         done();
       });
@@ -355,7 +357,7 @@ describe('data-registry', function(){
       request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         delete body.datePublished;
-        assert.equal(dpkgJsonLd.link, resp.headers.link);
+        assert.equal(linkHeader, resp.headers.link);
         assert.deepEqual(body, expected);   
         done();
       });
@@ -387,7 +389,7 @@ describe('data-registry', function(){
 
     it('should get a JSON dataset interpreted as JSON-LD', function(done){           
       request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
-        assert.equal(dpkgJsonLd.link, resp.headers.link);
+        assert.equal(linkHeader, resp.headers.link);
         assert.deepEqual(JSON.parse(body), expected.dataset[1]);
         done();
       });
