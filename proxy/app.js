@@ -458,6 +458,8 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
         var dataset = doc.dataset || [];
 
+        var att;
+
         dataset.forEach(function(r){
           if('data' in r){
 
@@ -482,7 +484,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           } else if ('path' in r && '_attachments' in doc){
             
             var basename = path.basename(r.path);
-            var att = doc._attachments[basename];   
+            att = doc._attachments[basename];   
 
             if(!att) return;
 
@@ -506,7 +508,19 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           }
         });
         
-        registry.atomic('registry', 'distribution', doc._id, dataset, function(err, body, headers){
+        var postData = { dataset: dataset };
+        if( ('_attachments' in doc) && ('dist_.tar.gz' in doc._attachments) ){
+          att = doc._attachments['dist_.tar.gz'];
+          postData.encoding = {
+            contentUrl: doc._id.replace('@', '/') + '/dist_/dist_.tar.gz',
+            contentSize: att.length,
+            encodingFormat: mime.extension(att.content_type),
+            hashAlgorithm: 'md5',
+            hashValue:  (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex')
+          }
+        }
+
+        registry.atomic('registry', 'distribution', doc._id, postData, function(err, body, headers){
           if(err) return next(err);
           res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
         });
