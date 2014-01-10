@@ -27,6 +27,12 @@ updates.distribution = function(doc, req){
       doc.encoding = data.encoding;
     }
 
+    if(doc._attachments && doc._attachments['README.md']){
+      doc.about = doc.about || {};
+      doc.about.name = "README.md",
+      doc.about.url = doc.name + '/' + doc.version + '/about/README.md'
+    }
+
     resp.code = 200;
     resp.body = JSON.stringify({ok: 'distribution added'});
     return [doc, resp];
