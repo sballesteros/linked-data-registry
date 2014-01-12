@@ -44,12 +44,12 @@ var dpkg = {
   dataset: [
     {
       name: 'inline',
+      '@context': { 
+        xsd: "http://www.w3.org/2001/XMLSchema#",
+        a: { '@id': '_:a', '@type': 'xsd:string' }, 
+        b: { '@id': '_:b', '@type': 'xsd:integer' }
+      },
       distribution: {        
-        '@context': { 
-          xsd: "http://www.w3.org/2001/XMLSchema#",
-          a: { '@id': '_:a', '@type': 'xsd:string' }, 
-          b: { '@id': '_:b', '@type': 'xsd:integer' }
-        },
         contentData: [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
       }
     }
@@ -302,12 +302,12 @@ describe('data-registry', function(){
           '@id': 'test-dpkg/0.0.0/dataset/inline',
           '@type': 'Dataset',
           name: 'inline',
+          '@context': {
+            xsd: 'http://www.w3.org/2001/XMLSchema#',
+            a: { '@id': '_:a', '@type': 'xsd:string' },
+            b: { '@id': '_:b', '@type': 'xsd:integer' } 
+          },
           distribution: {
-            '@context': {
-              xsd: 'http://www.w3.org/2001/XMLSchema#',
-              a: { '@id': '_:a', '@type': 'xsd:string' },
-              b: { '@id': '_:b', '@type': 'xsd:integer' } 
-            },
             '@type': 'DataDownload',
             contentUrl: 'test-dpkg/0.0.0/dataset/inline/inline.json',
             contentSize: 33,
