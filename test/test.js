@@ -43,10 +43,15 @@ var dpkg = {
   version: '0.0.0',
   dataset: [
     {
-      'name': 'inline',
-      'format': 'json',
-      'schema': { 'fields': [ {'name': 'a', 'type': 'string'}, {'name': 'b', 'type': 'integer'}] },
-      'data': [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
+      name: 'inline',
+      distribution: {        
+        '@context': { 
+          xsd: "http://www.w3.org/2001/XMLSchema#",
+          a: { '@id': '_:a', '@type': 'xsd:string' }, 
+          b: { '@id': '_:b', '@type': 'xsd:integer' }
+        },
+        contentData: [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
+      }
     }
   ]
 };
@@ -285,39 +290,56 @@ describe('data-registry', function(){
 
   describe('dataset and attachments', function(){
 
-    var x1 = [["a","b"],[1,2],[3,4]].join('\n');
+    var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
 
-    var expected = {
+    var expected = { 
+      '@id': 'test-dpkg/0.0.0',
+      '@type': 'DataCatalog',
       name: 'test-dpkg',
       version: '0.0.0',
       dataset: [
         {
+          '@id': 'test-dpkg/0.0.0/dataset/inline',
+          '@type': 'Dataset',
           name: 'inline',
-          format: 'json',
-          schema: { fields: [ { name: 'a', type: 'string' }, { name: 'b', type: 'integer' } ] },
-          data: [ { a: 'a', b: 1 }, { a: 'x', b: 2 } ],
           distribution: {
-            contentUrl: 'test-dpkg/0.0.0/inline/inline.json',
+            '@context': {
+              xsd: 'http://www.w3.org/2001/XMLSchema#',
+              a: { '@id': '_:a', '@type': 'xsd:string' },
+              b: { '@id': '_:b', '@type': 'xsd:integer' } 
+            },
+            '@type': 'DataDownload',
+            contentUrl: 'test-dpkg/0.0.0/dataset/inline/inline.json',
             contentSize: 33,
             encodingFormat: 'json',
             hashAlgorithm: 'md5',
-            hashValue: '9c25c6c3f5a37454d9c5d6a772212821' 
-          }
+            hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
+            //uploadDate: '2014-01-12T01:16:24.939Z'
+          },
+          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
         },
         {
+          '@id': 'test-dpkg/0.0.0/dataset/x1',
+          '@type': 'Dataset',
           name: 'x1',
-          path: 'x1.csv',
           distribution: {
-            contentUrl: 'test-dpkg/0.0.0/x1/x1.csv',
+            '@type': 'DataDownload',
+            contentPath: 'x1.csv',
+            contentUrl: 'test-dpkg/0.0.0/dataset/x1/x1.csv',
             contentSize: 11,
             encodingFormat: 'csv',
             hashAlgorithm: 'md5',
             hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
-            encoding: { contentSize: 31, encodingFormat: 'gzip' } 
-          }
+            encoding: { contentSize: 31, encodingFormat: 'gzip' },
+            //uploadDate: '2014-01-12T01:16:24.939Z'
+          },
+          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' }
         }
-      ]
+      ],
+      //datePublished: '2014-01-12T01:16:24.939Z',
+      catalog: { name: 'test-dpkg', url: 'test-dpkg' } 
     };
+
     expected = dpkgJsonLd.linkDpkg(expected, {addCtx:false});
 
     before(function(done){     
@@ -329,7 +351,7 @@ describe('data-registry', function(){
         s1.push(x1);
         s1.push(null);
 
-        mydpkg.dataset.push({name: 'x1', path: 'x1.csv'});
+        mydpkg.dataset.push({name: 'x1', distribution: {contentPath: 'x1.csv'}});
         mydpkg._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
 
         var s = cms(mydpkg);
@@ -353,12 +375,27 @@ describe('data-registry', function(){
       });
     });
 
-    it('should have added a distribution property to dataset at publication and now serve the dpkg as JSON interpreted as JSON-LD', function(done){      
+    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the dpkg as JSON interpreted as JSON-LD', function(done){      
       request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
+        assert('datePublished' in body);
         delete body.datePublished;
+        body.dataset.forEach(function(d){
+          if('distribution' in d){
+            assert('uploadDate' in d.distribution);
+            delete d.distribution.uploadDate;
+          }
+        });
         assert.equal(linkHeader, resp.headers.link);
         assert.deepEqual(body, expected);   
+        done();
+      });
+    });
+
+    it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0?contentData=true'), function(err, resp, body){
+        body = JSON.parse(body);
+        assert.deepEqual(body.dataset[0].distribution.contentData, dpkg.dataset[0].distribution.contentData);   
         done();
       });
     });
@@ -390,32 +427,73 @@ describe('data-registry', function(){
     it('should get a JSON dataset interpreted as JSON-LD', function(done){           
       request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
-        assert.deepEqual(JSON.parse(body), expected.dataset[1]);
+        body = JSON.parse(body);
+        delete body.distribution.uploadDate;        
+        assert.deepEqual(body, expected.dataset[1]);
         done();
       });
     });
 
     it('should get an attachment coming from a file', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/x1/x1.csv'), function(err, resp, body){
+      request.get(rurl('/test-dpkg/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
         assert.equal(body, x1);
         done();
       });
     });
 
     it('should error on invalid attachment location', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/x1/x1xxxxx.csv'), function(err, resp, body){
+      request.get(rurl('/test-dpkg/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
         assert(resp.statusCode, 404);
         done();
       });
     });
 
     it('should get a pseudo attachment coming from a inline data', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/inline/inline.json'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), dpkg.dataset[0].data);           
+      request.get(rurl('/test-dpkg/0.0.0/dataset/inline/inline.json'), function(err, resp, body){
+        assert.deepEqual(JSON.parse(body), dpkg.dataset[0].distribution.contentData);
         done();
       });
     });
     
+    after(function(done){
+      rm(_users, 'org.couchdb.user:user_a', function(){
+        rm(registry, 'test-dpkg@0.0.0', function(){
+          done();
+        });
+      });      
+    });
+    
+  });
+
+  describe('analytics', function(){
+
+    before(function(done){     
+      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
+        var mydpkg = {
+          name: 'test-dpkg',
+          version: '0.0.0',
+          analytics: [ { name: 'comp' } ]
+        };
+
+        request.put( { url: rurl('/test-dpkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: mydpkg }, function(err, resp, body){
+          done();
+        });
+      });
+    });
+
+    it('should get an analytics', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/analytics/comp'), function(err, resp, body){
+        var expected = {
+          '@id': 'test-dpkg/0.0.0/analytics/comp',
+          '@type': 'Code',
+          name: 'comp',
+          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
+        };
+        assert.deepEqual(JSON.parse(body), expected);
+        done();
+      });
+    });
+
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-dpkg@0.0.0', function(){

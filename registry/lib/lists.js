@@ -12,7 +12,7 @@ lists.latest = function(head, req){
   var util = require('dpkg-util');
 
   start({ "headers": { "Content-Type": "application/json" } });
-  send(JSON.stringify(util.clean(doc), null, 2));
+  send(JSON.stringify(util.clean(doc, req), null, 2));
 
 };
 

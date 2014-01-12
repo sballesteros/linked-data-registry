@@ -26,11 +26,21 @@ exports['dpkg-util'] =
     },
 
     'exports.clean = clean',
-    function clean(dpkg){
+    function clean(dpkg, req){
       delete dpkg._id; 
       delete dpkg._rev;
       delete dpkg._revisions;
       delete dpkg._attachments;
+
+      if(! req.query.contentData){
+        if('dataset' in dpkg){
+          dpkg.dataset.forEach(function(d){
+            if(d.distribution){
+              delete d.distribution.contentData;
+            }
+          });
+        }
+      }
 
       return dpkg;
     },

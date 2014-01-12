@@ -21,7 +21,15 @@ updates.distribution = function(doc, req){
     }
 
     doc.datePublished = (new Date()).toISOString();
-    doc.dataset = data.dataset;
+
+    if('dataset' in data){
+      doc.dataset = data.dataset;
+      doc.dataset.forEach(function(d){
+        if(d.distribution){
+          d.distribution.uploadDate = (new Date()).toISOString();
+        }
+      });
+    }
 
     if(data.encoding){
       doc.encoding = data.encoding;

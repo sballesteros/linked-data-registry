@@ -106,12 +106,10 @@ app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
 
     if (err) return next(err);    
-    res.set('Link', [
-      '<https://raw.github.com/standard-analytics/linked-data-registry/master/README.md> rel="profile"',
-      '<http://schema.org>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
-    ].join(','));
+    res.set('Link', '<https://raw.github.com/standard-analytics/linked-data-registry/master/README.md> rel="profile"');
 
     res.json(headers['status-code'], { 
+      '@context': "https://w3id.org/schema.org", //TODO Schema.org team is already working on this issue and it is expected to be resolved in a couple of weeks
       '@id': req.stanProxy,
       '@type': 'DataCatalog',
       name: 'linked-data-registry',
@@ -152,7 +150,6 @@ app.get('/', getStanProxyUrl, function(req, res, next){
     });
   });
 });
-
 
 
 app.get('/contexts/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
@@ -395,14 +392,14 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
 });
 
 
-app.get('/:name/:version/:dataset', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.dataset);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(dataset, options){
@@ -413,14 +410,34 @@ app.get('/:name/:version/:dataset', getStanProxyUrl, maxSatisfyingVersion, funct
 });
 
 
-app.get('/:name/:version/:dataset/:content', maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/analytics/:analytics', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/analytics/' + req.params.analytics);
+  rurl += (qs) ? '?' + qs : '';
+
+  function linkify(analytics, options){
+    return dpkgJsonLd.linkAnalytics(analytics, req.params.name, req.params.version);
+  };
+
+  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+});
+
+
+
+
+app.get('/:name/:version/dataset/:dataset/:content', maxSatisfyingVersion, function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.content);
   rurl += (qs) ? '?' + qs : '';
 
   res.redirect(rootCouch + rurl);  
@@ -439,7 +456,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only data package < 200Mo'});
   }
 
-  function addDistributionAndstore(dpkgNameIfIsFirst){
+  function distributionAndstore(dpkgNameIfIsFirst){
     var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
@@ -455,60 +472,62 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
       registry.get(body.id, {att_encoding_info: true}, function(err, doc) {
         if(err) return next(err);
         
-        //add distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
+        //append distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
         var dataset = doc.dataset || [];
 
         var att;
 
         dataset.forEach(function(r){
-          if('data' in r){
 
-            var s = (typeof r.data === 'string') ? r.data: JSON.stringify(r.data);
+          if(!r.distribution) return;
+
+          var d = r.distribution;
+
+          if('contentData' in d){
+
+            var s = (typeof d.contentData === 'string') ? d.contentData: JSON.stringify(d.contentData);
 
             var format;
-            if( ('encoding' in r) && (typeof r.encoding === 'object') && !Array.isArray(r.encoding) && (typeof r.encoding.encodingFormat === 'string') ){
-              format =  r.encoding.encodingFormat;
+            if( typeof d.encodingFormat === 'string' ){
+              format =  d.encodingFormat;
             } else {
-              format = (typeof r.data === 'string') ? 'txt':
+              format = (typeof d.contentData === 'string') ? 'txt':
                 (s.indexOf('@context') !== -1) ? 'jsonld' : 'json';
             }
-
-            r.distribution = {
-              contentUrl:  doc._id.replace('@', '/') + '/' + r.name + '/' + r.name + '.' + format,
-              contentSize: Buffer.byteLength(s, 'utf-8'),
-              encodingFormat: format,
-              hashAlgorithm: 'md5',
-              hashValue: crypto.createHash('md5').update(s).digest('hex')
-            };
-
-          } else if ('path' in r && '_attachments' in doc){
             
-            var basename = path.basename(r.path);
+            d.contentUrl =  doc._id.replace('@', '/') + '/dataset/' + r.name + '/' + r.name + '.' + format;
+            d.contentSize = Buffer.byteLength(s, 'utf-8');
+            d.encodingFormat = format;
+            d.hashAlgorithm = 'md5';
+            d.hashValue = crypto.createHash('md5').update(s).digest('hex');
+
+          } else if ('contentPath' in d && '_attachments' in doc){
+            
+            var basename = path.basename(d.contentPath);
             att = doc._attachments[basename];   
 
             if(!att) return;
 
-            r.distribution = {
-              contentUrl: doc._id.replace('@', '/') + '/' + r.name + '/' + basename,
-              contentSize: att.length,
-              encodingFormat: mime.extension(att.content_type),
-              hashAlgorithm: 'md5',
-              hashValue:  (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex')
-            };
+            d.contentUrl = doc._id.replace('@', '/') + '/dataset/' + r.name + '/' + basename;
+            d.contentSize = att.length;
+            d.encodingFormat = mime.extension(att.content_type);
+            d.hashAlgorithm = 'md5';
+            d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
 
             if('encoding' in att){
-              r.distribution.encoding = {
+              d.encoding = {
                 contentSize: att.encoded_length,
                 encodingFormat: att.encoding
               };
             }
 
-          } else if ('url' in r) {
-            r.distribution = { isBasedOnUrl: r.url };
           }
+
+
         });
         
         var postData = { dataset: dataset };
+
         if( ('_attachments' in doc) && ('dist_.tar.gz' in doc._attachments) ){
           att = doc._attachments['dist_.tar.gz'];
           postData.encoding = {
@@ -540,12 +559,12 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         if(headers['status-code'] >= 400){
           return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
         } else {
-          addDistributionAndstore(req.params.name);
+          distributionAndstore(req.params.name);
         };
 
       });
     } else {
-      addDistributionAndstore();
+      distributionAndstore();
     }
   });
 

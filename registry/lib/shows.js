@@ -6,7 +6,7 @@ shows.datapackage = function(doc,req){
 
   return {
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(util.clean(doc), null, 2)
+    body: JSON.stringify(util.clean(doc, req), null, 2)
   };
 
 };
@@ -35,11 +35,28 @@ shows.dataset = function(doc, req){
     if(r && splt.length > 1 ){
       return {
         headers: { 'Content-Type': 'application/json' },
-        body: (typeof r.data === 'string') ? r.data: JSON.stringify(r.data, null, 2)
+        body: (typeof r.distribution.contentData === 'string') ? r.distribution.contentData: JSON.stringify(r.distribution.contentData, null, 2)
       };
     }
 
     throw ['error', 'not_found', 'invalid dataset name'];
+  }
+
+};
+
+
+shows.analytics = function(doc, req){
+
+  var r = doc.analytics.filter(function(x){ return x.name === req.query.analytics; })[0];
+  if(r){
+
+    return {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(r, null, 2)
+    };
+
+  } else {
+    throw ['error', 'not_found', 'invalid analytics name'];
   }
 
 };

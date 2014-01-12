@@ -8,7 +8,7 @@ Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
 
 - build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
-- data package are served as [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
+- data package are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
 - semantic search is supported
 
 A client is in development [here](https://github.com/standard-analytics/ldpm).
@@ -20,12 +20,13 @@ API
 ### GET /:dpkgname
 
 Get a JSON array of all the [versions](http://semver.org/) of the data
-package with name ```dpkgname```.
+package with name ```:dpkgname```.
+
 
 ### GET /:dpkgname/:version
 
-Download a data package of name ```dpkgname``` and
-[version](http://semver.org/) ```version``` as
+Download a data package of name ```:dpkgname``` and
+[version](http://semver.org/) ```:version``` as
 [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld). If
 version is ```latest```, the latest version is returned.
 
@@ -33,19 +34,33 @@ Version range can be specified as an
 ([encoreURIComponent](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent))
 [range](https://github.com/isaacs/node-semver#ranges) passed as query string parameter ```range```.
 
-### GET /:dpkgname/:version/:dataset
+If a datapackage contains inline data, by default the inline data are
+_not_ returned unless the query string parameter ```contentData``` is
+set to ```true```.
 
-Download _metadata_ from a dataset named ```dataset``` from a data
-package with name ```dpkgname``` and [version](http://semver.org/)
-```version```. Version can be specifyied as ```latest``` and a qery
+
+### GET /:dpkgname/:version/dataset/:dataset
+
+Download _metadata_ from a dataset named ```:dataset``` from a data
+package with name ```:dpkgname``` and [version](http://semver.org/)
+```:version```. Version can be specifyied as ```latest``` and a qery
 string parameter ```range```.
 
-### GET /:dpkgname/:version/:dataset/:content
 
-Download _data_ (```content```) from a dataset named ```dataset```
-from a data package with name ```dpkgname``` and
-[version](http://semver.org/) ```version```. Version can be specifyied
+### GET /:dpkgname/:version/dataset/:dataset/:content
+
+Download _data_ (```:content```) from a dataset named ```:dataset```
+from a data package with name ```:dpkgname``` and
+[version](http://semver.org/) ```:version```. Version can be specifyied
 as ```latest``` and a qery string parameter ```range```.
+
+
+### GET /:dpkgname/:version/analytics/:analytics
+
+Download _metadata_ from an analytics named ```:analytics``` from a data
+package with name ```:dpkgname``` and [version](http://semver.org/)
+```:version```. Version can be specifyied as ```latest``` and a qery
+string parameter ```range```.
 
 
 ### PUT /adduser/:name
@@ -59,7 +74,7 @@ data:
       email: email
     }
     
-Create an user of username ```name```.
+Create an user of username ```:name```.
 
 
 ### PUT /:dpkgname/:version
@@ -71,18 +86,18 @@ for details. You might want to look at the
 [couch-multipart-stream](https://github.com/standard-analytics/couch-multipart-stream)
 node module.
 
-Publish a specific ```version``` of the data package of name ```dpkgname```.
+Publish a specific ```:version``` of the data package of name ```:dpkgname```.
 
 
 ### DELETE /:dpkgname/:version?
 
-Delete data package of name ```dpkgname``` and version
-```version```. If version is omitted all the versions are deleted.
+Delete data package of name ```:dpkgname``` and version
+```:version```. If version is omitted all the versions are deleted.
 
 
 ### GET /owner/ls/:dpkgname
 
-List the maintainers of data package of name ```dpkgname```.
+List the maintainers of data package of name ```:dpkgname```.
 
 
 ### POST /owner/add
@@ -95,7 +110,8 @@ data:
     }
 
 
-Add maintainer ```name``` to the data package ```dpkgname```.
+Add maintainer ```:name``` to the data package ```:dpkgname```.
+
 
 ### POST /owner/rm
 
@@ -106,7 +122,7 @@ data:
       dpkgName: dpkgname
     }
 
-Remove maintainer ```name``` from the data package ```dpkgname```.
+Remove maintainer ```:name``` from the data package ```:dpkgname```.
 
 
 ### GET /search?keys=["search", "terms"]
