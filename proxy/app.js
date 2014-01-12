@@ -428,6 +428,21 @@ app.get('/:name/:version/analytics/:analytics', getStanProxyUrl, maxSatisfyingVe
 });
 
 
+/**
+ * get dist_ or readme
+ */
+app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/registry/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);  
+  rurl += (qs) ? '?' + qs : '';
+
+  res.redirect(rootCouch + rurl);  
+});
 
 
 app.get('/:name/:version/dataset/:dataset/:content', maxSatisfyingVersion, function(req, res, next){
