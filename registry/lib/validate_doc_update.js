@@ -56,6 +56,14 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { forbidden: tv4.error.message };
   }
   
+  //validate that if it has a context it's ours
+  if('@context' in newDoc){
+    var reCtx = new RegExp(ldpkgJsonLd.contextUrl.replace(/^https/, 'http').replace(/^http/, 'https?'));    
+    if( ! ( (typeof newDoc['@context'] === 'string') && reCtx.test(newDoc['@context'])) ){
+      throw { forbidden: 'invalid @context' };
+    }
+  }
+
   //validate version  
   if(!semver.valid(newDoc.version)){
     throw { forbidden: 'invalid version ' + newDoc.version };    
