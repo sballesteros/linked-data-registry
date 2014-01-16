@@ -152,7 +152,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 });
 
 
-app.get('/contexts/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
+app.get('/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
   res.set('Content-Type', 'application/ld+json');  
 
   dpkgJsonLd.context['@context']['@base'] = req.stanProxy + '/';

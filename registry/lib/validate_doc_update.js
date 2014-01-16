@@ -14,7 +14,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if([ 'rmuser', 'adduser', 'owner', 'search', 'contexts', 'dataset', 'analytics', 'about' ].indexOf(newDoc.name) !==-1){
+  if([ 'rmuser', 'adduser', 'owner', 'search', 'datapackage.jsonld', 'dataset', 'analytics', 'about' ].indexOf(newDoc.name) !==-1){
     throw { forbidden: 'data package cannot be named '+ newDoc.name };    
   }
 
