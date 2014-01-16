@@ -154,7 +154,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 
 app.get('/datapackage.jsonld', getStanProxyUrl, function(req, res, next){
   res.set('Content-Type', 'application/ld+json');  
-
+  
   dpkgJsonLd.context['@context']['@base'] = req.stanProxy + '/';
   res.send(JSON.stringify(dpkgJsonLd.context));
 });
@@ -311,6 +311,7 @@ function maxSatisfyingVersion(req, res, next){
 function serveJsonLd(docUrl, linkify, req, res, next){
 
   request(docUrl, function(err, resp, body){
+    
     if(err) return next(err);
 
     if (resp.statusCode >= 400){
@@ -358,12 +359,12 @@ function serveJsonLd(docUrl, linkify, req, res, next){
             break;
             
           default: //#compacted and everything else
-            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/contexts/datapackage.jsonld'}));
+            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/datapackage.jsonld'}));
             break;
           }
           
         } else {
-          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/contexts/datapackage.jsonld'}));        
+          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/datapackage.jsonld'}));        
         }
       }
       
