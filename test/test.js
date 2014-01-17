@@ -11,6 +11,8 @@ var util = require('util')
   , cms = require('couch-multipart-stream')
   , path = require('path');
 
+request = request.defaults({headers: {'Accept': 'application/json'}});
+
 var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
@@ -19,7 +21,7 @@ function rurl(path){
   return 'http://127.0.0.1:3000' + path
 };
 
-var linkHeader = '<http://localhost:3000/>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+var linkHeader = '<http://localhost:3000/datapackage.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
 
 function rm(db, id, cb){
   db['head'](id, function(err, _, headers){
@@ -125,8 +127,8 @@ describe('data-registry', function(){
     it('should search', function(done){
       request(rurl('/search?keys=["test"]'), function(err, resp, body){
         var expected = [
-          {"id":"test-dpkg@0.0.0","key":"test","value":{"_id":"test-dpkg@0.0.0","name":"test-dpkg","description":""}},
-          {"id":"test-dpkg@0.0.1","key":"test","value":{"_id":"test-dpkg@0.0.1","name":"test-dpkg","description":""}}
+          {"id":"test-dpkg@0.0.0","key":"test","value": {"_id":"test-dpkg@0.0.0","name":"test-dpkg","description":""}},
+          {"id":"test-dpkg@0.0.1","key":"test","value": {"_id":"test-dpkg@0.0.1","name":"test-dpkg","description":""}}
         ].map(function(x){ return JSON.stringify(x); }).join('\n') + '\n';
 
         assert.equal(body, expected);

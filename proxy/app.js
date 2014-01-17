@@ -3,6 +3,7 @@ var http = require('http')
   , util = require('util')
   , semver = require('semver')
   , fs = require('fs')
+  , ejs = require('ejs')
   , path = require('path')
   , express = require('express')
   , querystring = require('querystring')
@@ -15,6 +16,7 @@ var http = require('http')
   , url = require('url')
   , jsonld = require('jsonld')
   , dpkgJsonLd = require('datapackage-jsonld')
+  , jsonldHtmlView = require('jsonld-html-view')
   , pkgJson = require('../package.json');
 
 mime.define({
@@ -50,6 +52,9 @@ var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
 
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(app.router);
 app.use(function(err, req, res, next){
   res.json(err.code || err.status_code || 400, {'error': err.message || ''});
@@ -108,7 +113,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
     if (err) return next(err);    
     res.set('Link', '<https://raw.github.com/standard-analytics/linked-data-registry/master/README.md> rel="profile"');
 
-    res.json(headers['status-code'], { 
+    var home = { 
       '@context': "https://w3id.org/schema.org", //TODO Schema.org team is already working on this issue and it is expected to be resolved in a couple of weeks
       '@id': req.stanProxy,
       '@type': 'DataCatalog',
@@ -147,7 +152,48 @@ app.get('/', getStanProxyUrl, function(req, res, next){
         'name': x.key,
         'url': req.stanProxy + '/' + x.key
       };})
+    };
+
+    var ctx = {
+      sch: 'http://schema.org',
+      name: 'sch:name',
+      version: 'sch:version',
+      keywords: 'sch:keywords',
+      description: 'sch:description',
+      author: 'sch:author',
+      founder: 'sch:founder',
+      url: { '@id': 'sch:url', '@type': '@id' },
+      email: 'sch:email',
+      discussionUrl: { '@id': 'sch:discussionUrl', '@type': '@id' },
+      isBasedOnUrl: { '@id': 'sch:isBasedOnUrl', '@type': '@id' },
+      publishingPrinciples: { '@id': 'sch:publishingPrinciples', '@type': '@id' },
+      catalog: 'sch:catalog',
+      Person: { '@id': 'sch:Person', '@type': '@id' },
+      DataCatalog: { '@id': 'sch:DataCatalog', '@type': '@id' },
+      Organization: { '@id': 'sch:Organization', '@type': '@id' }
+    };
+
+    res.format({
+      'text/html': function(){
+
+        try{
+          delete home['@context'];
+          home["<a href='#'>@context</a>"] = "<a href='https://w3id.org/schema.org'>https://w3id.org/schema.org</a>";          
+          var snippet = jsonldHtmlView.urlify(home, ctx);
+        } catch(e){
+          return next(e);
+        }
+
+        res
+          .status(res.statusCode)
+          .render('explore', {snippet:snippet});
+      },
+
+      'application/json': function(){
+        res.json(headers['status-code'], home);
+      }
     });
+
   });
 });
 
@@ -329,10 +375,26 @@ function serveJsonLd(docUrl, linkify, req, res, next){
     var context = dpkgJsonLd.context;
 
     context['@context']['@base'] = req.stanProxy + '/';
+    var contextUrl = context['@context']['@base'] + 'datapackage.jsonld';
 
     res.format({
+      'text/html': function(){
+
+        try{
+          var l = linkify(body, {addCtx:false});
+          l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
+          var snippet = jsonldHtmlView.urlify(l, context['@context'])
+        }catch(e){
+          return next(e);
+        }
+
+        res
+          .status(resp.statusCode)
+          .render('explore', {snippet:snippet});
+      },
+
       'application/json': function(){
-        var linkHeader = '<' + context['@context']['@base'] + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+        var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
         res.send(resp.statusCode, linkify(body, {addCtx:false}));
       },
