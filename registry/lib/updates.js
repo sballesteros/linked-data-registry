@@ -1,7 +1,7 @@
 var updates = exports;
 
 /**
- * add distribution
+ * add distribution metadata
  */
 updates.distribution = function(doc, req){
 
@@ -22,12 +22,23 @@ updates.distribution = function(doc, req){
 
     doc.datePublished = (new Date()).toISOString();
 
-    if('dataset' in data){
+    if('dataset' in data && data.dataset.length){
       doc.dataset = data.dataset;
       doc.dataset.forEach(function(d){
         if(d.distribution){
           d.distribution.uploadDate = (new Date()).toISOString();
         }
+      });
+    }
+
+    if('code' in data  && data.code.length){
+      doc.code = data.code;
+    }
+
+    if('figure' in data && data.figure.length){
+      doc.figure = data.figure;
+      doc.figure.forEach(function(d){
+        d.uploadDate = (new Date()).toISOString();
       });
     }
 

@@ -16,5 +16,6 @@ module.exports = [
   { from: '/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
   { from: '/first/:dpkg_id', to: '/_show/datapackage/:dpkg_id', method: 'GET' },
   { from: '/:dpkg_id/dataset/:dataset', to: '/_show/dataset/:dpkg_id', method: 'GET' },
-  { from: '/:dpkg_id/analytics/:analytics', to: '/_show/analytics/:dpkg_id', method: 'GET' }
+  { from: '/:dpkg_id/code/:code', to: '/_show/code/:dpkg_id', method: 'GET' },
+  { from: '/:dpkg_id/figure/:figure', to: '/_show/figure/:dpkg_id', method: 'GET' }
 ];

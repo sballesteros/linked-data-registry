@@ -47,7 +47,8 @@
     "is-url": "~0.1.0",
     "url": "~0.7.9",
     "jsonld-html-view": "*",
-    "ejs": "~0.8.5"
+    "ejs": "~0.8.5",
+    "gm": "^1.14.2"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

@@ -45,9 +45,9 @@ shows.dataset = function(doc, req){
 };
 
 
-shows.analytics = function(doc, req){
+shows.code = function(doc, req){
 
-  var r = doc.analytics.filter(function(x){ return x.name === req.query.analytics; })[0];
+  var r = doc.code.filter(function(x){ return x.name === req.query.code; })[0];
   if(r){
 
     return {
@@ -56,7 +56,25 @@ shows.analytics = function(doc, req){
     };
 
   } else {
-    throw ['error', 'not_found', 'invalid analytics name'];
+    throw ['error', 'not_found', 'invalid code entry name'];
+  }
+
+};
+
+
+
+shows.figure = function(doc, req){
+
+  var r = doc.figure.filter(function(x){ return x.name === req.query.figure; })[0];
+  if(r){
+
+    return {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(r, null, 2)
+    };
+
+  } else {
+    throw ['error', 'not_found', 'invalid figure name'];
   }
 
 };

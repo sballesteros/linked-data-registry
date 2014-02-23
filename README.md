@@ -13,6 +13,14 @@ but different because:
 
 A client is in development [here](https://github.com/standard-analytics/ldpm).
 
+Installation
+============
+
+This module uses [gm](https://github.com/aheckmann/gm) so first you
+need to download and install
+[GraphicsMagick](http://www.graphicsmagick.org/) or
+[ImageMagick](http://www.imagemagick.org/).
+
 
 API
 ===
@@ -55,12 +63,37 @@ from a data package with name ```:dpkgname``` and
 as ```latest``` and a qery string parameter ```range```.
 
 
-### GET /:dpkgname/:version/analytics/:analytics
+### GET /:dpkgname/:version/code/:code
 
-Download _metadata_ from an analytics named ```:analytics``` from a data
+Download _metadata_ from a code entry named ```:code``` from a data
 package with name ```:dpkgname``` and [version](http://semver.org/)
 ```:version```. Version can be specifyied as ```latest``` and a qery
 string parameter ```range```.
+
+### GET /:dpkgname/:version/code/:code/:content
+
+Download a _distribution_ (version of the code ready to be run)
+(```:content```) from a code entry named ```:code``` from a data
+package with name ```:dpkgname``` and [version](http://semver.org/)
+```:version```. Version can be specifyied as ```latest``` and a qery
+string parameter ```range```.
+
+
+### GET /:dpkgname/:version/figure/:figure
+
+Download _metadata_ from a figure named ```:figure``` from a data
+package with name ```:dpkgname``` and [version](http://semver.org/)
+```:version```. Version can be specifyied as ```latest``` and a qery
+string parameter ```range```.
+
+
+### GET /:dpkgname/:version/figure/:figure/:content
+
+Download _image file_ (```:content```) from a figure named
+```:figure``` from a data package with name ```:dpkgname``` and
+[version](http://semver.org/) ```:version```. Version can be
+specifyied as ```latest``` and a qery string parameter ```range```.
+
 
 
 ### PUT /adduser/:name

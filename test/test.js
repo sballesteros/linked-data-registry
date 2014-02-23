@@ -1,6 +1,7 @@
 var util = require('util')
   , http = require('http')
   , fs = require('fs')
+  , path = require('path')
   , assert = require('assert')
   , nano = require('nano')
   , clone = require('clone')
@@ -10,6 +11,9 @@ var util = require('util')
   , dpkgJsonLd = require('datapackage-jsonld')
   , cms = require('couch-multipart-stream')
   , path = require('path');
+
+
+var root = path.dirname(__filename);
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
 
@@ -102,7 +106,7 @@ function rmAll(done){
 };
 
 describe('data-registry', function(){
-  this.timeout(8000);
+  this.timeout(10000);
 
   describe('auth: no side effect search and versions', function(){
 
@@ -293,7 +297,7 @@ describe('data-registry', function(){
   describe('dataset and attachments', function(){
 
     var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
-
+    
     var expected = { 
       '@id': 'test-dpkg/0.0.0',
       '@type': 'DataCatalog',
@@ -313,7 +317,7 @@ describe('data-registry', function(){
             '@type': 'DataDownload',
             contentUrl: 'test-dpkg/0.0.0/dataset/inline/inline.json',
             contentSize: 33,
-            encodingFormat: 'json',
+            encodingFormat: 'application/json',
             hashAlgorithm: 'md5',
             hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
             //uploadDate: '2014-01-12T01:16:24.939Z'
@@ -329,10 +333,10 @@ describe('data-registry', function(){
             contentPath: 'x1.csv',
             contentUrl: 'test-dpkg/0.0.0/dataset/x1/x1.csv',
             contentSize: 11,
-            encodingFormat: 'csv',
+            encodingFormat: 'text/csv',
             hashAlgorithm: 'md5',
             hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
-            encoding: { contentSize: 31, encodingFormat: 'gzip' },
+            encoding: { contentSize: 31, encodingFormat: 'application/x-gzip' },
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
           catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' }
@@ -467,30 +471,64 @@ describe('data-registry', function(){
     
   });
 
-  describe('analytics', function(){
+  describe('code', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
         var mydpkg = {
           name: 'test-dpkg',
           version: '0.0.0',
-          analytics: [ { name: 'comp' } ]
+          code: [ { name: 'comp', targetProduct: { filePath: 'script.r' } } ]
         };
 
-        request.put( { url: rurl('/test-dpkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: mydpkg }, function(err, resp, body){
-          done();
+        fs.stat(path.join(root, 'fixture', 'script.r'), function(err, stat){
+          var s = fs.createReadStream(path.join(root, 'fixture', 'script.r'));
+          mydpkg._attachments = { 'script.r': { follows: true, length: stat.size, 'content_type': 'text/plain', _stream: s } };
+
+          var uploadStream = cms(mydpkg);
+
+          var options = { 
+            port: 3000,
+            hostname: '127.0.0.1',
+            method: 'PUT',
+            path: '/' + mydpkg.name + '/' + mydpkg.version,
+            auth: 'user_a:' + pass,
+            headers: uploadStream.headers
+          };
+
+          var req = http.request(options, function(res){
+            res.resume();
+            res.on('end', function(){        
+              done();
+            });
+          });
+          uploadStream.pipe(req);
         });
+
       });
     });
 
-    it('should get an analytics', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/analytics/comp'), function(err, resp, body){
-        var expected = {
-          '@id': 'test-dpkg/0.0.0/analytics/comp',
+    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/code/comp'), function(err, resp, body){
+
+        var expected = { 
+          '@id': 'test-dpkg/0.0.0/code/comp',
           '@type': 'Code',
           name: 'comp',
+          targetProduct: 
+          {
+            filePath: 'script.r',
+            downloadUrl: 'test-dpkg/0.0.0/code/comp/script.r',
+            fileSize: 21,
+            fileFormat: 'text/plain',
+            hashAlgorithm: 'md5',
+            hashValue: '59e68bf53d595dd5d0dda32e54c528a6',
+            encoding: { contentSize: 41, encodingFormat: 'application/x-gzip' },
+            '@type': 'SoftwareApplication' 
+          },
           catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
         };
+
         assert.deepEqual(JSON.parse(body), expected);
         done();
       });
@@ -505,5 +543,81 @@ describe('data-registry', function(){
     });
     
   });
+
+
+  describe('figure', function(){
+
+    before(function(done){     
+      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
+        var mydpkg = {
+          name: 'test-dpkg',
+          version: '0.0.0',
+          figure: [ { name: 'fig', contentPath: 'daftpunk.jpg' } ]
+        };
+
+        fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, stat){
+          var s = fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'));
+          mydpkg._attachments = { 'daftpunk.jpg': { follows: true, length: stat.size, 'content_type': 'image/jpeg', _stream: s } };
+
+          var uploadStream = cms(mydpkg);
+
+          var options = { 
+            port: 3000,
+            hostname: '127.0.0.1',
+            method: 'PUT',
+            path: '/' + mydpkg.name + '/' + mydpkg.version,
+            auth: 'user_a:' + pass,
+            headers: uploadStream.headers
+          };
+
+          var req = http.request(options, function(res){
+            res.resume();
+            res.on('end', function(){        
+              done();
+            });
+          });
+          uploadStream.pipe(req);
+        });
+
+      });
+    });
+
+    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
+      request.get(rurl('/test-dpkg/0.0.0/figure/fig'), function(err, resp, body){
+
+        var expected = { name: 'fig',
+          contentPath: 'daftpunk.jpg',
+          contentUrl: 'test-dpkg/0.0.0/figure/fig/daftpunk.jpg',
+          contentSize: 368923,
+          encodingFormat: 'image/jpeg',
+          hashAlgorithm: 'md5',
+          hashValue: '4caa440d02a15e1a371b9c794565bade',
+          width: '776px',
+          height: '524px',
+          //uploadDate: '2014-02-23T06:11:56.642Z',
+          '@id': 'test-dpkg/0.0.0/figure/fig',
+          '@type': 'ImageObject',
+          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
+        };
+
+        var result = JSON.parse(body);
+        delete result.uploadDate;
+
+        assert.deepEqual(result, expected);
+        done();
+      });
+    });
+
+    after(function(done){
+      rm(_users, 'org.couchdb.user:user_a', function(){
+        rm(registry, 'test-dpkg@0.0.0', function(){
+          done();
+        });
+      });      
+    });
+    
+  });
+
+
 
 });

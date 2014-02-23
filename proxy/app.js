@@ -17,11 +17,13 @@ var http = require('http')
   , jsonld = require('jsonld')
   , dpkgJsonLd = require('datapackage-jsonld')
   , jsonldHtmlView = require('jsonld-html-view')
+  , gm = require('gm')
   , pkgJson = require('../package.json');
 
 mime.define({
   'application/ld+json': ['jsonld'],
-  'application/x-ldjson': ['ldjson', 'ldj']
+  'application/x-ldjson': ['ldjson', 'ldj'],
+  'application/x-gzip': ['gz', 'gzip'] //tar.gz won't work
 });
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
@@ -106,7 +108,7 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
-//TODO content negot
+
 app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
 
@@ -124,7 +126,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
       author: {
         '@type': 'Organization',
         name: 'Standard Analytics IO',
-        description: 'The science you want in the format you need',
+        description: 'The Science API Company',
         url: 'http://standardanalytics.io',
         founder: [
           {
@@ -379,13 +381,15 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
     res.format({
       'text/html': function(){
+      
+        var l = linkify(body, {addCtx:false});
 
+        var snippet;
         try{
-          var l = linkify(body, {addCtx:false});
           l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
-          var snippet = jsonldHtmlView.urlify(l, context['@context'])
+          snippet = jsonldHtmlView.urlify(l, context['@context'])
         }catch(e){
-          return next(e);
+          snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
         }
 
         res
@@ -473,22 +477,41 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 });
 
 
-app.get('/:name/:version/analytics/:analytics', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/analytics/' + req.params.analytics);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
   rurl += (qs) ? '?' + qs : '';
 
-  function linkify(analytics, options){
-    return dpkgJsonLd.linkAnalytics(analytics, req.params.name, req.params.version);
+  function linkify(code, options){
+    return dpkgJsonLd.linkCode(code, req.params.name, req.params.version);
   };
 
   serveJsonLd(rootCouch + rurl, linkify, req, res, next);
 });
+
+
+app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
+  rurl += (qs) ? '?' + qs : '';
+
+  function linkify(figure, options){
+    return dpkgJsonLd.linkFigure(figure, req.params.name, req.params.version);
+  };
+
+  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+});
+
 
 
 /**
@@ -575,7 +598,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             
             d.contentUrl =  doc._id.replace('@', '/') + '/dataset/' + r.name + '/' + r.name + '.' + format;
             d.contentSize = Buffer.byteLength(s, 'utf-8');
-            d.encodingFormat = format;
+            d.encodingFormat = mime.lookup(format);
             d.hashAlgorithm = 'md5';
             d.hashValue = crypto.createHash('md5').update(s).digest('hex');
 
@@ -588,40 +611,109 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
 
             d.contentUrl = doc._id.replace('@', '/') + '/dataset/' + r.name + '/' + basename;
             d.contentSize = att.length;
-            d.encodingFormat = mime.extension(att.content_type);
+            d.encodingFormat = att.content_type;
             d.hashAlgorithm = 'md5';
             d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
 
             if('encoding' in att){
               d.encoding = {
                 contentSize: att.encoded_length,
-                encodingFormat: att.encoding
+                encodingFormat: mime.lookup(att.encoding)
               };
             }
 
           }
 
-
         });
-        
-        var postData = { dataset: dataset };
 
-        if( ('_attachments' in doc) && ('dist_.tar.gz' in doc._attachments) ){
-          att = doc._attachments['dist_.tar.gz'];
-          postData.encoding = {
-            contentUrl: doc._id.replace('@', '/') + '/dist_/dist_.tar.gz',
-            contentSize: att.length,
-            encodingFormat: mime.extension(att.content_type),
-            hashAlgorithm: 'md5',
-            hashValue:  (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex')
+
+        var code = doc.code || [];
+        code.forEach(function(r){
+          if(!r.targetProduct) return;
+          
+          var d = r.targetProduct;
+
+          if('filePath' in d && '_attachments' in doc){
+            
+            var basename = path.basename(d.filePath);
+            att = doc._attachments[basename];   
+
+            if(!att) return;
+
+            d.downloadUrl = doc._id.replace('@', '/') + '/code/' + r.name + '/' + basename;
+            d.fileSize = att.length;
+            d.fileFormat = att.content_type;
+            d.hashAlgorithm = 'md5';
+            d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
+
+            if('encoding' in att){
+              d.encoding = {
+                contentSize: att.encoded_length,
+                encodingFormat: mime.lookup(att.encoding)
+              };
+            }
+          }         
+        });
+
+
+        var figure = doc.figure || [];
+        async.each(figure, function(d, cb){
+
+          if('contentPath' in d && '_attachments' in doc){          
+            var basename = path.basename(d.contentPath);
+            att = doc._attachments[basename];   
+            if(!att) return;
+            
+            d.contentUrl = doc._id.replace('@', '/') + '/figure/' + d.name + '/' + basename;
+            d.contentSize = att.length;
+            d.encodingFormat = att.content_type;
+            d.hashAlgorithm = 'md5';
+            d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
+            //get attachment and get size
+            var r = request(rootCouch + '/registry/' + doc._id + '/' + basename);
+            r.on('response', function(resStream){
+              if(res.statusCode >= 400){
+                return cb(errorCode('could not get attachment', res.statusCode));
+              }
+              //we know that attachment is an image (otherwise rejected by validate_doc_update on couchdb
+              gm(resStream).size(function (err, size) {
+                if (err) return cb(err);                
+                d.width = size.width + 'px';
+                d.height = size.height + 'px';
+                cb(null);                
+              });
+              
+            });
+
+          } else {
+            cb(null);
           }
-        }
 
-        registry.atomic('registry', 'distribution', doc._id, postData, function(err, body, headers){
-          if(err) return next(err);
-          res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
+        }, function(err){
+          //if (err) OK we just won't have sizes...'
+          
+          var postData = { dataset: dataset, code: code, figure: figure };
+
+          if( ('_attachments' in doc) && ('dist_.tar.gz' in doc._attachments) ){
+            att = doc._attachments['dist_.tar.gz'];
+            postData.encoding = {
+              contentUrl: doc._id.replace('@', '/') + '/dist_/dist_.tar.gz',
+              contentSize: att.length,
+              encodingFormat: att.content_type,
+              hashAlgorithm: 'md5',
+              hashValue:  (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex')
+            }
+          }
+
+          registry.atomic('registry', 'distribution', doc._id, postData, function(err, body, headers){
+            if(err) return next(err);
+            res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
+          });
+
+
         });
 
+        
       });
 
     });

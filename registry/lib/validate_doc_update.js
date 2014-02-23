@@ -14,14 +14,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  if([ 'rmuser', 'adduser', 'owner', 'search', 'datapackage.jsonld', 'dataset', 'analytics', 'about' ].indexOf(newDoc.name) !==-1){
-    throw { forbidden: 'data package cannot be named '+ newDoc.name };    
-  }
-
-  if(newDoc.name && ( (typeof newDoc.name !== 'string') || (newDoc.name.toLowerCase() !== newDoc.name) || (newDoc.name.charAt(0) === '_') )){
-    throw { forbidden: 'invalid data package name (data package name have to be in lower case and not start with "_")' };
-  }
-
   //taken from https://github.com/isaacs/npmjs.org/blob/master/registry/validate_doc_update.js
   function _isAdmin () {
     if (secObj &&
@@ -50,6 +42,12 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   }
   
   if (newDoc._deleted) return;
+
+  try {
+    ldpkgJsonLd.validateName(newDoc.name);
+  } catch(e){
+    throw { forbidden: e.message };
+  }
 
   //validate newDoc using schema json
   if( !tv4.validate(newDoc, ldpkgJsonLd.schema) ){
@@ -90,6 +88,25 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
       throw { forbidden: 'invalide datePublished' };    
     } 
   }
+
+  //check that figures are figures (MIME type)
+  if('figure' in newDoc){
+    newDoc.figure.forEach(function(f){
+      if(f.contentPath){
+        var attKey = f.contentPath.split('/');
+        attKey = attKey[attKey.length -1];
+        if(newDoc._attachments && newDoc._attachments[attKey]){
+          if(['image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'application/pdf', 'application/postscript'].indexOf(newDoc._attachments[attKey].content_type) === -1){
+            throw { forbidden: 'invalide MIME type for figure (' + newDoc._attachments[attKey].content_type + ')' }; 
+          }
+        }
+      }
+    });
+  }
+
+  
+
+
 
   //stuff that can never be modified
   if(oldDoc){
