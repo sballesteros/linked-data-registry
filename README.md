@@ -176,5 +176,5 @@ Tests
 License
 =======
 
-MIT
+GPL version 3 or any later version.
 
