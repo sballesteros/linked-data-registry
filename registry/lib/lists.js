@@ -9,7 +9,7 @@ lists.latest = function(head, req){
   
   var doc = row.doc;
 
-  var util = require('dpkg-util');
+  var util = require('ctnr-util');
 
   start({ "headers": { "Content-Type": "application/json" } });
   send(JSON.stringify(util.clean(doc, req), null, 2));
@@ -19,10 +19,10 @@ lists.latest = function(head, req){
 
 lists.versions = function(head, req){
   var row;
-  var catalogs = [];
+  var containers = [];
   while(row = getRow()){
-    catalogs.push({
-      '@type': 'DataCatalog',
+    containers.push({
+      '@type': 'Container',
       name: row.value.name,
       version: row.value.version,
       description: row.value.description,
@@ -30,7 +30,7 @@ lists.versions = function(head, req){
     });
   }
   
-  if(!catalogs.length){
+  if(!containers.length){
     start({ 
       code: 404,   
       headers: {"Content-Type": "application/json"}
@@ -40,8 +40,7 @@ lists.versions = function(head, req){
     start({"headers": {"Content-Type": "application/json"}});
     send(JSON.stringify({
       '@id': req.query.name,
-      '@type': 'DataCatalog',
-      catalog: catalogs
+      container: containers
     }, null, 2));
   }
 };

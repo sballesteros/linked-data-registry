@@ -8,10 +8,9 @@ var util = require('util')
   , request = require('request')
   , Readable = require('stream').Readable
   , querystring = require('querystring')
-  , dpkgJsonLd = require('datapackage-jsonld')
+  , cjsonld = require('container-jsonld')
   , cms = require('couch-multipart-stream')
   , path = require('path');
-
 
 var root = path.dirname(__filename);
 
@@ -25,7 +24,7 @@ function rurl(path){
   return 'http://127.0.0.1:3000' + path
 };
 
-var linkHeader = '<http://localhost:3000/datapackage.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+var linkHeader = '<http://localhost:3000/container.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
 
 function rm(db, id, cb){
   db['head'](id, function(err, _, headers){
@@ -44,8 +43,8 @@ var userData = {
   email: 'user@domain.io'
 };
 
-var dpkg = {
-  name: 'test-dpkg',
+var ctnr = {
+  name: 'test-ctnr',
   version: '0.0.0',
   dataset: [
     {
@@ -73,12 +72,12 @@ function createFixture(done){
       userC.name = 'user_c';
       request.put({url: rurl('/adduser/user_c'), json: userC}, function(err, resp, body){
 
-        request.put( { url: rurl('/test-dpkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: dpkg }, function(err, resp, body){
-          var mydpkg = clone(dpkg);
-          mydpkg.version = '0.0.1';
-          request.put( { url: rurl('/test-dpkg/0.0.1'), auth: {user:'user_a', pass: pass}, json: mydpkg }, function(err, resp, body){
+        request.put( { url: rurl('/test-ctnr/0.0.0'), auth: {user:'user_a', pass: pass}, json: ctnr }, function(err, resp, body){
+          var myctnr = clone(ctnr);
+          myctnr.version = '0.0.1';
+          request.put( { url: rurl('/test-ctnr/0.0.1'), auth: {user:'user_a', pass: pass}, json: myctnr }, function(err, resp, body){
 
-            request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', dpkgName: 'test-dpkg'}}, function(err, resp, body){
+            request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', ctnrname: 'test-ctnr'}}, function(err, resp, body){
               done();
             });
 
@@ -93,9 +92,9 @@ function rmAll(done){
   rm(_users, 'org.couchdb.user:user_a', function(){
     rm(_users, 'org.couchdb.user:user_b', function(){
       rm(_users, 'org.couchdb.user:user_c', function(){
-        rm(registry, 'test-dpkg@0.0.0', function(){
-          rm(registry, 'test-dpkg@0.0.1', function(){
-            rm(registry, 'test-dpkg@0.0.2', function(){
+        rm(registry, 'test-ctnr@0.0.0', function(){
+          rm(registry, 'test-ctnr@0.0.1', function(){
+            rm(registry, 'test-ctnr@0.0.2', function(){
               done();
             });
           });
@@ -121,9 +120,9 @@ describe('data-registry', function(){
       });
     });
 
-    it('should have a dpkg', function(done){
-      registry.get('test-dpkg@0.0.0', function(err, body){
-        assert.equal(body._id, 'test-dpkg@0.0.0');      
+    it('should have a ctnr', function(done){
+      registry.get('test-ctnr@0.0.0', function(err, body){
+        assert.equal(body._id, 'test-ctnr@0.0.0');      
         done();
       });
     });
@@ -131,8 +130,8 @@ describe('data-registry', function(){
     it('should search', function(done){
       request(rurl('/search?keys=["test"]'), function(err, resp, body){
         var expected = [
-          {"id":"test-dpkg@0.0.0","key":"test","value": {"_id":"test-dpkg@0.0.0","name":"test-dpkg","description":""}},
-          {"id":"test-dpkg@0.0.1","key":"test","value": {"_id":"test-dpkg@0.0.1","name":"test-dpkg","description":""}}
+          {"id":"test-ctnr@0.0.0","key":"test","value": {"_id":"test-ctnr@0.0.0","name":"test-ctnr","description":""}},
+          {"id":"test-ctnr@0.0.1","key":"test","value": {"_id":"test-ctnr@0.0.1","name":"test-ctnr","description":""}}
         ].map(function(x){ return JSON.stringify(x); }).join('\n') + '\n';
 
         assert.equal(body, expected);
@@ -140,15 +139,15 @@ describe('data-registry', function(){
       });
     });
 
-    it('should retrieve all the versions of test-dpkg', function(done){
-      request(rurl('/test-dpkg'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body).catalog.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
+    it('should retrieve all the versions of test-ctnr', function(done){
+      request(rurl('/test-ctnr'), function(err, resp, body){
+        assert.deepEqual(JSON.parse(body).container.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
         done();
       });
     });
 
-    it('should retrieve the latest version of test-dpkg as JSON interpreded as JSON-LD', function(done){
-      request(rurl('/test-dpkg/latest'), function(err, resp, body){
+    it('should retrieve the latest version of test-ctnr as JSON interpreded as JSON-LD', function(done){
+      request(rurl('/test-ctnr/latest'), function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
         assert.equal(JSON.parse(body).version, '0.0.1');      
         done();
@@ -156,61 +155,61 @@ describe('data-registry', function(){
     });
 
     it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
-      request(rurl('/test-dpkg/latest?' + querystring.stringify({range: '<0.0.1'})), function(err, resp, body){
+      request(rurl('/test-ctnr/latest?' + querystring.stringify({range: '<0.0.1'})), function(err, resp, body){
         assert.equal(JSON.parse(body).version, '0.0.0');
         done();
       });
     });
 
     it('should 404 on range that cannot be statisfied', function(done){
-      request(rurl('/test-dpkg/latest?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, body){
+      request(rurl('/test-ctnr/latest?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, body){
         assert.equal(resp.statusCode, 404);
         done();
       });
     });
 
-    it('user_a and user_b should be maintainers of test-dpkg', function(done){
-      request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
+    it('user_a and user_b should be maintainers of test-ctnr', function(done){
+      request(rurl('/owner/ls/test-ctnr'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), maintainers);      
         done();
       });
     });
 
-    it('should not let user_a overwrite the dpkg', function(done){
-      request.put( { url: rurl('/test-dpkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: dpkg }, function(err, resp, body){
+    it('should not let user_a overwrite the ctnr', function(done){
+      request.put( { url: rurl('/test-ctnr/0.0.0'), auth: {user:'user_a', pass: pass}, json: ctnr }, function(err, resp, body){
         assert.equal(resp.statusCode, 409);
         done();
       });
     });
 
-    it('should not let user_c upgrade the dpkg', function(done){
-      var mydpkg = clone(dpkg);
-      mydpkg.version = '0.0.2';
-      request.put( { url: rurl('/test-dpkg/0.0.2'), auth: {user:'user_c', pass: pass}, json: mydpkg }, function(err, resp, body){
+    it('should not let user_c upgrade the ctnr', function(done){
+      var myctnr = clone(ctnr);
+      myctnr.version = '0.0.2';
+      request.put( { url: rurl('/test-ctnr/0.0.2'), auth: {user:'user_c', pass: pass}, json: myctnr }, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         done();
       });
     });
 
-    it('should not let user_c delete the dpkg and remove test-dpkg from the roles of user_a and user_b', function(done){
-      request.del( { url: rurl('/test-dpkg'), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
+    it('should not let user_c delete the ctnr and remove test-ctnr from the roles of user_a and user_b', function(done){
+      request.del( { url: rurl('/test-ctnr'), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
-        request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
+        request(rurl('/owner/ls/test-ctnr'), function(err, resp, body){
           assert.deepEqual(JSON.parse(body), maintainers);       
           done();
         });
       });
     });
 
-    it('should not let user_c add itself to the maintainers of test-dpkg', function(done){
-      request.post( {url: rurl('/owner/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', dpkgName: 'test-dpkg'}}, function(err, resp, body){
+    it('should not let user_c add itself to the maintainers of test-ctnr', function(done){
+      request.post( {url: rurl('/owner/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', ctnrname: 'test-ctnr'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         done();
       });   
     });
 
-    it('should not let user_c rm user_a from the maintainers of test-dpkg', function(done){
-      request.post( {url: rurl('/owner/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', dpkgName: 'test-dpkg'}}, function(err, resp, body){
+    it('should not let user_c rm user_a from the maintainers of test-ctnr', function(done){
+      request.post( {url: rurl('/owner/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', ctnrname: 'test-ctnr'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         done();
       });   
@@ -246,11 +245,11 @@ describe('data-registry', function(){
       });
     });    
 
-    it('should let user_a delete the dpkg and remove test-dpkg from the roles of user_a and user_b', function(done){
-      request.del( { url: rurl('/test-dpkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+    it('should let user_a delete the ctnr and remove test-ctnr from the roles of user_a and user_b', function(done){
+      request.del( { url: rurl('/test-ctnr'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 200);
 
-        request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
+        request(rurl('/owner/ls/test-ctnr'), function(err, resp, body){
           assert.equal(resp.statusCode, 404);       
           done();
         });
@@ -258,17 +257,17 @@ describe('data-registry', function(){
       });
     });
 
-    it('should let user_a add user_c as a maintainers of test-dpkg and then let user_c upgrade test-dpkg', function(done){
-      request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', dpkgName: 'test-dpkg'}}, function(err, resp, body){
+    it('should let user_a add user_c as a maintainers of test-ctnr and then let user_c upgrade test-ctnr', function(done){
+      request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', ctnrname: 'test-ctnr'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 200);
-        request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
+        request(rurl('/owner/ls/test-ctnr'), function(err, resp, body){
           var expected = clone(maintainers);
           expected.push({name:'user_c', email:'user@domain.io'});
           assert.deepEqual(JSON.parse(body), expected);       
 
-          var mydpkg = clone(dpkg);
-          mydpkg.version = '0.0.2';
-          request.put( { url: rurl('/test-dpkg/0.0.2'), auth: {user:'user_c', pass: pass}, json: mydpkg }, function(err, resp, body){
+          var myctnr = clone(ctnr);
+          myctnr.version = '0.0.2';
+          request.put( { url: rurl('/test-ctnr/0.0.2'), auth: {user:'user_c', pass: pass}, json: myctnr }, function(err, resp, body){
             assert.equal(resp.statusCode, 201);
             done();
           });
@@ -277,10 +276,10 @@ describe('data-registry', function(){
       });   
     });
 
-    it('should let user_a rm user_b from the maintainers of test-dpkg', function(done){
-      request.post( {url: rurl('/owner/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', dpkgName: 'test-dpkg'}}, function(err, resp, body){
+    it('should let user_a rm user_b from the maintainers of test-ctnr', function(done){
+      request.post( {url: rurl('/owner/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', ctnrname: 'test-ctnr'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 200);
-        request(rurl('/owner/ls/test-dpkg'), function(err, resp, body){
+        request(rurl('/owner/ls/test-ctnr'), function(err, resp, body){
           assert.deepEqual(JSON.parse(body), maintainers.slice(0,-1));       
           done();
         });
@@ -299,13 +298,13 @@ describe('data-registry', function(){
     var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
     
     var expected = { 
-      '@id': 'test-dpkg/0.0.0',
-      '@type': 'DataCatalog',
-      name: 'test-dpkg',
+      '@id': 'test-ctnr/0.0.0',
+      '@type': 'Container',
+      name: 'test-ctnr',
       version: '0.0.0',
       dataset: [
         {
-          '@id': 'test-dpkg/0.0.0/dataset/inline',
+          '@id': 'test-ctnr/0.0.0/dataset/inline',
           '@type': 'Dataset',
           name: 'inline',
           '@context': {
@@ -315,23 +314,23 @@ describe('data-registry', function(){
           },
           distribution: {
             '@type': 'DataDownload',
-            contentUrl: 'test-dpkg/0.0.0/dataset/inline/inline.json',
+            contentUrl: 'test-ctnr/0.0.0/dataset/inline/inline.json',
             contentSize: 33,
             encodingFormat: 'application/json',
             hashAlgorithm: 'md5',
             hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
-          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
+          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' } 
         },
         {
-          '@id': 'test-dpkg/0.0.0/dataset/x1',
+          '@id': 'test-ctnr/0.0.0/dataset/x1',
           '@type': 'Dataset',
           name: 'x1',
           distribution: {
             '@type': 'DataDownload',
             contentPath: 'x1.csv',
-            contentUrl: 'test-dpkg/0.0.0/dataset/x1/x1.csv',
+            contentUrl: 'test-ctnr/0.0.0/dataset/x1/x1.csv',
             contentSize: 11,
             encodingFormat: 'text/csv',
             hashAlgorithm: 'md5',
@@ -339,34 +338,34 @@ describe('data-registry', function(){
             encoding: { contentSize: 31, encodingFormat: 'application/x-gzip' },
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
-          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' }
+          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' }
         }
       ],
       //datePublished: '2014-01-12T01:16:24.939Z',
-      catalog: { name: 'test-dpkg', url: 'test-dpkg' } 
+      registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' } 
     };
 
-    expected = dpkgJsonLd.linkDpkg(expected, {addCtx:false});
+    expected = cjsonld.linkContainer(expected, {addCtx:false});
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
 
-        var mydpkg = clone(dpkg);
+        var myctnr = clone(ctnr);
 
         var s1 = new Readable();
         s1.push(x1);
         s1.push(null);
 
-        mydpkg.dataset.push({name: 'x1', distribution: {contentPath: 'x1.csv'}});
-        mydpkg._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
+        myctnr.dataset.push({name: 'x1', distribution: {contentPath: 'x1.csv'}});
+        myctnr._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
 
-        var s = cms(mydpkg);
+        var s = cms(myctnr);
 
         var options = { 
           port: 3000,
           hostname: '127.0.0.1',
           method: 'PUT',
-          path: '/' + mydpkg.name + '/' + mydpkg.version,
+          path: '/' + myctnr.name + '/' + myctnr.version,
           auth: userData.name + ':' + pass,
           headers: s.headers
         };
@@ -381,8 +380,8 @@ describe('data-registry', function(){
       });
     });
 
-    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the dpkg as JSON interpreted as JSON-LD', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0'), function(err, resp, body){
+    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the ctnr as JSON interpreted as JSON-LD', function(done){      
+      request.get(rurl('/test-ctnr/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         assert('datePublished' in body);
         delete body.datePublished;
@@ -392,6 +391,7 @@ describe('data-registry', function(){
             delete d.distribution.uploadDate;
           }
         });
+
         assert.equal(linkHeader, resp.headers.link);
         assert.deepEqual(body, expected);   
         done();
@@ -399,31 +399,31 @@ describe('data-registry', function(){
     });
 
     it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0?contentData=true'), function(err, resp, body){
+      request.get(rurl('/test-ctnr/0.0.0?contentData=true'), function(err, resp, body){
         body = JSON.parse(body);
-        assert.deepEqual(body.dataset[0].distribution.contentData, dpkg.dataset[0].distribution.contentData);   
+        assert.deepEqual(body.dataset[0].distribution.contentData, ctnr.dataset[0].distribution.contentData);   
         done();
       });
     });
 
-    it('should get the datapackage as compacted JSON-LD', function(done){      
-      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
+    it('should get the container as compacted JSON-LD', function(done){      
+      request.get({url: rurl('/test-ctnr/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert('@context' in body);
         done();
       });
     });
 
-    it('should get the datapackage as expanded JSON-LD', function(done){      
-      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
+    it('should get the container as expanded JSON-LD', function(done){      
+      request.get({url: rurl('/test-ctnr/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert(Array.isArray(body));
         done();
       });
     });
 
-    it('should get the datapackage as flattened JSON-LD', function(done){      
-      request.get({url: rurl('/test-dpkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
+    it('should get the container as flattened JSON-LD', function(done){      
+      request.get({url: rurl('/test-ctnr/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert('@graph' in body);
         done();
@@ -441,29 +441,29 @@ describe('data-registry', function(){
     });
 
     it('should get an attachment coming from a file', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
+      request.get(rurl('/test-ctnr/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
         assert.equal(body, x1);
         done();
       });
     });
 
     it('should error on invalid attachment location', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
+      request.get(rurl('/test-ctnr/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
         assert(resp.statusCode, 404);
         done();
       });
     });
 
     it('should get a pseudo attachment coming from a inline data', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/dataset/inline/inline.json'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), dpkg.dataset[0].distribution.contentData);
+      request.get(rurl('/test-ctnr/0.0.0/dataset/inline/inline.json'), function(err, resp, body){
+        assert.deepEqual(JSON.parse(body), ctnr.dataset[0].distribution.contentData);
         done();
       });
     });
     
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
-        rm(registry, 'test-dpkg@0.0.0', function(){
+        rm(registry, 'test-ctnr@0.0.0', function(){
           done();
         });
       });      
@@ -475,23 +475,23 @@ describe('data-registry', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-        var mydpkg = {
-          name: 'test-dpkg',
+        var myctnr = {
+          name: 'test-ctnr',
           version: '0.0.0',
           code: [ { name: 'comp', targetProduct: { filePath: 'script.r' } } ]
         };
 
         fs.stat(path.join(root, 'fixture', 'script.r'), function(err, stat){
           var s = fs.createReadStream(path.join(root, 'fixture', 'script.r'));
-          mydpkg._attachments = { 'script.r': { follows: true, length: stat.size, 'content_type': 'text/plain', _stream: s } };
+          myctnr._attachments = { 'script.r': { follows: true, length: stat.size, 'content_type': 'text/plain', _stream: s } };
 
-          var uploadStream = cms(mydpkg);
+          var uploadStream = cms(myctnr);
 
           var options = { 
             port: 3000,
             hostname: '127.0.0.1',
             method: 'PUT',
-            path: '/' + mydpkg.name + '/' + mydpkg.version,
+            path: '/' + myctnr.name + '/' + myctnr.version,
             auth: 'user_a:' + pass,
             headers: uploadStream.headers
           };
@@ -509,16 +509,16 @@ describe('data-registry', function(){
     });
 
     it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/code/comp'), function(err, resp, body){
+      request.get(rurl('/test-ctnr/0.0.0/code/comp'), function(err, resp, body){
 
         var expected = { 
-          '@id': 'test-dpkg/0.0.0/code/comp',
+          '@id': 'test-ctnr/0.0.0/code/comp',
           '@type': 'Code',
           name: 'comp',
           targetProduct: 
           {
             filePath: 'script.r',
-            downloadUrl: 'test-dpkg/0.0.0/code/comp/script.r',
+            downloadUrl: 'test-ctnr/0.0.0/code/comp/script.r',
             fileSize: 21,
             fileFormat: 'text/plain',
             hashAlgorithm: 'md5',
@@ -526,7 +526,7 @@ describe('data-registry', function(){
             encoding: { contentSize: 41, encodingFormat: 'application/x-gzip' },
             '@type': 'SoftwareApplication' 
           },
-          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
+          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' } 
         };
 
         assert.deepEqual(JSON.parse(body), expected);
@@ -536,7 +536,7 @@ describe('data-registry', function(){
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
-        rm(registry, 'test-dpkg@0.0.0', function(){
+        rm(registry, 'test-ctnr@0.0.0', function(){
           done();
         });
       });      
@@ -549,23 +549,23 @@ describe('data-registry', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-        var mydpkg = {
-          name: 'test-dpkg',
+        var myctnr = {
+          name: 'test-ctnr',
           version: '0.0.0',
           figure: [ { name: 'fig', contentPath: 'daftpunk.jpg' } ]
         };
 
         fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, stat){
           var s = fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'));
-          mydpkg._attachments = { 'daftpunk.jpg': { follows: true, length: stat.size, 'content_type': 'image/jpeg', _stream: s } };
+          myctnr._attachments = { 'daftpunk.jpg': { follows: true, length: stat.size, 'content_type': 'image/jpeg', _stream: s } };
 
-          var uploadStream = cms(mydpkg);
+          var uploadStream = cms(myctnr);
 
           var options = { 
             port: 3000,
             hostname: '127.0.0.1',
             method: 'PUT',
-            path: '/' + mydpkg.name + '/' + mydpkg.version,
+            path: '/' + myctnr.name + '/' + myctnr.version,
             auth: 'user_a:' + pass,
             headers: uploadStream.headers
           };
@@ -583,11 +583,11 @@ describe('data-registry', function(){
     });
 
     it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
-      request.get(rurl('/test-dpkg/0.0.0/figure/fig'), function(err, resp, body){
+      request.get(rurl('/test-ctnr/0.0.0/figure/fig'), function(err, resp, body){
 
         var expected = { name: 'fig',
           contentPath: 'daftpunk.jpg',
-          contentUrl: 'test-dpkg/0.0.0/figure/fig/daftpunk.jpg',
+          contentUrl: 'test-ctnr/0.0.0/figure/fig/daftpunk.jpg',
           contentSize: 368923,
           encodingFormat: 'image/jpeg',
           hashAlgorithm: 'md5',
@@ -595,9 +595,9 @@ describe('data-registry', function(){
           width: '776px',
           height: '524px',
           //uploadDate: '2014-02-23T06:11:56.642Z',
-          '@id': 'test-dpkg/0.0.0/figure/fig',
+          '@id': 'test-ctnr/0.0.0/figure/fig',
           '@type': 'ImageObject',
-          catalog: { name: 'test-dpkg', version: '0.0.0', url: 'test-dpkg/0.0.0' } 
+          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' } 
         };
 
         var result = JSON.parse(body);
@@ -610,14 +610,12 @@ describe('data-registry', function(){
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
-        rm(registry, 'test-dpkg@0.0.0', function(){
+        rm(registry, 'test-ctnr@0.0.0', function(){
           done();
         });
       });      
     });
     
   });
-
-
 
 });

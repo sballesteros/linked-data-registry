@@ -1,8 +1,8 @@
 var shows = exports;
 
-shows.datapackage = function(doc,req){
+shows.container = function(doc,req){
 
-  var util = require('dpkg-util');
+  var util = require('ctnr-util');
 
   return {
     headers: { 'Content-Type': 'application/json' },
@@ -14,7 +14,7 @@ shows.datapackage = function(doc,req){
 
 shows.dataset = function(doc, req){
 
-  var util = require('dpkg-util');
+  var util = require('ctnr-util');
 
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){

@@ -12,9 +12,9 @@ exports['is-url'] = fs.readFileSync(require.resolve('is-url'), 'utf8');
 exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8'); 
 
 exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8') + '\n'; //note the '\n' (fuck my life)
-exports['datapackage-jsonld'] = fs.readFileSync(require.resolve('datapackage-jsonld'), 'utf8');
+exports['container-jsonld'] = fs.readFileSync(require.resolve('container-jsonld'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
-exports['dpkg-util'] =
+exports['ctnr-util'] =
   [ 'exports.root = root',
     function root(req){     
       //hacky: TO BE IMPROVED
@@ -26,15 +26,15 @@ exports['dpkg-util'] =
     },
 
     'exports.clean = clean',
-    function clean(dpkg, req){
-      delete dpkg._id; 
-      delete dpkg._rev;
-      delete dpkg._revisions;
-      delete dpkg._attachments;
+    function clean(ctnr, req){
+      delete ctnr._id; 
+      delete ctnr._rev;
+      delete ctnr._revisions;
+      delete ctnr._attachments;
 
       if(! req.query.contentData){
-        if('dataset' in dpkg){
-          dpkg.dataset.forEach(function(d){
+        if('dataset' in ctnr){
+          ctnr.dataset.forEach(function(d){
             if(d.distribution){
               delete d.distribution.contentData;
             }
@@ -42,7 +42,7 @@ exports['dpkg-util'] =
         }
       }
 
-      return dpkg;
+      return ctnr;
     },
 
     'exports.extname = extname',

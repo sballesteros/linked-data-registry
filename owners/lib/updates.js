@@ -63,7 +63,7 @@ updates.create = function(userDoc, req){
 
 
 /**
- * add req.body.dpkgName to the roles list of userDoc. Can only be
+ * add req.body.ctnrname to the roles list of userDoc. Can only be
  * done by admins.
  */ 
 updates.add = function (userDoc, req) {
@@ -81,14 +81,14 @@ updates.add = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') ) || (data.dpkgName.charAt(0) === '_') ) {
+    if (err || !( (typeof data.username === 'string') && (typeof data.ctnrname === 'string') ) || (data.ctnrname.charAt(0) === '_') ) {
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
     }    
 
-    if(userDoc.roles.indexOf(data.dpkgName) === -1 ){
-      userDoc.roles.push(data.dpkgName);   
+    if(userDoc.roles.indexOf(data.ctnrname) === -1 ){
+      userDoc.roles.push(data.ctnrname);   
     }
     
     resp.code = 200;
@@ -119,13 +119,13 @@ updates.rm = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.dpkgName === 'string') ) || (data.dpkgName.charAt(0) === '_') ){
+    if (err || !( (typeof data.username === 'string') && (typeof data.ctnrname === 'string') ) || (data.ctnrname.charAt(0) === '_') ){
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
       return [null, resp];      
     }    
 
-    var pos = userDoc.roles.indexOf(data.dpkgName);
+    var pos = userDoc.roles.indexOf(data.ctnrname);
     if(pos !== -1 ){
       userDoc.roles.splice(pos, 1);   
     }
