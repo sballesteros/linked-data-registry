@@ -10,6 +10,7 @@ var util = require('util')
   , querystring = require('querystring')
   , cjsonld = require('container-jsonld')
   , cms = require('couch-multipart-stream')
+  , crypto = require('crypto')
   , path = require('path');
 
 var root = path.dirname(__filename);
@@ -447,6 +448,13 @@ describe('data-registry', function(){
       });
     });
 
+    it('should get an attachment coming from a file when _content is used to specify the content', function(done){      
+      request.get(rurl('/test-ctnr/0.0.0/dataset/x1/_content'), function(err, resp, body){
+        assert.equal(body, x1);
+        done();
+      });
+    });
+
     it('should error on invalid attachment location', function(done){      
       request.get(rurl('/test-ctnr/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
         assert(resp.statusCode, 404);
@@ -470,6 +478,7 @@ describe('data-registry', function(){
     });
     
   });
+
 
   describe('code', function(){
 
@@ -534,6 +543,15 @@ describe('data-registry', function(){
       });
     });
 
+    it('should get content with _content', function(done){
+      request.get({url: rurl('/test-ctnr/0.0.0/code/comp/script.r'), encoding:null,  headers: { 'Accept-Encoding' : 'gzip'}}, function(err, resp, body){
+        var md5 = crypto.createHash('md5');
+        md5.update(body)
+        assert.equal(md5.digest('hex'), '59e68bf53d595dd5d0dda32e54c528a6');
+        done();
+      });
+    });
+
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-ctnr@0.0.0', function(){
@@ -582,10 +600,11 @@ describe('data-registry', function(){
       });
     });
 
-    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
+    it('should get a figure entry with populated metadata (fileSize, hash...)', function(done){      
       request.get(rurl('/test-ctnr/0.0.0/figure/fig'), function(err, resp, body){
 
-        var expected = { name: 'fig',
+        var expected = { 
+          name: 'fig',
           contentPath: 'daftpunk.jpg',
           contentUrl: 'test-ctnr/0.0.0/figure/fig/daftpunk.jpg',
           contentSize: 368923,
@@ -604,6 +623,15 @@ describe('data-registry', function(){
         delete result.uploadDate;
 
         assert.deepEqual(result, expected);
+        done();
+      });
+    });
+
+    it('should get content with _content', function(done){
+      request.get({url: rurl('/test-ctnr/0.0.0/figure/fig/_content'), encoding:null}, function(err, resp, body){
+        var md5 = crypto.createHash('md5');
+        md5.update(body)
+        assert.equal(md5.digest('hex'), '4caa440d02a15e1a371b9c794565bade');
         done();
       });
     });

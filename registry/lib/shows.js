@@ -19,27 +19,39 @@ shows.dataset = function(doc, req){
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){
 
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else if (req.query.dataset in doc._attachments){ // attachments
-
-    return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.dataset } };
-
-  } else { //inline data or invalid URL
-
-    var splt = req.query.dataset.split('.');
-    r = doc.dataset.filter(function(x){ return x.name === splt[0]; })[0];     
-    if(r && splt.length > 1 ){
+    if(!req.query.content){
       return {
         headers: { 'Content-Type': 'application/json' },
-        body: (typeof r.distribution.contentData === 'string') ? r.distribution.contentData: JSON.stringify(r.distribution.contentData, null, 2)
+        body: JSON.stringify(r, null, 2)
       };
     }
 
+    if (req.query.content in doc._attachments){ // attachments
+
+      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+
+    } else if ( (req.query.content === '_content')  && r.distribution && r.distribution.contentUrl) { 
+
+      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.distribution.contentUrl) } };      
+      
+    } else { //might be inline attachment
+
+      var splt = req.query.content.split('.');
+      if (r.name === splt[0] && r.distribution && r.distribution.contentData) {
+        return {
+          headers: { 'Content-Type': r.distribution.encodingFormat },
+          body: (typeof r.distribution.contentData === 'string') ? r.distribution.contentData: JSON.stringify(r.distribution.contentData, null, 2)
+        };
+      } else {
+        throw ['error', 'not_found', 'invalid attachment name'];
+      }
+
+    }
+
+  } else { //inline data or invalid URL
+
     throw ['error', 'not_found', 'invalid dataset name'];
+
   }
 
 };
@@ -47,16 +59,36 @@ shows.dataset = function(doc, req){
 
 shows.code = function(doc, req){
 
+  var util = require('ctnr-util');
+
   var r = doc.code.filter(function(x){ return x.name === req.query.code; })[0];
   if(r){
 
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
+    if(!req.query.content){
+      return {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(r, null, 2)
+      };
+    }
+
+    if (req.query.content in doc._attachments){
+
+      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+
+    } else if ( (req.query.content === '_content')  && r.targetProduct && r.targetProduct.downloadUrl) {
+
+      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.targetProduct.downloadUrl) } };
+
+    } else {
+
+      throw ['error', 'not_found', 'invalid attachment name'];
+
+    }
 
   } else {
+
     throw ['error', 'not_found', 'invalid code entry name'];
+
   }
 
 };
@@ -65,13 +97,31 @@ shows.code = function(doc, req){
 
 shows.figure = function(doc, req){
 
+  var util = require('ctnr-util');
+
   var r = doc.figure.filter(function(x){ return x.name === req.query.figure; })[0];
   if(r){
 
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
+    if(!req.query.content){
+      return {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(r, null, 2)
+      };
+    }
+
+    if (req.query.content in doc._attachments){
+
+      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+
+    } else if ( (req.query.content === '_content')  && r.contentUrl) { 
+
+      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.contentUrl) } };
+
+    } else {
+
+      throw ['error', 'not_found', 'invalid attachment name'];
+
+    }
 
   } else {
     throw ['error', 'not_found', 'invalid figure name'];

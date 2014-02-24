@@ -58,9 +58,10 @@ string parameter ```range```.
 
 Download _data_ (```:content```) from a dataset named ```:dataset```
 from a container with name ```:ctnrname``` and
-[version](http://semver.org/) ```:version```. Version can be specifyied
-as ```latest``` and a qery string parameter ```range```.
-
+[version](http://semver.org/) ```:version```. Version can be
+specifyied as ```latest``` and a qery string parameter ```range```.
+If ```:content``` is specified as ```_content``` the default content
+will be served.
 
 ### GET /:ctnrname/:version/code/:code
 
@@ -76,6 +77,8 @@ Download a _distribution_ (version of the code ready to be run)
 with name ```:ctnrname``` and [version](http://semver.org/)
 ```:version```. Version can be specifyied as ```latest``` and a qery
 string parameter ```range```.
+If ```:content``` is specified as ```_content``` the default content
+will be served.
 
 
 ### GET /:ctnrname/:version/figure/:figure
@@ -92,6 +95,8 @@ Download _image file_ (```:content```) from a figure named
 ```:figure``` from a container with name ```:ctnrname``` and
 [version](http://semver.org/) ```:version```. Version can be
 specifyied as ```latest``` and a qery string parameter ```range```.
+If ```:content``` is specified as ```_content``` the default content
+will be served.
 
 
 

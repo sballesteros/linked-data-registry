@@ -1,6 +1,8 @@
 var fs = require('fs')
   , path = require('path');
 
+//exports.proxyPort = process.env['NODE_PORT'].toString();
+//exports.proxyPortHttps = process.env['NODE_PORT_HTTPS'].toString();
 
 //want to use url and datapackage-jsonld in couchdb => install all the deps.
 //TODO find a better way to do this, this is hacky and shitty
@@ -14,6 +16,15 @@ exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 exports.tv4 = fs.readFileSync(require.resolve('tv4'), 'utf8') + '\n'; //note the '\n' (fuck my life)
 exports['container-jsonld'] = fs.readFileSync(require.resolve('container-jsonld'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
+
+
+exports['proxy'] = [
+  'exports.host = "HOST";'.replace('HOST', process.env['NODE_HOST']),
+  'exports.port = "PORT";'.replace('PORT', process.env['NODE_PORT']),
+  'exports.portHttps = "PORT_HTTPS";'.replace('PORT_HTTPS', process.env['NODE_PORT_HTTPS']),
+].join('\n');
+
+
 exports['ctnr-util'] =
   [ 'exports.root = root',
     function root(req){     
@@ -23,6 +34,24 @@ exports['ctnr-util'] =
         protocol = 'https';
       }
       return protocol + '://' + req.headers.Host;
+    },
+
+    'exports.resolveProxy = resolveProxy',
+    'var isUrl = require("is-url")',
+    'var url = require("url")',
+    'var proxy = require("proxy")',
+    function resolveProxy(req, uri){     
+      if(isUrl(uri)){
+        return uri;
+      }
+
+      var protocol = (req.query.secure) ? 'https' : 'http';
+      if(req.headers.Host.split(':')[1] == 443){
+        protocol = 'https';
+      }
+      var base = protocol + '://' + proxy.host + ':' + ((protocol === 'http')? proxy.port : proxy.portHttps);
+      
+      return url.resolve(base, uri);
     },
 
     'exports.clean = clean',
@@ -51,3 +80,6 @@ exports['ctnr-util'] =
       return (i < 0) ? '' : filename.substr(i);
     }    
   ].map(function (s) { return s.toString() + ';' }).join('\n');
+
+
+

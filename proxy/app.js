@@ -314,7 +314,6 @@ app.get('/owner/ls/:ctnrname', function(req, res, next){
  */
 app.get('/:name', getStanProxyUrl, function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  console.log(rurl);
   serveJsonLd(rootCouch + rurl, function(x){return x;}, req, res, next);
 });
 
@@ -512,9 +511,8 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 });
 
 
-
 /**
- * get dist_ or readme
+ * get dist_ or readme TODO :type should be dist or about
  */
 app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
   
@@ -530,18 +528,25 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 });
 
 
-app.get('/:name/:version/dataset/:dataset/:content', maxSatisfyingVersion, function(req, res, next){
+/**
+ * rname is the name of the resource, content can be _content (to get default content)
+ */
+app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, function(req, res, next){
+
+  if(['dataset', 'code', 'figure'].indexOf(req.params.type) === -1){
+    return next(errorCode('not found', 404));
+  }
   
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.content);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
   rurl += (qs) ? '?' + qs : '';
-
   res.redirect(rootCouch + rurl);  
 });
+
 
 
 app.put('/:name/:version', forceAuth, function(req, res, next){
@@ -589,7 +594,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
 
             var format;
             if( typeof d.encodingFormat === 'string' ){
-              format =  d.encodingFormat;
+              format =  d.encodingFormat; //trust user ??? would be good to validate
             } else {
               format = (typeof d.contentData === 'string') ? 'txt':
                 (s.indexOf('@context') !== -1) ? 'jsonld' : 'json';
