@@ -50,11 +50,10 @@ var ctnr = {
   dataset: [
     {
       name: 'inline',
-      '@context': { 
-        xsd: "http://www.w3.org/2001/XMLSchema#",
-        a: { '@id': '_:a', '@type': 'xsd:string' }, 
-        b: { '@id': '_:b', '@type': 'xsd:integer' }
-      },
+      about: [ 
+        { name: 'a', valueType: 'xsd:string' }, 
+        { name: 'b', valueType: 'xsd:integer' }
+      ],
       distribution: {        
         contentData: [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
       }
@@ -308,11 +307,10 @@ describe('data-registry', function(){
           '@id': 'test-ctnr/0.0.0/dataset/inline',
           '@type': 'Dataset',
           name: 'inline',
-          '@context': {
-            xsd: 'http://www.w3.org/2001/XMLSchema#',
-            a: { '@id': '_:a', '@type': 'xsd:string' },
-            b: { '@id': '_:b', '@type': 'xsd:integer' } 
-          },
+          about: [ 
+            { name: 'a', valueType: 'xsd:string' }, 
+            { name: 'b', valueType: 'xsd:integer' }
+          ],
           distribution: {
             '@type': 'DataDownload',
             contentUrl: 'test-ctnr/0.0.0/dataset/inline/inline.json',
@@ -487,7 +485,10 @@ describe('data-registry', function(){
         var myctnr = {
           name: 'test-ctnr',
           version: '0.0.0',
-          code: [ { name: 'comp', targetProduct: { filePath: 'script.r' } } ]
+          code: [
+            { name: 'comp', targetProduct: { filePath: 'script.r' } },
+            { name: 'externalurl', targetProduct: { downloadUrl: 'https://raw2.github.com/standard-analytics/linked-data-registry/master/test/fixture/script.r' } }
+          ]
         };
 
         fs.stat(path.join(root, 'fixture', 'script.r'), function(err, stat){
@@ -548,6 +549,13 @@ describe('data-registry', function(){
         var md5 = crypto.createHash('md5');
         md5.update(body)
         assert.equal(md5.digest('hex'), '59e68bf53d595dd5d0dda32e54c528a6');
+        done();
+      });
+    });
+
+    it('should get content from external url', function(done){
+      request.get(rurl('/test-ctnr/0.0.0/code/externalurl/_content'), function(err, resp, body){
+        assert.equal(body, fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}));
         done();
       });
     });
