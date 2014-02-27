@@ -512,9 +512,13 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 
 
 /**
- * get dist_ or readme TODO :type should be dist or about
+ * get env_ or readme
  */
 app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
+
+  if(['about', 'env'].indexOf(req.params.type) === -1){
+    return next(errorCode('not found', 404));
+  }
   
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -641,12 +645,19 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             
             var basename = path.basename(d.filePath);
             att = doc._attachments[basename];   
-
+            
             if(!att) return;
 
+            //if absolute path: delete (use for codeBundle created by ldc for instance)
+            var normal = path.normalize(d.filePath);
+            var absolute = path.resolve(d.filePath);
+            if (normal === absolute) { //absolute path
+              delete d.filePath;
+            };
+            
             d.downloadUrl = doc._id.replace('@', '/') + '/code/' + r.name + '/' + basename;
             d.fileSize = att.length;
-            d.fileFormat = att.content_type;
+            d.fileFormat = d.fileFormat || att.content_type;
             d.hashAlgorithm = 'md5';
             d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
 
@@ -698,10 +709,10 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           
           var postData = { dataset: dataset, code: code, figure: figure };
 
-          if( ('_attachments' in doc) && ('dist_.tar.gz' in doc._attachments) ){
-            att = doc._attachments['dist_.tar.gz'];
+          if( ('_attachments' in doc) && ('env_.tar.gz' in doc._attachments) ){ //NOTE: README.md is added in about couchdb side in update
+            att = doc._attachments['env_.tar.gz'];
             postData.encoding = {
-              contentUrl: doc._id.replace('@', '/') + '/dist_/dist_.tar.gz',
+              contentUrl: doc._id.replace('@', '/') + '/env/env_.tar.gz',
               contentSize: att.length,
               encodingFormat: att.content_type,
               hashAlgorithm: 'md5',
@@ -764,6 +775,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
     function(ids, cb){ //delete (all) the versions
       
       async.each(ids, function(id, cb2){
+
         registry.head(id, function(err, _, headers) {
           if(err) return cb2(err);
           var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes

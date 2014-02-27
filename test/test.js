@@ -299,7 +299,7 @@ describe('data-registry', function(){
     
     var expected = { 
       '@id': 'test-ctnr/0.0.0',
-      '@type': 'Container',
+      "@type": ["Container","DataCatalog"],
       name: 'test-ctnr',
       version: '0.0.0',
       dataset: [
@@ -320,7 +320,7 @@ describe('data-registry', function(){
             hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
-          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' } 
+          catalog: { "@type": ["Container", "DataCatalog"], name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' } 
         },
         {
           '@id': 'test-ctnr/0.0.0/dataset/x1',
@@ -337,7 +337,7 @@ describe('data-registry', function(){
             encoding: { contentSize: 31, encodingFormat: 'application/x-gzip' },
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
-          container: { name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' }
+          catalog: { "@type": ["Container","DataCatalog"], name: 'test-ctnr', version: '0.0.0', url: 'test-ctnr/0.0.0' }
         }
       ],
       //datePublished: '2014-01-12T01:16:24.939Z',
