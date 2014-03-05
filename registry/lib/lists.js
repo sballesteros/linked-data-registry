@@ -19,10 +19,10 @@ lists.latest = function(head, req){
 
 lists.versions = function(head, req){
   var row;
-  var containers = [];
+  var packages = [];
   while(row = getRow()){
-    containers.push({
-      '@type': 'Container',
+    packages.push({
+      '@type': 'Package',
       name: row.value.name,
       version: row.value.version,
       description: row.value.description,
@@ -30,7 +30,7 @@ lists.versions = function(head, req){
     });
   }
   
-  if(!containers.length){
+  if(!packages.length){
     start({ 
       code: 404,   
       headers: {"Content-Type": "application/json"}
@@ -40,7 +40,7 @@ lists.versions = function(head, req){
     start({"headers": {"Content-Type": "application/json"}});
     send(JSON.stringify({
       '@id': req.query.name,
-      container: containers
+      package: packages
     }, null, 2));
   }
 };

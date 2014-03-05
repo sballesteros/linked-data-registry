@@ -15,7 +15,7 @@ var http = require('http')
   , mime = require('mime')
   , url = require('url')
   , jsonld = require('jsonld')
-  , cjsonld = require('container-jsonld')
+  , pjsonld = require('package-jsonld')
   , jsonldHtmlView = require('jsonld-html-view')
   , gm = require('gm')
   , pkgJson = require('../package.json');
@@ -148,8 +148,8 @@ app.get('/', getStanProxyUrl, function(req, res, next){
       discussionUrl: pkgJson.bugs.url,
       isBasedOnUrl: pkgJson.homepage,
       publishingPrinciples: 'http://opendatacommons.org/licenses/odbl/1.0/',
-      container: body.rows.map(function(x){ return {
-        '@type': 'Container',
+      package: body.rows.map(function(x){ return {
+        '@type': 'Package',
         'name': x.key,
         'url': req.stanProxy + '/' + x.key
       };})
@@ -168,9 +168,9 @@ app.get('/', getStanProxyUrl, function(req, res, next){
       discussionUrl: { '@id': 'sch:discussionUrl', '@type': '@id' },
       isBasedOnUrl: { '@id': 'sch:isBasedOnUrl', '@type': '@id' },
       publishingPrinciples: { '@id': 'sch:publishingPrinciples', '@type': '@id' },
-      container: 'http://standardanalytics.io/container/container',
+      package: 'http://standardanalytics.io/package/package',
       Person: { '@id': 'sch:Person', '@type': '@id' },
-      Container: { '@id': 'http://standardanalytics.io/container/Container', '@type': '@id' },
+      Package: { '@id': 'http://standardanalytics.io/package/Package', '@type': '@id' },
       Organization: { '@id': 'sch:Organization', '@type': '@id' }
     };
 
@@ -199,11 +199,11 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 });
 
 
-app.get('/container.jsonld', getStanProxyUrl, function(req, res, next){
+app.get('/package.jsonld', getStanProxyUrl, function(req, res, next){
   res.set('Content-Type', 'application/ld+json');  
   
-  cjsonld.context['@context']['@base'] = req.stanProxy + '/';
-  res.send(JSON.stringify(cjsonld.context));
+  pjsonld.context['@context']['@base'] = req.stanProxy + '/';
+  res.send(JSON.stringify(pjsonld.context));
 });
 
 
@@ -249,7 +249,7 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
 
-  if(!(('username' in data) && ('ctnrname' in data))){
+  if(!(('username' in data) && ('pkgname' in data))){
     return next(new Error('invalid data'));
   }
 
@@ -260,11 +260,11 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
       return next(errorCode('granted user does not exists', headers['status-code']));
     }
 
-    //check if req.user.name is a maintainter of data.ctnrname
+    //check if req.user.name is a maintainter of data.pkgname
     _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains, headers) {
       if(err) return next(err);
       
-      if(maintains.indexOf(data.ctnrname) === -1){
+      if(maintains.indexOf(data.pkgname) === -1){
         return next(errorCode('not allowed', 403));
       }
       _grant(data, res, next, headers['status-code']);
@@ -275,19 +275,19 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 });
 
 
-//TODO DO something if a container has no maintainers
+//TODO DO something if a package has no maintainers
 app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
   
-  if(!(('username' in data) && ('ctnrname' in data))){
+  if(!(('username' in data) && ('pkgname' in data))){
     return next(new Error('invalid data'));
   }
 
   _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains) {
     if(err) return next(err);
 
-    if(maintains.indexOf(data.ctnrname) === -1){
+    if(maintains.indexOf(data.pkgname) === -1){
       return next(errorCode('not allowed', 403));
     }
 
@@ -301,8 +301,8 @@ app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 });
 
 
-app.get('/owner/ls/:ctnrname', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.ctnrname}, function(err, body, headers) {
+app.get('/owner/ls/:pkgname', function(req, res, next){
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.pkgname}, function(err, body, headers) {
     if (err) return next(err);
     res.json(headers['status-code'], body);
   });
@@ -329,7 +329,7 @@ function maxSatisfyingVersion(req, res, next){
     return next();
   }
 
-  //get all the versions of the ctnr
+  //get all the versions of the pkg
   request(rootCouch + '/registry/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
     if(err) return next(err);
 
@@ -337,7 +337,7 @@ function maxSatisfyingVersion(req, res, next){
       return next(errorCode('oops something went wrong when trying to validate the version', res.statusCode));
     }
 
-    versions = JSON.parse(versions).container.map(function(x){return x.version;});
+    versions = JSON.parse(versions).package.map(function(x){return x.version;});
     req.params.version = semver.maxSatisfying(versions, q.range);
     if(!req.params.version){
       return next(errorCode('no version could satisfy the range ' + q.range, 404));
@@ -372,10 +372,10 @@ function serveJsonLd(docUrl, linkify, req, res, next){
     }
 
     //patch context
-    var context = cjsonld.context;
+    var context = pjsonld.context;
 
     context['@context']['@base'] = req.stanProxy + '/';
-    var contextUrl = context['@context']['@base'] + 'container.jsonld';
+    var contextUrl = context['@context']['@base'] + 'package.jsonld';
 
     res.format({
       'text/html': function(){
@@ -423,12 +423,12 @@ function serveJsonLd(docUrl, linkify, req, res, next){
             break;
             
           default: //#compacted and everything else
-            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/container.jsonld'}));
+            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
           
         } else {
-          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/container.jsonld'}));        
+          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));        
         }
       }
       
@@ -453,7 +453,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
   }
   rurl += '?' + querystring.stringify(q);
 
-  serveJsonLd(rootCouch + rurl, cjsonld.linkContainer, req, res, next);
+  serveJsonLd(rootCouch + rurl, pjsonld.linkPackage, req, res, next);
 });
 
 
@@ -468,7 +468,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(dataset, options){
-    return cjsonld.linkDataset(dataset, req.params.name, req.params.version);
+    return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
   serveJsonLd(rootCouch + rurl, linkify, req, res, next);
@@ -486,7 +486,7 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, fun
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(code, options){
-    return cjsonld.linkCode(code, req.params.name, req.params.version);
+    return pjsonld.linkCode(code, req.params.name, req.params.version);
   };
 
   serveJsonLd(rootCouch + rurl, linkify, req, res, next);
@@ -504,7 +504,7 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(figure, options){
-    return cjsonld.linkFigure(figure, req.params.name, req.params.version);
+    return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
   serveJsonLd(rootCouch + rurl, linkify, req, res, next);
@@ -562,18 +562,18 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
   }
 
   if(req.headers['content-length'] > 209715200){
-    return res.json(413, {error: 'Request Entity Too Large, currently accept only container < 200Mo'});
+    return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 200Mo'});
   }
 
-  function distributionAndstore(ctnrnameIfIsFirst){
+  function distributionAndstore(pkgnameIfIsFirst){
     var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
 
       body = JSON.parse(body);
       if(resCouch.statusCode >= 400){
-        if(ctnrnameIfIsFirst){
-          _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, ctnrname: ctnrnameIfIsFirst});
+        if(pkgnameIfIsFirst){
+          _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: pkgnameIfIsFirst});
         }
         return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
       }
@@ -648,10 +648,10 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             
             if(!att) return;
 
-            //if absolute path: delete (use for codeBundle created by ldc for instance)
+            //if absolute path || bundlePath: delete (use for codeBundle created by ldc for instance)
             var normal = path.normalize(d.filePath);
             var absolute = path.resolve(d.filePath);
-            if (normal === absolute) { //absolute path
+            if ( (normal === absolute) || d.bundlePath ) {
               delete d.filePath;
             };
             
@@ -736,9 +736,12 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
   };
 
   registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+
     if(err) return next(err);
-    if(!body.rows.length){ //first version ever: add username to maintainers of the ctnr
-      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, ctnrname: req.params.name}, function(err, body, headers){
+    if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
+      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+        console.log(err, body);
+
         if(err) return next(err);
 
         if(headers['status-code'] >= 400){
@@ -804,7 +807,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
     },
 
-  ], function(err, name){ //remove maintainers if all version of the container have been deleted    
+  ], function(err, name){ //remove maintainers if all version of the package have been deleted    
     if(err) return next(err);
 
     registry.view('registry', 'byNameAndVersion', {startkey: [name], endkey: [name, '\ufff0']}, function(err, body){
@@ -815,7 +818,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
           if (err) return next(err);
 
           async.each(maintainers, function(maintainer, cb){
-            _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, ctnrname: name}, cb);
+            _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + maintainer.name, {username: maintainer.name, pkgname: name}, cb);
           }, function(err){
             if(err) return next(err);
             res.json({ok:true});

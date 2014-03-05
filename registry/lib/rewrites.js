@@ -12,8 +12,8 @@ module.exports = [
   {from: '/search', to: '/_list/search/byKeyword', method: 'GET', query: {reduce: 'false'}},
   //{ from: '/search', to: '/_view/byKeyword', method: 'GET', query: {reduce: 'false'}},
 
-  { from: '/:ctnr_id', to: '/_show/container/:ctnr_id', method: 'GET' },
-  { from: '/first/:ctnr_id', to: '/_show/container/:ctnr_id', method: 'GET' },
+  { from: '/:ctnr_id', to: '/_show/package/:ctnr_id', method: 'GET' },
+  { from: '/first/:ctnr_id', to: '/_show/package/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/dataset/:dataset', to: '/_show/dataset/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/code/:code', to: '/_show/code/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/figure/:figure', to: '/_show/figure/:ctnr_id', method: 'GET' },

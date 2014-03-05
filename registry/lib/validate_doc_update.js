@@ -4,7 +4,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     var url = require('url')
       , isUrl = require('is-url')
       , semver = require('semver')
-      , cjsonld = require('container-jsonld')
+      , pjsonld = require('package-jsonld')
       , tv4 = require('tv4');
   } catch(e){
     throw { forbidden: e.message };
@@ -44,19 +44,19 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
   if (newDoc._deleted) return;
 
   try {
-    cjsonld.validateName(newDoc.name);
+    pjsonld.validateName(newDoc.name);
   } catch(e){
     throw { forbidden: e.message };
   }
 
   //validate newDoc using schema json
-  if( !tv4.validate(newDoc, cjsonld.schema) ){
+  if( !tv4.validate(newDoc, pjsonld.schema) ){
     throw { forbidden: tv4.error.message };
   }
   
   //validate that if it has a context it's ours
   if('@context' in newDoc){
-    var reCtx = new RegExp(cjsonld.contextUrl.replace(/^https/, 'http').replace(/^http/, 'https?'));    
+    var reCtx = new RegExp(pjsonld.contextUrl.replace(/^https/, 'http').replace(/^http/, 'https?'));    
     if( ! ( (typeof newDoc['@context'] === 'string') && reCtx.test(newDoc['@context'])) ){
       throw { forbidden: 'invalid @context' };
     }
@@ -75,7 +75,7 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
 
   //validate dependencies and that links are version compatible (i.e a document cannot require url from a version !== from the current doc)
   try {
-    cjsonld.validateRequire(newDoc);
+    pjsonld.validateRequire(newDoc);
   } catch(e){
     throw { forbidden: e.message };    
   }

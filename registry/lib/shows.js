@@ -1,6 +1,6 @@
 var shows = exports;
 
-shows.container = function(doc,req){
+shows.package = function(doc,req){
 
   var util = require('ctnr-util');
 
