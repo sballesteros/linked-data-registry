@@ -124,6 +124,27 @@ describe('data-registry', function(){
       });
     });
 
+    it('should error with code 401 if user try to auth with wrong password', function(done){
+      request.get( { url: rurl('/auth'), auth: {user:'user_a', pass: 'wrong'} }, function(err, resp, body){
+        assert.equal(resp.statusCode, 401);
+        done();
+      });
+    });
+
+    it('should error with code 401 if user try to auth with non existent name', function(done){
+      request.get( { url: rurl('/auth'), auth: {user:'user_wrong', pass: pass} }, function(err, resp, body){
+        assert.equal(resp.statusCode, 401);
+        done();
+      });
+    });
+
+    it('should return a token on successful auth', function(done){
+      request.get( { url: rurl('/auth'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(JSON.parse(body).name, 'user_a');
+        done();
+      });
+    });
+
     it('should have a pkg', function(done){
       registry.get('test-pkg@0.0.0', function(err, body){
         if(err) console.error(err);

@@ -108,6 +108,11 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
+app.get('/auth', forceAuth, function(req, res, next){
+  if(req.user){
+    res.json(req.user);
+  }
+});
 
 app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
@@ -740,7 +745,6 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
     if(err) return next(err);
     if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
       _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
-        console.log(err, body);
 
         if(err) return next(err);
 
