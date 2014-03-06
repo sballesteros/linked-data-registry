@@ -138,8 +138,9 @@ describe('data-registry', function(){
       });
     });
 
-    it('should return a token on successful auth', function(done){
+    it('should return a token and 200 on successful auth', function(done){
       request.get( { url: rurl('/auth'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(resp.statusCode, 200);
         assert.equal(JSON.parse(body).name, 'user_a');
         done();
       });
