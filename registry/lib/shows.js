@@ -128,3 +128,38 @@ shows.figure = function(doc, req){
   }
 
 };
+
+
+shows.article = function(doc, req){
+
+  var util = require('ctnr-util');
+
+  var r = doc.article.filter(function(x){ return x.name === req.query.article; })[0];
+  if(r){
+
+    if(!req.query.content){
+      return {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(r, null, 2)
+      };
+    }
+
+    if (req.query.content in doc._attachments){
+
+      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+
+    } else if ( (req.query.content === '_content')  && r.encoding && r.encoding.contentUrl ) { 
+
+      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.encoding.contentUrl) } };
+
+    } else {
+
+      throw ['error', 'not_found', 'invalid attachment name'];
+
+    }
+
+  } else {
+    throw ['error', 'not_found', 'invalid article name'];
+  }
+
+};

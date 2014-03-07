@@ -17,8 +17,10 @@ module.exports = [
   { from: '/:ctnr_id/dataset/:dataset', to: '/_show/dataset/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/code/:code', to: '/_show/code/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/figure/:figure', to: '/_show/figure/:ctnr_id', method: 'GET' },
+  { from: '/:ctnr_id/article/:article', to: '/_show/article/:ctnr_id', method: 'GET' },
 
   { from: '/:ctnr_id/dataset/:dataset/:content', to: '/_show/dataset/:ctnr_id', method: 'GET' },
   { from: '/:ctnr_id/code/:code/:content', to: '/_show/code/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/figure/:figure/:content', to: '/_show/figure/:ctnr_id', method: 'GET' }
+  { from: '/:ctnr_id/figure/:figure/:content', to: '/_show/figure/:ctnr_id', method: 'GET' },
+  { from: '/:ctnr_id/article/:article/:content', to: '/_show/article/:ctnr_id', method: 'GET' }
 ];

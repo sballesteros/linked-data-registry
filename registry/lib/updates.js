@@ -42,6 +42,15 @@ updates.distribution = function(doc, req){
       });
     }
 
+    if('article' in data && data.article.length){
+      doc.article = data.article;
+      doc.article.forEach(function(d){
+        if(d.encoding){
+          d.encoding.uploadDate = (new Date()).toISOString();
+        }
+      });
+    }
+
     if(data.encoding){
       doc.encoding = data.encoding;
     }

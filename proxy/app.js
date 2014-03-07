@@ -516,6 +516,24 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 });
 
 
+app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+  
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
+  rurl += (qs) ? '?' + qs : '';
+
+  function linkify(article, options){
+    return pjsonld.linkArticle(article, req.params.name, req.params.version);
+  };
+
+  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+});
+
+
 /**
  * get env_ or readme
  */
@@ -542,7 +560,7 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
  */
 app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, function(req, res, next){
 
-  if(['dataset', 'code', 'figure'].indexOf(req.params.type) === -1){
+  if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));
   }
   
@@ -587,10 +605,9 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         if(err) return next(err);
         
         //append distribution (TODO mv inside couch update function (but no crypto and no buffer inside :( ))
-        var dataset = doc.dataset || [];
-
         var att;
 
+        var dataset = doc.dataset || [];
         dataset.forEach(function(r){
 
           if(!r.distribution) return;
@@ -675,6 +692,34 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           }         
         });
 
+        var article = doc.article || [];
+        article.forEach(function(r){
+
+          if(!r.encoding) return;
+
+          var d = r.encoding;
+
+          if ('contentPath' in d && '_attachments' in doc){
+            
+            var basename = path.basename(d.contentPath);
+            att = doc._attachments[basename];   
+
+            if(!att) return;
+
+            d.contentUrl = doc._id.replace('@', '/') + '/article/' + r.name + '/' + basename;
+            d.contentSize = att.length;
+            d.encodingFormat = att.content_type;
+            d.hashAlgorithm = 'md5';
+            d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
+
+            if('encoding' in att){
+              d.encoding = {
+                contentSize: att.encoded_length,
+                encodingFormat: mime.lookup(att.encoding)
+              };
+            }
+          }
+        });
 
         var figure = doc.figure || [];
         async.each(figure, function(d, cb){
@@ -712,7 +757,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
         }, function(err){
           //if (err) OK we just won't have sizes...'
           
-          var postData = { dataset: dataset, code: code, figure: figure };
+          var postData = { dataset: dataset, code: code, figure: figure, article: article };
 
           if( ('_attachments' in doc) && ('env_.tar.gz' in doc._attachments) ){ //NOTE: README.md is added in about couchdb side in update
             att = doc._attachments['env_.tar.gz'];

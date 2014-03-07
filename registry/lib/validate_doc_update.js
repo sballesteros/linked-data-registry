@@ -104,10 +104,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     });
   }
 
-  
-
-
-
   //stuff that can never be modified
   if(oldDoc){
     if(oldDoc.name !== newDoc.name) {

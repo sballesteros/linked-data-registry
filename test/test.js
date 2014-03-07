@@ -108,7 +108,7 @@ function rmAll(done){
   });
 };
 
-describe('data-registry', function(){
+describe('linked data registry', function(){
   this.timeout(10000);
 
   describe('auth: no side effect search and versions', function(){
@@ -326,7 +326,7 @@ describe('data-registry', function(){
     
     var expected = { 
       '@id': 'test-pkg/0.0.0',
-      "@type": ["Package","DataCatalog"],
+      "@type": ["Package", "DataCatalog"],
       name: 'test-pkg',
       version: '0.0.0',
       dataset: [
@@ -563,7 +563,7 @@ describe('data-registry', function(){
             encoding: { contentSize: 41, encodingFormat: 'application/x-gzip' },
             '@type': 'SoftwareApplication' 
           },
-          package: { name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
         };
 
         assert.deepEqual(JSON.parse(body), expected);
@@ -651,7 +651,7 @@ describe('data-registry', function(){
           //uploadDate: '2014-02-23T06:11:56.642Z',
           '@id': 'test-pkg/0.0.0/figure/fig',
           '@type': 'ImageObject',
-          package: { name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
         };
 
         var result = JSON.parse(body);
@@ -663,10 +663,95 @@ describe('data-registry', function(){
     });
 
     it('should get content with _content', function(done){
-      request.get({url: rurl('/test-pkg/0.0.0/figure/fig/_content'), encoding:null}, function(err, resp, body){
+      request.get({url: rurl('/test-pkg/0.0.0/figure/fig/_content'), encoding: null }, function(err, resp, body){
         var md5 = crypto.createHash('md5');
         md5.update(body)
         assert.equal(md5.digest('hex'), '4caa440d02a15e1a371b9c794565bade');
+        done();
+      });
+    });
+
+    after(function(done){
+      rm(_users, 'org.couchdb.user:user_a', function(){
+        rm(registry, 'test-pkg@0.0.0', function(){
+          done();
+        });
+      });      
+    });
+    
+  });
+
+
+  describe('article', function(){
+
+    before(function(done){     
+      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
+        var mypkg = {
+          name: 'test-pkg',
+          version: '0.0.0',
+          article: [ { name: 'pone', encoding: {contentPath: 'article.pdf'} } ]
+        };
+
+        fs.stat(path.join(root, 'fixture', 'article.pdf'), function(err, stat){
+          var s = fs.createReadStream(path.join(root, 'fixture', 'article.pdf'));
+          mypkg._attachments = { 'article.pdf': { follows: true, length: stat.size, 'content_type': 'application/pdf', _stream: s } };
+
+          var uploadStream = cms(mypkg);
+
+          var options = { 
+            port: 3000,
+            hostname: '127.0.0.1',
+            method: 'PUT',
+            path: '/' + mypkg.name + '/' + mypkg.version,
+            auth: 'user_a:' + pass,
+            headers: uploadStream.headers
+          };
+
+          var req = http.request(options, function(res){
+            res.resume();
+            res.on('end', function(){        
+              done();
+            });
+          });
+          uploadStream.pipe(req);
+        });
+
+      });
+    });
+
+    it('should get an article entry', function(done){      
+      request.get(rurl('/test-pkg/0.0.0/article/pone'), function(err, resp, body){
+
+        var expected = { 
+          name: 'pone',
+          encoding:{
+            '@type': 'MediaObject',
+            contentPath: 'article.pdf',
+            contentUrl: 'test-pkg/0.0.0/article/pone/article.pdf',
+            contentSize: 381544,
+            encodingFormat: 'application/pdf',
+            hashAlgorithm: 'md5',
+            hashValue: 'c995484d14a9a78f00141fa1ec919aa5'
+            //uploadDate: '2014-03-07T22:02:42.486Z',
+          },
+          '@id': 'test-pkg/0.0.0/article/pone',
+          '@type': 'Article',
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+        };
+
+        var result = JSON.parse(body);
+        delete result.encoding.uploadDate;
+
+        assert.deepEqual(result, expected);
+        done();
+      });
+    });
+
+    it('should get content with _content', function(done){
+      request.get({url: rurl('/test-pkg/0.0.0/article/pone/_content'), encoding: null}, function(err, resp, body){      
+        var md5 = crypto.createHash('md5');
+        md5.update(body)
+        assert.equal(md5.digest('hex'), 'c995484d14a9a78f00141fa1ec919aa5');
         done();
       });
     });
