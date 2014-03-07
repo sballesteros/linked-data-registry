@@ -98,6 +98,23 @@ specifyied as ```latest``` and a qery string parameter ```range```.
 If ```:content``` is specified as ```_content``` the default content
 will be served.
 
+### GET /:pkgname/:version/article/:article
+
+Download _metadata_ from a article named ```:article``` from a package
+with name ```:pkgname``` and [version](http://semver.org/)
+```:version```. Version can be specifyied as ```latest``` and a qery
+string parameter ```range```.
+
+
+### GET /:pkgname/:version/article/:article/:content
+
+Download _artice content_ (```:content```) from a article named
+```:article``` from a package with name ```:pkgname``` and
+[version](http://semver.org/) ```:version```. Version can be
+specifyied as ```latest``` and a qery string parameter ```range```.
+If ```:content``` is specified as ```_content``` the default content
+will be served.
+
 
 
 ### PUT /adduser/:name
