@@ -40,19 +40,19 @@ var app = express()
   , httpServer = http.createServer(app)
   , httpsServer = https.createServer(credentials, app);
 
-var couch = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'] } //CouchDB settings
+var couch = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], name: (process.env['COUCH_DB_NAME'] || 'registry') } //CouchDB settings
   , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
   , host = process.env['NODE_HOST'] 
   , port = process.env['NODE_PORT'] || 80
   , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
 var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port) //https is optional so that we can play localy without SSL. That being said, in production it should be 1!
-  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.name, admin.password, couch.host, couch.port);
+  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.name, admin.password, couch.host, couch.port)
+  , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.name);
 
 var nano = require('nano')(rootCouchAdmin); //connect as admin
-var registry = nano.db.use('registry')
+var registry = nano.db.use(couch.name)
   , _users = nano.db.use('_users');
-
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -213,8 +213,8 @@ app.get('/package.jsonld', getStanProxyUrl, function(req, res, next){
 
 
 app.get('/search', function(req, res, next){
-  var rurl = req.url.replace(req.route.path.split('?')[0], '/registry/_design/registry/_rewrite/search');
-  res.redirect(rootCouch + rurl);
+  var rurl = req.url.replace(req.route.path.split('?')[0], '/_design/registry/_rewrite/search');
+  res.redirect(rootCouchRegistry + rurl);
 });
 
 
@@ -318,8 +318,8 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
  * list of versions
  */
 app.get('/:name', getStanProxyUrl, function(req, res, next){
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/versions/' + req.params.name);  
-  serveJsonLd(rootCouch + rurl, function(x){return x;}, req, res, next);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);  
+  serveJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
 });
 
 
@@ -335,7 +335,7 @@ function maxSatisfyingVersion(req, res, next){
   }
 
   //get all the versions of the pkg
-  request(rootCouch + '/registry/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
+  request(rootCouchRegistry + '/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
     if(err) return next(err);
 
     if (res.statusCode >= 400){
@@ -452,13 +452,13 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
 
   var rurl;
   if (req.params.version === 'latest'){
-    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
   } else {
-    rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
   }
   rurl += '?' + querystring.stringify(q);
 
-  serveJsonLd(rootCouch + rurl, pjsonld.linkPackage, req, res, next);
+  serveJsonLd(rootCouchRegistry + rurl, pjsonld.linkPackage, req, res, next);
 });
 
 
@@ -469,14 +469,14 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(dataset, options){
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -487,14 +487,14 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, fun
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(code, options){
     return pjsonld.linkCode(code, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -505,14 +505,14 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(figure, options){
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -523,14 +523,14 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
   rurl += (qs) ? '?' + qs : '';
 
   function linkify(article, options){
     return pjsonld.linkArticle(article, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouch + rurl, linkify, req, res, next);
+  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -548,10 +548,10 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);  
+  var rurl = req.url.replace(req.route.regexp, '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);  
   rurl += (qs) ? '?' + qs : '';
 
-  res.redirect(rootCouch + rurl);  
+  res.redirect(rootCouchRegistry + rurl);  
 });
 
 
@@ -569,9 +569,9 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, function(
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/registry/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
   rurl += (qs) ? '?' + qs : '';
-  res.redirect(rootCouch + rurl);  
+  res.redirect(rootCouchRegistry + rurl);  
 });
 
 
@@ -589,7 +589,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
   }
 
   function distributionAndstore(pkgnameIfIsFirst){
-    var reqCouch = request.put(rootCouch + '/registry/'+ id, function(err, resCouch, body){
+    var reqCouch = request.put(rootCouchRegistry + '/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
 
@@ -735,7 +735,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             d.hashAlgorithm = 'md5';
             d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
             //get attachment and get size
-            var r = request(rootCouch + '/registry/' + doc._id + '/' + basename);
+            var r = request(rootCouchRegistry + '/' + doc._id + '/' + basename);
             r.on('response', function(resStream){
               if(res.statusCode >= 400){
                 return cb(errorCode('could not get attachment', res.statusCode));
@@ -834,7 +834,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
           //Do NOT do that as admin: otherwise doc are ALWAYS deleted so DO NOT USE registry.destroy(id, etag, cb2);
           request.del({
-            url: rootCouch + '/registry/' + id + '?rev=' +etag,
+            url: rootCouchRegistry + '/' + id + '?rev=' +etag,
             headers: {
               'X-CouchDB-WWW-Authenticate': 'Cookie',
               'Cookie': cookie.serialize('AuthSession', req.user.token)

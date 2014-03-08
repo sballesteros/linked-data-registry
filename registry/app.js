@@ -15,4 +15,4 @@ var ddoc = module.exports = {
 
 for(var key in modules){
   ddoc[key] = modules[key];
-}
+};
