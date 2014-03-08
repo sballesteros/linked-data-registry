@@ -9,7 +9,7 @@ var paddedSemverPatched = paddedSemver.replace("require('semver')", "require('vi
 views.lib = {
   semver: modules.semver,
   paddedSemver: paddedSemverPatched
-},
+};
 
 views.byName = {
   map: function(doc){     

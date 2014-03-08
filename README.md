@@ -198,4 +198,3 @@ License
 =======
 
 GPL version 3 or any later version.
-
