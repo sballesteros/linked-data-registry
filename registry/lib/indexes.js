@@ -9,7 +9,6 @@ indexes.fullpackage = {
 
     if(doc.description){
       terms.push(doc.description);
-      pkg.push(doc.description);
     }
 
     if('keywords' in doc){
@@ -18,9 +17,8 @@ indexes.fullpackage = {
       });
     }
 
-    index("pkg", pkg.join(' '), {store: "no"});
+    index("pkg", terms.join(' '), {store: "no"});
     
-
     ['dataset', 'code', 'figure', 'article'].forEach(function(t){
       if (t in doc) {
         var rterms = [];
@@ -28,7 +26,7 @@ indexes.fullpackage = {
           if (r.description) {
             rterms.push(r.description);
             terms.push(r.description);
-          };
+          }
         });
         if(rterms.length){
           index(t, rterms.join(' '), {store: "no"});          
