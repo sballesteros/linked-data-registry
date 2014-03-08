@@ -21,16 +21,19 @@ exports['proxy'] = [
   'exports.portHttps = "PORT_HTTPS";'.replace('PORT_HTTPS', process.env['NODE_PORT_HTTPS']),
 ].join('\n');
 
+exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['COUCH_DB_NAME'] || 'registry'),
+
 
 exports['ctnr-util'] =
   [ 'exports.root = root',
+    'var couch = require("couch")',
     function root(req){     
       //hacky: TO BE IMPROVED
       var protocol = (req.query.secure) ? 'https' : 'http';
       if(req.headers.Host.split(':')[1] == 443){
         protocol = 'https';
       }
-      return protocol + '://' + req.headers.Host;
+      return protocol + '://' + req.headers.Host + '/' + couch.name;
     },
 
     'exports.resolveProxy = resolveProxy',

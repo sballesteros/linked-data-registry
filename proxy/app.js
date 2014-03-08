@@ -29,11 +29,9 @@ mime.define({
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
 var credentials = {
-  //key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'server_key.pem')),
-  //cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'server_cert.pem'))
-  key: fs.readFileSync(path.join($HOME, 'stan_ssl', 'stan_registry.key')),
-  cert: fs.readFileSync(path.join($HOME, 'stan_ssl', 'certificate-42234.crt')),
-  ca: fs.readFileSync(path.join($HOME, 'stan_ssl', 'GandiStandardSSLCA.pem'))
+  key: fs.readFileSync(path.join($HOME, 'certificate', 'standardanalytics.key')),
+  cert: fs.readFileSync(path.join($HOME, 'certificate', 'certificate-47444.crt')),
+  ca: fs.readFileSync(path.join($HOME, 'certificate', 'GandiStandardSSLCA.pem'))
 };
 
 var app = express()

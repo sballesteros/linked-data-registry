@@ -28,7 +28,7 @@ shows.dataset = function(doc, req){
 
     if (req.query.content in doc._attachments){ // attachments
 
-      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+      return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
     } else if ( (req.query.content === '_content')  && r.distribution && r.distribution.contentUrl) { 
 
@@ -73,7 +73,7 @@ shows.code = function(doc, req){
 
     if (req.query.content in doc._attachments){
 
-      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+      return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
     } else if ( (req.query.content === '_content')  && r.targetProduct && r.targetProduct.downloadUrl) {
 
@@ -111,7 +111,7 @@ shows.figure = function(doc, req){
 
     if (req.query.content in doc._attachments){
 
-      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+      return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
     } else if ( (req.query.content === '_content')  && r.contentUrl) { 
 
@@ -146,7 +146,7 @@ shows.article = function(doc, req){
 
     if (req.query.content in doc._attachments){
 
-      return { code : 301, headers : { 'Location' : util.root(req) + '/registry/' + doc._id + '/' + req.query.content } };
+      return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
     } else if ( (req.query.content === '_content')  && r.encoding && r.encoding.contentUrl ) { 
 

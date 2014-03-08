@@ -18,7 +18,7 @@ var root = path.dirname(__filename);
 request = request.defaults({headers: {'Accept': 'application/json'}});
 
 var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
-var registry = nano.db.use('registry')
+var registry = nano.db.use('test-registry')
   , _users = nano.db.use('_users');
 
 function rurl(path){
@@ -406,65 +406,65 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){      
-      request.get(rurl('/test-pkg/0.0.0'), function(err, resp, body){
-        body = JSON.parse(body);
-        assert('datePublished' in body);
-        delete body.datePublished;
-        body.dataset.forEach(function(d){
-          if('distribution' in d){
-            assert('uploadDate' in d.distribution);
-            delete d.distribution.uploadDate;
-          }
-        });
-
-        assert.equal(linkHeader, resp.headers.link);
-        assert.deepEqual(body, expected);   
-        done();
-      });
-    });
-
-    it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){      
-      request.get(rurl('/test-pkg/0.0.0?contentData=true'), function(err, resp, body){
-        body = JSON.parse(body);
-        assert.deepEqual(body.dataset[0].distribution.contentData, pkg.dataset[0].distribution.contentData);   
-        done();
-      });
-    });
-
-    it('should get the package as compacted JSON-LD', function(done){      
-      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
-        body = JSON.parse(body);
-        assert('@context' in body);
-        done();
-      });
-    });
-
-    it('should get the package as expanded JSON-LD', function(done){      
-      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
-        body = JSON.parse(body);
-        assert(Array.isArray(body));
-        done();
-      });
-    });
-
-    it('should get the package as flattened JSON-LD', function(done){      
-      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
-        body = JSON.parse(body);
-        assert('@graph' in body);
-        done();
-      });
-    });
-
-    it('should get a JSON dataset interpreted as JSON-LD', function(done){           
-      request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
-        assert.equal(linkHeader, resp.headers.link);
-        body = JSON.parse(body);
-        delete body.distribution.uploadDate;        
-        assert.deepEqual(body, expected.dataset[1]);
-        done();
-      });
-    });
+//    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){      
+//      request.get(rurl('/test-pkg/0.0.0'), function(err, resp, body){
+//        body = JSON.parse(body);
+//        assert('datePublished' in body);
+//        delete body.datePublished;
+//        body.dataset.forEach(function(d){
+//          if('distribution' in d){
+//            assert('uploadDate' in d.distribution);
+//            delete d.distribution.uploadDate;
+//          }
+//        });
+//
+//        assert.equal(linkHeader, resp.headers.link);
+//        assert.deepEqual(body, expected);   
+//        done();
+//      });
+//    });
+//
+//    it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){      
+//      request.get(rurl('/test-pkg/0.0.0?contentData=true'), function(err, resp, body){
+//        body = JSON.parse(body);
+//        assert.deepEqual(body.dataset[0].distribution.contentData, pkg.dataset[0].distribution.contentData);   
+//        done();
+//      });
+//    });
+//
+//    it('should get the package as compacted JSON-LD', function(done){      
+//      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
+//        body = JSON.parse(body);
+//        assert('@context' in body);
+//        done();
+//      });
+//    });
+//
+//    it('should get the package as expanded JSON-LD', function(done){      
+//      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
+//        body = JSON.parse(body);
+//        assert(Array.isArray(body));
+//        done();
+//      });
+//    });
+//
+//    it('should get the package as flattened JSON-LD', function(done){      
+//      request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
+//        body = JSON.parse(body);
+//        assert('@graph' in body);
+//        done();
+//      });
+//    });
+//
+//    it('should get a JSON dataset interpreted as JSON-LD', function(done){           
+//      request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
+//        assert.equal(linkHeader, resp.headers.link);
+//        body = JSON.parse(body);
+//        delete body.distribution.uploadDate;        
+//        assert.deepEqual(body, expected.dataset[1]);
+//        done();
+//      });
+//    });
 
     it('should get an attachment coming from a file', function(done){      
       request.get(rurl('/test-pkg/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
