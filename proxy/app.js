@@ -41,13 +41,13 @@ var app = express()
   , httpsServer = https.createServer(credentials, app);
 
 var couch = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], name: (process.env['COUCH_DB_NAME'] || 'registry') } //CouchDB settings
-  , admin = {name: process.env['COUCH_USER'], password: process.env['COUCH_PASS']}
+  , admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
   , host = process.env['NODE_HOST'] 
   , port = process.env['NODE_PORT'] || 80
   , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
 var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port) //https is optional so that we can play localy without SSL. That being said, in production it should be 1!
-  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.name, admin.password, couch.host, couch.port)
+  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.username, admin.password, couch.host, couch.port)
   , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.name);
 
 var nano = require('nano')(rootCouchAdmin); //connect as admin
@@ -743,14 +743,35 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
                 return cb(errorCode('could not get attachment', res.statusCode));
               }
               //we know that attachment is an image (otherwise rejected by validate_doc_update on couchdb
-              gm(resStream).size(function (err, size) {
+              gm(resStream).size({bufferStream: true}, function (err, size) {
                 if (err) return cb(err);                
                 d.width = size.width + 'px';
                 d.height = size.height + 'px';
                 d.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), d.name, d.version), doc.license, {string:true});
-                cb(null);                
+                this.resize('256', '256')
+                this.stream(function (err, stdout, stderr) {
+                  if (err) return cb(err);
+
+                  var ropts = {
+                    url: rootCouchRegistry + '/' + doc._id + '/thumb-' + basename, 
+                    method: 'PUT',
+                    headers:{
+                      'Content-Type': d.encodingFormat,
+                      'If-Match': doc._rev
+                    },
+                    auth: admin
+                  };
+
+                  var rthumb = request(ropts, function(err, resp, body){
+                    if(err) return cb(err);
+                    if(resp.statusCode === 201){
+                      d.thumbnailUrl = doc._id.replace('@', '/') + '/figure/' + d.name + '/thumb-' + basename;
+                    }                      
+                    cb(null);
+                  });
+                  stdout.pipe(rthumb);
+                });
               });
-              
             });
 
           } else {

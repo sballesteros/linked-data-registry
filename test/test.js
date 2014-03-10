@@ -639,7 +639,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get a figure entry with populated metadata (fileSize, hash...)', function(done){      
+    it('should get a figure entry with populated metadata (fileSize, hash, thumbnailUrl...)', function(done){      
       request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
 
         var expected = { 
@@ -647,6 +647,7 @@ describe('linked data registry', function(){
           contentRating: 'of-uri',
           contentPath: 'daftpunk.jpg',
           contentUrl: 'test-pkg/0.0.0/figure/fig/daftpunk.jpg',
+          thumbnailUrl: 'test-pkg/0.0.0/figure/fig/thumb-daftpunk.jpg',
           contentSize: 368923,
           encodingFormat: 'image/jpeg',
           hashAlgorithm: 'md5',
