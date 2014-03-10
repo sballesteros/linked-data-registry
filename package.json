@@ -49,11 +49,12 @@
     "url": "~0.7.9",
     "jsonld-html-view": "*",
     "ejs": "~0.8.5",
-    "gm": "^1.14.2"
+    "gm": "^1.14.2",
+    "clone": "~0.1.11",
+    "ldstars": "*"
   },
   "devDependencies": {
     "mocha": "~1.15.1",
-    "clone": "~0.1.11",
     "couch-multipart-stream": "0.0.0"
   }
 }

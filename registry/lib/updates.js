@@ -12,7 +12,7 @@ updates.distribution = function(doc, req){
     return [null, resp];
   } else if (req.userCtx.roles.indexOf('_admin') !== -1){ //only admin can do what follows
 
-    try{
+    try {
       var data = JSON.parse(req.body);
     } catch(e){
       resp.body = JSON.stringify({error: "invalid data" });
@@ -21,6 +21,10 @@ updates.distribution = function(doc, req){
     }
 
     doc.datePublished = (new Date()).toISOString();
+
+    if(typeof data.contentRating === 'string'){
+      doc.contentRating = data.contentRating;
+    }
 
     if('dataset' in data && data.dataset.length){
       doc.dataset = data.dataset;

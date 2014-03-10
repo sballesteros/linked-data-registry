@@ -329,11 +329,13 @@ describe('linked data registry', function(){
       "@type": ["Package", "DataCatalog"],
       name: 'test-pkg',
       version: '0.0.0',
+      contentRating: 'of-uri',
       dataset: [
         {
           '@id': 'test-pkg/0.0.0/dataset/inline',
           '@type': 'Dataset',
           name: 'inline',
+          contentRating: 'of-uri',
           about: [ 
             { name: 'a', valueType: 'xsd:string' }, 
             { name: 'b', valueType: 'xsd:integer' }
@@ -353,6 +355,7 @@ describe('linked data registry', function(){
           '@id': 'test-pkg/0.0.0/dataset/x1',
           '@type': 'Dataset',
           name: 'x1',
+          contentRating: 'of-uri',
           distribution: {
             '@type': 'DataDownload',
             contentPath: 'x1.csv',
@@ -552,8 +555,8 @@ describe('linked data registry', function(){
           '@id': 'test-pkg/0.0.0/code/comp',
           '@type': 'Code',
           name: 'comp',
-          targetProduct: 
-          {
+          contentRating: 'uri',
+          targetProduct: {
             filePath: 'script.r',
             downloadUrl: 'test-pkg/0.0.0/code/comp/script.r',
             fileSize: 21,
@@ -565,6 +568,7 @@ describe('linked data registry', function(){
           },
           'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
         };
+
 
         assert.deepEqual(JSON.parse(body), expected);
         done();
@@ -640,6 +644,7 @@ describe('linked data registry', function(){
 
         var expected = { 
           name: 'fig',
+          contentRating: 'of-uri',
           contentPath: 'daftpunk.jpg',
           contentUrl: 'test-pkg/0.0.0/figure/fig/daftpunk.jpg',
           contentSize: 368923,
@@ -724,6 +729,7 @@ describe('linked data registry', function(){
 
         var expected = { 
           name: 'pone',
+          contentRating: 'of-uri',
           encoding:{
             '@type': 'MediaObject',
             contentPath: 'article.pdf',

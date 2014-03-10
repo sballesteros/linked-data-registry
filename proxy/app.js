@@ -18,6 +18,8 @@ var http = require('http')
   , pjsonld = require('package-jsonld')
   , jsonldHtmlView = require('jsonld-html-view')
   , gm = require('gm')
+  , clone = require('clone')
+  , ldstars = require('ldstars')
   , pkgJson = require('../package.json');
 
 mime.define({
@@ -90,7 +92,6 @@ function forceAuth(req, res, next){
 
 
 var jsonParser = express.json();
-
 
 /**
  * middleware to get proxy URL (store it in req.stanProxy)
@@ -651,7 +652,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             }
 
           }
-
+          r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), doc.license, {string:true});
         });
 
 
@@ -687,12 +688,12 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
                 encodingFormat: mime.lookup(att.encoding)
               };
             }
-          }         
+          }
+          r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), r.name, r.version), doc.license, {string:true});
         });
 
         var article = doc.article || [];
         article.forEach(function(r){
-
           if(!r.encoding) return;
 
           var d = r.encoding;
@@ -717,6 +718,8 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
               };
             }
           }
+
+          r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), r.name, r.version), doc.license, {string:true});
         });
 
         var figure = doc.figure || [];
@@ -732,6 +735,7 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             d.encodingFormat = att.content_type;
             d.hashAlgorithm = 'md5';
             d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
+
             //get attachment and get size
             var r = request(rootCouchRegistry + '/' + doc._id + '/' + basename);
             r.on('response', function(resStream){
@@ -743,19 +747,23 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
                 if (err) return cb(err);                
                 d.width = size.width + 'px';
                 d.height = size.height + 'px';
+                d.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), d.name, d.version), doc.license, {string:true});
                 cb(null);                
               });
               
             });
 
           } else {
+            d.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), d.name, d.version), doc.license, {string:true});
             cb(null);
           }
 
         }, function(err){
-          //if (err) OK we just won't have sizes...'
+          //if (err) OK we just won't have sizes or thumbnails...'
+
+          var contentRating = ldstars.rate(pjsonld.linkPackage(clone(doc)), {string:true});
           
-          var postData = { dataset: dataset, code: code, figure: figure, article: article };
+          var postData = { contentRating: contentRating, dataset: dataset, code: code, figure: figure, article: article };
 
           if( ('_attachments' in doc) && ('env_.tar.gz' in doc._attachments) ){ //NOTE: README.md is added in about couchdb side in update
             att = doc._attachments['env_.tar.gz'];
@@ -768,11 +776,11 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
             }
           }
 
+          //done as admin as only admin can add ratings
           registry.atomic('registry', 'distribution', doc._id, postData, function(err, body, headers){
             if(err) return next(err);
             res.json((headers['status-code'] === 200) ? 201: headers['status-code'], body);
           });
-
 
         });
 
