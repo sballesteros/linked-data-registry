@@ -40,18 +40,25 @@ var app = express()
   , httpServer = http.createServer(app)
   , httpsServer = https.createServer(credentials, app);
 
-var couch = { ssl: process.env['COUCH_SSL'], host: process.env['COUCH_HOST'], port: process.env['COUCH_PORT'], name: (process.env['COUCH_DB_NAME'] || 'registry') } //CouchDB settings
-  , admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
-  , host = process.env['NODE_HOST'] 
+var couch = { 
+  ssl: process.env['COUCH_SSL'], 
+  host: process.env['COUCH_HOST'], 
+  port: process.env['COUCH_PORT'], 
+  registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
+  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction')
+};
+
+var admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
+  , host = process.env['NODE_HOST']
   , port = process.env['NODE_PORT'] || 80
   , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
 var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port) //https is optional so that we can play localy without SSL. That being said, in production it should be 1!
   , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.username, admin.password, couch.host, couch.port)
-  , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.name);
+  , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.registry);
 
 var nano = require('nano')(rootCouchAdmin); //connect as admin
-var registry = nano.db.use(couch.name)
+var registry = nano.db.use(couch.registry)
   , _users = nano.db.use('_users');
 
 app.set('views', path.join(__dirname, 'views'));
@@ -90,6 +97,21 @@ function forceAuth(req, res, next){
 
 };
 
+
+function logDownload(req, res, next){
+  var iData = {
+    '@type': 'UserDownloads',
+    url: req.originalUrl,
+    startDate: (new Date()).toISOString()
+  };
+  
+  request.post({url:rootCouch+'/' + couch.interaction , auth:admin, json: iData}, function(err, resp, body){
+    if(err) console.error(err);
+    //nothing;
+  });
+
+  next();  
+};
 
 var jsonParser = express.json();
 
@@ -444,7 +466,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 };
 
 
-app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){  
+app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){  
 
   var q = req.query || {};
   q.proxy = req.stanProxy;
@@ -461,7 +483,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, function(req, 
 });
 
 
-app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -479,7 +501,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 });
 
 
-app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -497,7 +519,7 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, fun
 });
 
 
-app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -515,7 +537,7 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 });
 
 
-app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
   
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -534,7 +556,7 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
 
 
 /**
- * get env_ or readme
+ * get env_ or readme: do not log
  */
 app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
 
@@ -557,7 +579,7 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 /**
  * rname is the name of the resource, content can be _content (to get default content)
  */
-app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, function(req, res, next){
+app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownload, function(req, res, next){
 
   if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));

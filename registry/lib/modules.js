@@ -21,7 +21,7 @@ exports['proxy'] = [
   'exports.portHttps = "PORT_HTTPS";'.replace('PORT_HTTPS', process.env['NODE_PORT_HTTPS']),
 ].join('\n');
 
-exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['COUCH_DB_NAME'] || 'registry'),
+exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['REGISTRY_DB_NAME'] || 'registry'),
 
 
 exports['ctnr-util'] =
