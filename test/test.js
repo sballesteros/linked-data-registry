@@ -18,7 +18,7 @@ var root = path.dirname(__filename);
 request = request.defaults({headers: {'Accept': 'application/json'}});
 
 var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
-var registry = nano.db.use('test-registry')
+var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
 function rurl(path){
