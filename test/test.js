@@ -111,7 +111,7 @@ function rmAll(done){
 describe('linked data registry', function(){
   this.timeout(10000);
 
-  describe('auth: no side effect search and versions', function(){
+  describe.skip('auth: no side effect search and versions', function(){
 
     before(function(done){
       createFixture(done);
@@ -249,7 +249,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('auth: side effects', function(){
+  describe.skip('auth: side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -320,7 +320,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('dataset and attachments', function(){
+  describe.skip('dataset and attachments', function(){
 
     var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
     
@@ -508,7 +508,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('code', function(){
+  describe.skip('code', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -609,34 +609,52 @@ describe('linked data registry', function(){
         var mypkg = {
           name: 'test-pkg',
           version: '0.0.0',
-          figure: [ { name: 'fig', contentPath: 'daftpunk.jpg' } ]
+          figure: [ 
+            { name: 'g002', contentPath: 'g002.png' },
+            { name: 'fig', contentPath: 'daftpunk.jpg' } 
+          ]
         };
 
-        fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, stat){
-          var s = fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'));
-          mypkg._attachments = { 'daftpunk.jpg': { follows: true, length: stat.size, 'content_type': 'image/jpeg', _stream: s } };
+        fs.stat(path.join(root, 'fixture', 'g002.png'), function(err, statg){
+          fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, statdp){
+            mypkg._attachments = {
+              'g002.png': { 
+                follows: true, 
+                length: statg.size, 
+                'content_type': 'image/png',
+                _stream: fs.createReadStream(path.join(root, 'fixture', 'g002.png')) 
+              },
+              'daftpunk.jpg': { 
+                follows: true, 
+                length: statdp.size, 
+                'content_type': 'image/jpeg',
+                _stream: fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg')) 
+              }
+            };
 
-          var uploadStream = cms(mypkg);
+            var uploadStream = cms(mypkg);
 
-          var options = { 
-            port: 3000,
-            hostname: '127.0.0.1',
-            method: 'PUT',
-            path: '/' + mypkg.name + '/' + mypkg.version,
-            auth: 'user_a:' + pass,
-            headers: uploadStream.headers
-          };
+            var options = { 
+              port: 3000,
+              hostname: '127.0.0.1',
+              method: 'PUT',
+              path: '/' + mypkg.name + '/' + mypkg.version,
+              auth: 'user_a:' + pass,
+              headers: uploadStream.headers
+            };
 
-          var req = http.request(options, function(res){
-            res.resume();
-            res.on('end', function(){        
-              done();
+            var req = http.request(options, function(res){
+              res.resume();
+              res.on('end', function(){        
+                done();
+              });
             });
+            uploadStream.pipe(req);
           });
-          uploadStream.pipe(req);
-        });
 
+        });
       });
+
     });
 
     it('should get a figure entry with populated metadata (fileSize, hash, thumbnailUrl...)', function(done){      
@@ -688,7 +706,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('article', function(){
+  describe.skip('article', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){

@@ -11,8 +11,8 @@ var util = require('util')
   , clone = require('clone')
   , ldstars = require('ldstars');
 
-
 /**
+ * app.put('/:name/:version', forceAuth, publish);
  * publish
  */
 
@@ -33,7 +33,31 @@ module.exports = function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 200Mo'});
   }
 
-  function distributionAndstore(pkgnameIfIsFirst){
+  registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+
+    if(err) return next(err);
+    if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
+      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+
+        if(err) return next(err);
+
+        if(headers['status-code'] >= 400){
+          return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
+        } else {
+          _markupAndStore(req.params.name);
+        };
+
+      });
+    } else {
+      _markupAndStore();
+    }
+  });
+
+
+  /**
+   * add meta information and store to db
+   */
+  function _markupAndStore(pkgnameIfIsFirst){
     var reqCouch = request.put(rootCouchRegistry + '/'+ id, function(err, resCouch, body){
 
       if(err) return next(err);
@@ -170,65 +194,7 @@ module.exports = function(req, res, next){
 
 
         var figure = doc.figure || [];
-        async.each(figure, function(d, cb){
-
-          if('contentPath' in d && '_attachments' in doc){          
-            var basename = path.basename(d.contentPath);
-            att = doc._attachments[basename];   
-            if(!att) return;
-            
-            d.contentUrl = doc._id.replace('@', '/') + '/figure/' + d.name + '/' + basename;
-            d.contentSize = att.length;
-            d.encodingFormat = att.content_type;
-            d.hashAlgorithm = 'md5';
-            d.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
-
-            //get attachment and get size
-            var r = request(rootCouchRegistry + '/' + doc._id + '/' + basename);
-            r.on('response', function(resStream){
-              if(res.statusCode >= 400){
-                return cb(errorCode('could not get attachment', res.statusCode));
-              }
-              //we know that attachment is an image (otherwise rejected by validate_doc_update on couchdb
-              gm(resStream).size({bufferStream: true}, function (err, size) {
-                if (err) return cb(err);                
-                d.width = size.width + 'px';
-                d.height = size.height + 'px';
-                d.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), d.name, d.version), doc.license, {string:true});
-                this.resize('256', '256')
-                this.stream(function (err, stdout, stderr) {
-                  console.log(err, stderr);
-                  if (err) return cb(err);
-
-                  var ropts = {
-                    url: rootCouchRegistry + '/' + doc._id + '/thumb-' + basename, 
-                    method: 'PUT',
-                    headers:{
-                      'Content-Type': d.encodingFormat,
-                      'If-Match': doc._rev
-                    },
-                    auth: admin
-                  };
-
-                  var rthumb = request(ropts, function(err, resp, body){
-                    console.log(err, body, resp.statusCode)
-                    if(err) return cb(err);
-                    if(resp.statusCode === 201){
-                      d.thumbnailUrl = doc._id.replace('@', '/') + '/figure/' + d.name + '/thumb-' + basename;
-                    }  
-                    cb(null);
-                  });
-                  stdout.pipe(rthumb);
-                });
-              });
-            });
-
-          } else {
-            d.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), d.name, d.version), doc.license, {string:true});
-            cb(null);
-          }
-
-        }, function(err){
+        _markupFigure(figure, 0, doc._rev, rootCouchRegistry, admin, doc, function(err){
           if(err) console.error(err);
           //if (err) OK we just won't have sizes or thumbnails...'
 
@@ -262,25 +228,90 @@ module.exports = function(req, res, next){
     req.pipe(reqCouch);
   };
 
-  registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+};
 
-    if(err) return next(err);
-    if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
-      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
 
-        if(err) return next(err);
+/**
+ * recursively thumbnail figures (has to be sequential so that latest _rev is passed to couch)
+ */
+function _markupFigure(figures, cnt, _rev, rootCouchRegistry, admin, doc, callback){
 
-        if(headers['status-code'] >= 400){
-          return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
-        } else {
-          distributionAndstore(req.params.name);
-        };
+  if(!figures.length){
+    return callback(null);
+  }
 
+  var r = figures[cnt];
+
+  if('contentPath' in r && '_attachments' in doc){          
+    var basename = path.basename(r.contentPath);
+    att = doc._attachments[basename];   
+    if(!att) return;
+    
+    r.contentUrl = doc._id.replace('@', '/') + '/figure/' + r.name + '/' + basename;
+    r.contentSize = att.length;
+    r.encodingFormat = att.content_type;
+    r.hashAlgorithm = 'md5';
+    r.hashValue = (new Buffer(att.digest.split('md5-')[1], 'base64')).toString('hex');
+
+    //get attachment and get size
+    var reqAtt = request(rootCouchRegistry + '/' + doc._id + '/' + basename);
+    reqAtt.on('response', function(resAttStream){
+
+      if(resAttStream.statusCode >= 400){
+        return callback(errorCode('could not get attachment', resAttStream.statusCode));
+      }
+
+      //we know that attachment is an image (otherwise rejected by validate_doc_update on couchdb
+      gm(resAttStream).size({bufferStream: true}, function (err, size) {
+        if (err) return callback(err);                
+
+        r.width = size.width + 'px';
+        r.height = size.height + 'px';
+        r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), r.name, r.version), doc.license, {string:true});
+        this.resize('256', '256')
+        this.stream(function (err, stdout, stderr) {
+          if (err) return callback(err);
+
+          var ropts = {
+            url: rootCouchRegistry + '/' + doc._id + '/thumb-' + basename, 
+            method: 'PUT',
+            headers:{
+              'Content-Type': r.encodingFormat,
+              'If-Match': _rev
+            },
+            auth: admin
+          };
+
+          var rthumb = request(ropts, function(err, resp, body){
+            if(err) return callback(err);
+
+            if (resp.statusCode === 201) {
+              body = JSON.parse(body);
+
+              r.thumbnailUrl = doc._id.replace('@', '/') + '/figure/' + r.name + '/thumb-' + basename;
+              if (++cnt < figures.length) {
+                _markupFigure(figures, cnt, body.rev, rootCouchRegistry, admin, doc, callback);
+              } else {
+                callback(null);
+              }
+            } else {
+              callback(errorCode('could not PUT thumbnail', resp.statusCode))
+            }
+
+          });
+          stdout.pipe(rthumb);
+        });
       });
+    });
+
+  } else {
+    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), r.name, r.version), doc.license, {string:true});
+    if (++cnt < figures.length) {
+      _markupFigure(figures, cnt, body.rev, rootCouchRegistry, admin, doc, callback);
     } else {
-      distributionAndstore();
+      callback(null);
     }
-  });
+  }
 
 };
 
@@ -290,3 +321,4 @@ function errorCode(msg, code){
   err.code = code;
   return err;
 };
+
