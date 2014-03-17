@@ -23,6 +23,7 @@ var http = require('http')
   , postpublish = require('./lib/postpublish')
   , AWS = require('aws-sdk')
   , sha = require('sha')
+  , concat = require('concat-stream')
   , pkgJson = require('../package.json');
 
 
@@ -617,14 +618,12 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
 app.put('/:sha1', forceAuth, function(req, res, next){
 
   if(!req.headers['x-content-sha1']){
-    res.json(400, {error: 'headers need a X-Content-Sha1 header'});
+    res.json(400, {error: 'request needs a X-Content-Sha1 header'});
   }
 
   if(req.params.sha1 !== req.headers['x-content-sha1']){
     res.json(400, {error: 'X-Content-Sha1 must match URL'});
   }
-
-  console.log(req.headers);
 
   var checkStream = req.pipe(sha.stream(req.headers['x-content-sha1']));
   var checkErr = null;
@@ -639,8 +638,6 @@ app.put('/:sha1', forceAuth, function(req, res, next){
     ContentType: req.headers['content-type'],
     ContentLength: parseInt(req.headers['content-length'], 10),
   };
-
-  console.log(opts);
 
   if(req.headers['content-encoding']){
     opts['ContentEncoding'] = req.headers['content-encoding']
@@ -661,6 +658,13 @@ app.put('/:sha1', forceAuth, function(req, res, next){
 
 });
 
+app.get('/:sha1', function(req, res, next){
+  var s = s3.getObject({Key:req.params.sha1}).createReadStream();
+  s.on('error', function(err){
+    console.error(err);
+  });
+  s.pipe(res);
+});
 
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
@@ -670,7 +674,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
     return res.json(411, {error: 'Length Required'});
   }
 
-  if(req.headers['content-length'] > 16777216){
+  if(parseInt(req.headers['content-length'],10) > 16777216){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
   }
 
@@ -688,15 +692,15 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           if(headers['status-code'] >= 400){
             return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
           } else {
-            request.put({ url: rootCouchRegistry + '/' + id, json: pkg }, function(err, resCouch, body){
+            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(err, resCouch, body){
               if(err) return next(err);
               if(resCouch.statusCode >= 400){
-                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: pkgnameIfIsFirst});
+                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name});
                 return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
               }
 
-              postpublish(req, pkg, rev, function(err, pkg, rev){
-                request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev} }, function(err, resCouchPost, bodyPost){
+              postpublish(req, pkg, body._rev, function(err, pkg, rev){
+                request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
                   if(err){
                     console.error(err, bodyPost);
                   }
@@ -709,13 +713,13 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
         });
       } else {
-        var reqCouch = request.put({url: rootCouchRegistry + '/'+ id, json: pkg}, function(err, resCouch, body){
+        request.put({url: rootCouchRegistry + '/'+ id, json: pkg, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
           if(err) return next(err);
           if(resCouch.statusCode >= 400){
             return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
           }
-          postpublish(req, pkg, rev, function(err, pkg, rev){
-            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev} }, function(err, resCouchPost, body){
+          postpublish(req, pkg, body._rev, function(err, pkg, rev){
+            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, body){
               if(err){
                 console.error(err, bodyPost);
               }
@@ -833,9 +837,6 @@ s3.createBucket(function() {
 });
 
 
-//
 //s3.deleteObjects({Delete:{Objects: filenames.map(function(x){return {Key: x};})}}, function(err, data){
 //
 //});
-//
-//s3.getObject({Key:...}).createReadStream();

@@ -28,7 +28,7 @@ var linkHeader = '<http://localhost:3000/package.jsonld>; rel="http://www.w3.org
 
 function rm(db, id, cb){
   db['head'](id, function(err, _, headers){
-    var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';    
+    var etag = (headers && headers.etag.replace(/^"(.*)"$/, '$1')) || '';
     db['destroy'](id, etag, function(err, _, _){
       cb();
     });
@@ -49,11 +49,11 @@ var pkg = {
   dataset: [
     {
       name: 'inline',
-      about: [ 
-        { name: 'a', valueType: 'xsd:string' }, 
+      about: [
+        { name: 'a', valueType: 'xsd:string' },
         { name: 'b', valueType: 'xsd:integer' }
       ],
-      distribution: {        
+      distribution: {
         contentData: [{'a': 'a', 'b': 1}, {'a': 'x', 'b': 2} ]
       }
     }
@@ -115,7 +115,7 @@ describe('linked data registry', function(){
     before(function(done){
       createFixture(done);
     });
-    
+
     it('should have an user', function(done){
       _users.get('org.couchdb.user:user_a', function(err, body){
         assert.equal(body.name, userData.name);
@@ -147,8 +147,8 @@ describe('linked data registry', function(){
 
     it('should have a pkg', function(done){
       registry.get('test-pkg@0.0.0', function(err, body){
-        if(err) console.error(err);
-        assert.equal(body._id, 'test-pkg@0.0.0');      
+        if(err) console.error(err, body);
+        assert.equal(body._id, 'test-pkg@0.0.0');
         done();
       });
     });
@@ -175,7 +175,7 @@ describe('linked data registry', function(){
     it('should retrieve the latest version of test-pkg as JSON interpreded as JSON-LD', function(done){
       request(rurl('/test-pkg/latest'), function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
-        assert.equal(JSON.parse(body).version, '0.0.1');      
+        assert.equal(JSON.parse(body).version, '0.0.1');
         done();
       });
     });
@@ -196,7 +196,7 @@ describe('linked data registry', function(){
 
     it('user_a and user_b should be maintainers of test-pkg', function(done){
       request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), maintainers);      
+        assert.deepEqual(JSON.parse(body), maintainers);
         done();
       });
     });
@@ -221,7 +221,7 @@ describe('linked data registry', function(){
       request.del( { url: rurl('/test-pkg'), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.deepEqual(JSON.parse(body), maintainers);       
+          assert.deepEqual(JSON.parse(body), maintainers);
           done();
         });
       });
@@ -231,14 +231,14 @@ describe('linked data registry', function(){
       request.post( {url: rurl('/owner/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', pkgname: 'test-pkg'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         done();
-      });   
+      });
     });
 
     it('should not let user_c rm user_a from the maintainers of test-pkg', function(done){
       request.post( {url: rurl('/owner/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', pkgname: 'test-pkg'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 403);
         done();
-      });   
+      });
     });
 
     after(function(done){
@@ -269,14 +269,14 @@ describe('linked data registry', function(){
         assert.equal(resp.statusCode, 403);
         done();
       });
-    });    
+    });
 
     it('should let user_a delete the pkg and remove test-pkg from the roles of user_a and user_b', function(done){
       request.del( { url: rurl('/test-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
         assert.equal(resp.statusCode, 200);
 
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.equal(resp.statusCode, 404);       
+          assert.equal(resp.statusCode, 404);
           done();
         });
 
@@ -289,7 +289,7 @@ describe('linked data registry', function(){
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
           var expected = clone(maintainers);
           expected.push({name:'user_c', email:'user@domain.io'});
-          assert.deepEqual(JSON.parse(body), expected);       
+          assert.deepEqual(JSON.parse(body), expected);
 
           var mypkg = clone(pkg);
           mypkg.version = '0.0.2';
@@ -297,19 +297,19 @@ describe('linked data registry', function(){
             assert.equal(resp.statusCode, 201);
             done();
           });
-          
+
         });
-      });   
+      });
     });
 
     it('should let user_a rm user_b from the maintainers of test-pkg', function(done){
       request.post( {url: rurl('/owner/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-pkg'}}, function(err, resp, body){
         assert.equal(resp.statusCode, 200);
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.deepEqual(JSON.parse(body), maintainers.slice(0,-1));       
+          assert.deepEqual(JSON.parse(body), maintainers.slice(0,-1));
           done();
         });
-      });   
+      });
     });
 
     afterEach(function(done){
@@ -322,8 +322,8 @@ describe('linked data registry', function(){
   describe.skip('dataset and attachments', function(){
 
     var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
-    
-    var expected = { 
+
+    var expected = {
       '@id': 'test-pkg/0.0.0',
       "@type": ["Package", "DataCatalog"],
       name: 'test-pkg',
@@ -335,8 +335,8 @@ describe('linked data registry', function(){
           '@type': 'Dataset',
           name: 'inline',
           contentRating: 'of-uri',
-          about: [ 
-            { name: 'a', valueType: 'xsd:string' }, 
+          about: [
+            { name: 'a', valueType: 'xsd:string' },
             { name: 'b', valueType: 'xsd:integer' }
           ],
           distribution: {
@@ -348,7 +348,7 @@ describe('linked data registry', function(){
             hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
             //uploadDate: '2014-01-12T01:16:24.939Z'
           },
-          catalog: { "@type": ["Package", "DataCatalog"], name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          catalog: { "@type": ["Package", "DataCatalog"], name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
         },
         {
           '@id': 'test-pkg/0.0.0/dataset/x1',
@@ -370,12 +370,12 @@ describe('linked data registry', function(){
         }
       ],
       //datePublished: '2014-01-12T01:16:24.939Z',
-      registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' } 
+      registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
     };
 
     expected = pjsonld.linkPackage(expected, {addCtx:false});
 
-    before(function(done){     
+    before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
 
         var mypkg = clone(pkg);
@@ -389,7 +389,7 @@ describe('linked data registry', function(){
 
         var s = cms(mypkg);
 
-        var options = { 
+        var options = {
           port: 3000,
           hostname: '127.0.0.1',
           method: 'PUT',
@@ -400,7 +400,7 @@ describe('linked data registry', function(){
 
         var req = http.request(options, function(res){
           res.resume();
-          res.on('end', function(){        
+          res.on('end', function(){
             done();
           });
         });
@@ -408,7 +408,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){      
+    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){
       request.get(rurl('/test-pkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
         assert('datePublished' in body);
@@ -421,20 +421,20 @@ describe('linked data registry', function(){
         });
 
         assert.equal(linkHeader, resp.headers.link);
-        assert.deepEqual(body, expected);   
+        assert.deepEqual(body, expected);
         done();
       });
     });
 
-    it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){      
+    it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){
       request.get(rurl('/test-pkg/0.0.0?contentData=true'), function(err, resp, body){
         body = JSON.parse(body);
-        assert.deepEqual(body.dataset[0].distribution.contentData, pkg.dataset[0].distribution.contentData);   
+        assert.deepEqual(body.dataset[0].distribution.contentData, pkg.dataset[0].distribution.contentData);
         done();
       });
     });
 
-    it('should get the package as compacted JSON-LD', function(done){      
+    it('should get the package as compacted JSON-LD', function(done){
       request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert('@context' in body);
@@ -442,7 +442,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get the package as expanded JSON-LD', function(done){      
+    it('should get the package as expanded JSON-LD', function(done){
       request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert(Array.isArray(body));
@@ -450,7 +450,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get the package as flattened JSON-LD', function(done){      
+    it('should get the package as flattened JSON-LD', function(done){
       request.get({url: rurl('/test-pkg/0.0.0'), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
         body = JSON.parse(body);
         assert('@graph' in body);
@@ -458,58 +458,58 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get a JSON dataset interpreted as JSON-LD', function(done){           
+    it('should get a JSON dataset interpreted as JSON-LD', function(done){
       request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
         body = JSON.parse(body);
-        delete body.distribution.uploadDate;        
+        delete body.distribution.uploadDate;
         assert.deepEqual(body, expected.dataset[1]);
         done();
       });
     });
 
-    it('should get an attachment coming from a file', function(done){      
+    it('should get an attachment coming from a file', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
         assert.equal(body, x1);
         done();
       });
     });
 
-    it('should get an attachment coming from a file when _content is used to specify the content', function(done){      
+    it('should get an attachment coming from a file when _content is used to specify the content', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/x1/_content'), function(err, resp, body){
         assert.equal(body, x1);
         done();
       });
     });
 
-    it('should error on invalid attachment location', function(done){      
+    it('should error on invalid attachment location', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
         assert(resp.statusCode, 404);
         done();
       });
     });
 
-    it('should get a pseudo attachment coming from a inline data', function(done){      
+    it('should get a pseudo attachment coming from a inline data', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/inline/inline.json'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), pkg.dataset[0].distribution.contentData);
         done();
       });
     });
-    
+
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
           done();
         });
-      });      
+      });
     });
-    
+
   });
 
 
   describe.skip('code', function(){
 
-    before(function(done){     
+    before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
         var mypkg = {
           name: 'test-pkg',
@@ -526,7 +526,7 @@ describe('linked data registry', function(){
 
           var uploadStream = cms(mypkg);
 
-          var options = { 
+          var options = {
             port: 3000,
             hostname: '127.0.0.1',
             method: 'PUT',
@@ -537,7 +537,7 @@ describe('linked data registry', function(){
 
           var req = http.request(options, function(res){
             res.resume();
-            res.on('end', function(){        
+            res.on('end', function(){
               done();
             });
           });
@@ -547,10 +547,10 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){      
+    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){
       request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
 
-        var expected = { 
+        var expected = {
           '@id': 'test-pkg/0.0.0/code/comp',
           '@type': 'Code',
           name: 'comp',
@@ -563,9 +563,9 @@ describe('linked data registry', function(){
             hashAlgorithm: 'md5',
             hashValue: '59e68bf53d595dd5d0dda32e54c528a6',
             encoding: { contentSize: 41, encodingFormat: 'application/x-gzip' },
-            '@type': 'SoftwareApplication' 
+            '@type': 'SoftwareApplication'
           },
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
         };
 
 
@@ -595,45 +595,45 @@ describe('linked data registry', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
           done();
         });
-      });      
+      });
     });
-    
+
   });
 
 
   describe.skip('figure', function(){
 
-    before(function(done){     
+    before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
         var mypkg = {
           name: 'test-pkg',
           version: '0.0.0',
-          figure: [ 
+          figure: [
             { name: 'g002', contentPath: 'g002.png' },
-            { name: 'fig', contentPath: 'daftpunk.jpg' } 
+            { name: 'fig', contentPath: 'daftpunk.jpg' }
           ]
         };
 
         fs.stat(path.join(root, 'fixture', 'g002.png'), function(err, statg){
           fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, statdp){
             mypkg._attachments = {
-              'g002.png': { 
-                follows: true, 
-                length: statg.size, 
+              'g002.png': {
+                follows: true,
+                length: statg.size,
                 'content_type': 'image/png',
-                _stream: fs.createReadStream(path.join(root, 'fixture', 'g002.png')) 
+                _stream: fs.createReadStream(path.join(root, 'fixture', 'g002.png'))
               },
-              'daftpunk.jpg': { 
-                follows: true, 
-                length: statdp.size, 
+              'daftpunk.jpg': {
+                follows: true,
+                length: statdp.size,
                 'content_type': 'image/jpeg',
-                _stream: fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg')) 
+                _stream: fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'))
               }
             };
 
             var uploadStream = cms(mypkg);
 
-            var options = { 
+            var options = {
               port: 3000,
               hostname: '127.0.0.1',
               method: 'PUT',
@@ -644,7 +644,7 @@ describe('linked data registry', function(){
 
             var req = http.request(options, function(res){
               res.resume();
-              res.on('end', function(){        
+              res.on('end', function(){
                 done();
               });
             });
@@ -656,10 +656,10 @@ describe('linked data registry', function(){
 
     });
 
-    it('should get a figure entry with populated metadata (fileSize, hash, thumbnailUrl...)', function(done){      
+    it('should get a figure entry with populated metadata (fileSize, hash, thumbnailUrl...)', function(done){
       request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
 
-        var expected = { 
+        var expected = {
           name: 'fig',
           contentRating: 'of-uri',
           contentPath: 'daftpunk.jpg',
@@ -674,7 +674,7 @@ describe('linked data registry', function(){
           //uploadDate: '2014-02-23T06:11:56.642Z',
           '@id': 'test-pkg/0.0.0/figure/fig',
           '@type': 'ImageObject',
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
         };
 
         var result = JSON.parse(body);
@@ -699,15 +699,15 @@ describe('linked data registry', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
           done();
         });
-      });      
+      });
     });
-    
+
   });
 
 
   describe.skip('article', function(){
 
-    before(function(done){     
+    before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
         var mypkg = {
           name: 'test-pkg',
@@ -721,7 +721,7 @@ describe('linked data registry', function(){
 
           var uploadStream = cms(mypkg);
 
-          var options = { 
+          var options = {
             port: 3000,
             hostname: '127.0.0.1',
             method: 'PUT',
@@ -732,7 +732,7 @@ describe('linked data registry', function(){
 
           var req = http.request(options, function(res){
             res.resume();
-            res.on('end', function(){        
+            res.on('end', function(){
               done();
             });
           });
@@ -742,10 +742,10 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get an article entry', function(done){      
+    it('should get an article entry', function(done){
       request.get(rurl('/test-pkg/0.0.0/article/pone'), function(err, resp, body){
 
-        var expected = { 
+        var expected = {
           name: 'pone',
           contentRating: 'of-uri',
           encoding:{
@@ -760,7 +760,7 @@ describe('linked data registry', function(){
           },
           '@id': 'test-pkg/0.0.0/article/pone',
           '@type': 'Article',
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' } 
+          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
         };
 
         var result = JSON.parse(body);
@@ -772,7 +772,7 @@ describe('linked data registry', function(){
     });
 
     it('should get content with _content', function(done){
-      request.get({url: rurl('/test-pkg/0.0.0/article/pone/_content'), encoding: null}, function(err, resp, body){      
+      request.get({url: rurl('/test-pkg/0.0.0/article/pone/_content'), encoding: null}, function(err, resp, body){
         var md5 = crypto.createHash('md5');
         md5.update(body)
         assert.equal(md5.digest('hex'), 'c995484d14a9a78f00141fa1ec919aa5');
@@ -785,9 +785,9 @@ describe('linked data registry', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
           done();
         });
-      });      
+      });
     });
-    
+
   });
 
 });

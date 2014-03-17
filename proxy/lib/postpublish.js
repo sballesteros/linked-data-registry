@@ -72,7 +72,7 @@ function processDataset(req, pkg, rev, callback){
           Key: d.hashValue,
           Body: (err) ? s: data,
           ContentType: format,
-          ContentLength: (err) ? d.contentSize: Buffer.byteLength(data)
+          ContentLength: (err) ? d.contentSize: data.length
         };
 
         if(!err){
@@ -169,7 +169,7 @@ function processFigure(req, pkg, rev, callback){
   var figure = pkg.figure || [];
   var cnt = 0;
 
-  _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback);
+  _thumbnail(figure, cnt, rev, rootCouchRegistry, admin, pkg, callback);
 
 };
 
