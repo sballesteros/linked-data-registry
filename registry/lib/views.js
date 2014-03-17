@@ -1,15 +1,16 @@
 var views = exports;
 var modules = require("./modules.js");
 
-var paddedSemver = modules['padded-semver'];
-
 //discusting hack...
-var paddedSemverPatched = paddedSemver.replace("require('semver')", "require('views/lib/semver')", 'g');
-
 views.lib = {
   semver: modules.semver,
-  paddedSemver: paddedSemverPatched
+  paddedSemver: modules['padded-semver'].replace("require('semver')", "require('views/lib/semver')", 'g'),  //discusting hack...
+  punycode: modules['punycode'],
+  querystring: modules['querystring'],
   'is-url': modules['is-url'],
+  url: modules['url']
+    .replace("require('punycode')", "require('views/lib/punycode')", 'g')
+    .replace("require('querystring')", "require('views/lib/querystring')", 'g')
 };
 
 
@@ -55,7 +56,56 @@ views.byKeyword = {
  */
 views.bySha1 = {
   map: function(doc){
-    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id, name: doc.name, version: doc.version, description: (('description' in doc) ? doc.description : '') } );
+    var isUrl = require('views/lib/is-url');
+    var url = require('views/lib/url');
+
+    function getSha1(uri){
+      if(!isUrl(uri)){
+        return urlObj.pathname.replace(/^\//, '');
+      } else {
+        purl = url.parse(uri);
+        if(purl.hostname === 'registry.standardanalytics.io'){
+          return purl.pathname.replace(/^\//, '');
+        }
+      }
+      return undefined;
+    };
+
+    (doc.dataset || []).forEach(function(r){
+      if(r.distribution && r.distribution.contentUrl){
+        var sha1 = getSha1(r.distribution.contentUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id } );
+        }
+      }
+    });
+
+    (doc.code || []).forEach(function(r){
+      if(r.targetProduct && r.targetProduct.downloadUrl){
+        var sha1 = getSha1(r.targetProduct.downloadUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id } );
+        }
+      }
+    });
+
+    (doc.figure || []).forEach(function(r){
+      if(r.contentUrl){
+        var sha1 = getSha1(r.contentUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id } );
+        }
+      }
+    });
+
+    (doc.article || []).forEach(function(r){
+      if(r.encoding && r.encoding.contentUrl){
+        var sha1 = getSha1(r.encoding.contentUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id } );
+        }
+      }
+    });
   },
   reduce: '_count'
 };
