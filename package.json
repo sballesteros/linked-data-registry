@@ -51,7 +51,9 @@
     "ejs": "~0.8.5",
     "gm": "^1.14.2",
     "clone": "~0.1.11",
-    "ldstars": "*"
+    "ldstars": "*",
+    "aws-sdk": "^2.0.0-rc11",
+    "sha": "^1.2.3"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

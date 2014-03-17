@@ -10,8 +10,7 @@ var util = require('util')
   , querystring = require('querystring')
   , pjsonld = require('package-jsonld')
   , cms = require('couch-multipart-stream')
-  , crypto = require('crypto')
-  , path = require('path');
+  , crypto = require('crypto');
 
 var root = path.dirname(__filename);
 

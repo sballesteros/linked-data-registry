@@ -21,7 +21,10 @@ var http = require('http')
   , clone = require('clone')
   , ldstars = require('ldstars')
   , publish = require('./lib/publish')
+  , AWS = require('aws-sdk')
+  , sha = require('sha')
   , pkgJson = require('../package.json');
+
 
 mime.define({
   'application/ld+json': ['jsonld'],
@@ -30,6 +33,12 @@ mime.define({
 });
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+
+AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
+
+var bucket = 'standardanalytics';
+var s3 = new AWS.S3({params: {Bucket: bucket}});
+
 
 var credentials = {
   key: fs.readFileSync(path.join($HOME, 'certificate', 'standardanalytics.key')),
@@ -605,6 +614,43 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
 });
 
 
+app.put('/:md5', forceAuth, function(req, res, next){
+
+  var md5Hex = new Buffer(req.headers['content-md5'], 'base64').toString('hex');
+  var checkStream = req.pipe(sha.stream(md5Hex, {algorithm: 'md5'}));
+  var checkErr = null;
+
+  checkStream.on('error', function(err){
+    checkErr = err;
+  });
+
+  var opts = {
+    Key: req.params.md5,
+    Body: checkStream,
+    ContentType: req.headers['content-type'],
+    ContentLength: parseInt(req.headers['content-length'], 10),
+    ContentMD5: req.headers['content-md5']
+  };
+
+  if(req.headers['content-encoding']){
+    opts['ContentEncoding'] = req.headers['content-encoding']
+  }  
+  
+  s3.putObject(opts, function(err, data){
+    if(err) return next(err);
+    if(checkErr){
+      s3.deleteObject({Key: req.params.md5}, function(err, data) {
+        if (err) console.error(err);
+        
+        return next(checkErr);
+      })
+    } else {
+      res.json(data);
+    }
+  });
+
+});
+
 
 app.put('/:name/:version', forceAuth, publish);
 
@@ -698,7 +744,22 @@ function errorCode(msg, code){
   return err;
 };
 
-httpServer.listen(port);
-httpsServer.listen(portHttps);
-console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
-console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
+
+
+s3.createBucket(function() {
+  app.set('s3', s3);
+  console.log('S3 bucket (%s) OK', bucket);
+
+  httpServer.listen(port);
+  httpsServer.listen(portHttps);
+  console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
+  console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
+});
+
+
+//
+//s3.deleteObjects({Delete:{Objects: filenames.map(function(x){return {Key: x};})}}, function(err, data){
+//
+//});
+//
+//s3.getObject({Key:...}).createReadStream();
