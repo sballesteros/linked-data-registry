@@ -20,7 +20,7 @@ var http = require('http')
   , gm = require('gm')
   , clone = require('clone')
   , ldstars = require('ldstars')
-  , publish = require('./lib/publish')
+  , postpublish = require('./lib/postpublish')
   , AWS = require('aws-sdk')
   , sha = require('sha')
   , pkgJson = require('../package.json');
@@ -50,10 +50,10 @@ var app = express()
   , httpServer = http.createServer(app)
   , httpsServer = https.createServer(credentials, app);
 
-var couch = { 
-  ssl: process.env['COUCH_SSL'], 
-  host: process.env['COUCH_HOST'], 
-  port: process.env['COUCH_PORT'], 
+var couch = {
+  ssl: process.env['COUCH_SSL'],
+  host: process.env['COUCH_HOST'],
+  port: process.env['COUCH_PORT'],
   registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
   interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction')
 };
@@ -96,7 +96,7 @@ function forceAuth(req, res, next){
   }
 
   nano.auth(user.name, user.pass, function (err, body, headers) {
-    if (err) { 
+    if (err) {
       return next(err);
     }
 
@@ -122,13 +122,13 @@ function logDownload(req, res, next){
     url: req.originalUrl,
     startDate: (new Date()).toISOString()
   };
-  
+
   request.post({url:rootCouch+'/' + couch.interaction , auth:admin, json: iData}, function(err, resp, body){
     if(err) console.error(err);
     //nothing;
   });
 
-  next();  
+  next();
 };
 
 var jsonParser = express.json();
@@ -156,10 +156,10 @@ app.get('/auth', forceAuth, function(req, res, next){
 app.get('/', getStanProxyUrl, function(req, res, next){
   registry.view('registry', 'byName', {reduce:false}, function(err, body, headers) {
 
-    if (err) return next(err);    
+    if (err) return next(err);
     res.set('Link', '<https://raw.github.com/standard-analytics/linked-data-registry/master/README.md> rel="profile"');
 
-    var home = { 
+    var home = {
       '@context': "https://w3id.org/schema.org", //TODO Schema.org team is already working on this issue and it is expected to be resolved in a couple of weeks
       '@id': req.stanProxy,
       name: 'linked-data-registry',
@@ -223,7 +223,7 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 
         try{
           delete home['@context'];
-          home["<a href='#'>@context</a>"] = "<a href='https://w3id.org/schema.org'>https://w3id.org/schema.org</a>";          
+          home["<a href='#'>@context</a>"] = "<a href='https://w3id.org/schema.org'>https://w3id.org/schema.org</a>";
           var snippet = jsonldHtmlView.urlify(home, ctx);
         } catch(e){
           return next(e);
@@ -244,8 +244,8 @@ app.get('/', getStanProxyUrl, function(req, res, next){
 
 
 app.get('/package.jsonld', getStanProxyUrl, function(req, res, next){
-  res.set('Content-Type', 'application/ld+json');  
-  
+  res.set('Content-Type', 'application/ld+json');
+
   pjsonld.context['@context']['@base'] = req.stanProxy + '/';
   res.send(JSON.stringify(pjsonld.context));
 });
@@ -263,7 +263,7 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
   _users.atomic('maintainers', 'create', 'org.couchdb.user:' + data.name, data, function(err, body, headers){
     if(err) return next(err);
     res.json(headers['status-code'], body);
-  });          
+  });
 });
 
 
@@ -278,7 +278,7 @@ app.del('/rmuser/:name', forceAuth, function(req, res, next){
   _users.head(id, function(err, _, headers) {
     if(err) return next(err);
     var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
-    
+
     _users.destroy(id, etag, function(err, body, headers){
       if(err) return next(err);
       res.json(headers['status-code'], body);
@@ -307,7 +307,7 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
     //check if req.user.name is a maintainter of data.pkgname
     _users.show('maintainers', 'maintains', 'org.couchdb.user:' + req.user.name, function(err, maintains, headers) {
       if(err) return next(err);
-      
+
       if(maintains.indexOf(data.pkgname) === -1){
         return next(errorCode('not allowed', 403));
       }
@@ -323,7 +323,7 @@ app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
-  
+
   if(!(('username' in data) && ('pkgname' in data))){
     return next(new Error('invalid data'));
   }
@@ -357,16 +357,16 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
  * list of versions
  */
 app.get('/:name', getStanProxyUrl, function(req, res, next){
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);  
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
   serveJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
 });
 
 
 /**
- * middleware to get maxSatisfying version of a Semver range 
+ * middleware to get maxSatisfying version of a Semver range
  */
 function maxSatisfyingVersion(req, res, next){
-  
+
   var q = req.query || {};
 
   if (! ('range' in q)) {
@@ -401,18 +401,18 @@ function maxSatisfyingVersion(req, res, next){
 function serveJsonLd(docUrl, linkify, req, res, next){
 
   request(docUrl, function(err, resp, body){
-    
+
     if(err) return next(err);
 
     if (resp.statusCode >= 400){
       errorCode(body || 'fail', resp.statusCode);
       return next(err);
     }
-    
+
     try {
       body = JSON.parse(body);
     } catch(e){
-      return next(e);      
+      return next(e);
     }
 
     //patch context
@@ -423,7 +423,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
     res.format({
       'text/html': function(){
-      
+
         var l = linkify(body, {addCtx:false});
 
         var snippet;
@@ -444,7 +444,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
         res.set('Link', linkHeader);
         res.send(resp.statusCode, linkify(body, {addCtx:false}));
       },
-      
+
       'application/ld+json': function(){
         var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
 
@@ -465,17 +465,17 @@ function serveJsonLd(docUrl, linkify, req, res, next){
               res.json(resp.statusCode, flattened);
             });
             break;
-            
+
           default: //#compacted and everything else
             res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
-          
+
         } else {
-          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));        
+          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
-      
+
       //TODO text/html / RDFa 1.1 lite case
 
     });
@@ -484,7 +484,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 };
 
 
-app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){  
+app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
 
   var q = req.query || {};
   q.proxy = req.stanProxy;
@@ -502,7 +502,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, f
 
 
 app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
@@ -520,7 +520,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 
 
 app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
@@ -538,7 +538,7 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, log
 
 
 app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
@@ -556,7 +556,7 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 
 
 app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
@@ -581,16 +581,16 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
   if(['about', 'env'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));
   }
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);  
+  var rurl = req.url.replace(req.route.regexp, '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);
   rurl += (qs) ? '?' + qs : '';
 
-  res.redirect(rootCouchRegistry + rurl);  
+  res.redirect(rootCouchRegistry + rurl);
 });
 
 
@@ -602,7 +602,7 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
   if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));
   }
-  
+
   if(couch.ssl == 1){
     req.query.secure = true;
   }
@@ -610,7 +610,7 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
   var qs = querystring.stringify(req.query);
   var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
   rurl += (qs) ? '?' + qs : '';
-  res.redirect(rootCouchRegistry + rurl);  
+  res.redirect(rootCouchRegistry + rurl);
 });
 
 
@@ -634,14 +634,14 @@ app.put('/:md5', forceAuth, function(req, res, next){
 
   if(req.headers['content-encoding']){
     opts['ContentEncoding'] = req.headers['content-encoding']
-  }  
-  
+  }
+
   s3.putObject(opts, function(err, data){
     if(err) return next(err);
     if(checkErr){
       s3.deleteObject({Key: req.params.md5}, function(err, data) {
         if (err) console.error(err);
-        
+
         return next(checkErr);
       })
     } else {
@@ -652,22 +652,22 @@ app.put('/:md5', forceAuth, function(req, res, next){
 });
 
 
-app.put('/:name/:version', forceAuth, function(req, res, next){
+app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
   var id = encodeURIComponent(req.params.name + '@' + req.params.version);
 
   if(!('content-length' in req.headers)){
     return res.json(411, {error: 'Length Required'});
   }
-  
+
   if(req.headers['content-length'] > 16777216){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
   }
 
   req.pipe(concat(function(pkg){
     pkg = JSON.parse(pkg);
-    
-    registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+
+    registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){
 
       if(err) return next(err);
       if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
@@ -678,14 +678,22 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           if(headers['status-code'] >= 400){
             return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
           } else {
-            request.put({url: rootCouchRegistry + '/'+ id, json: pkg}, function(err, resCouch, body){
+            request.put({ url: rootCouchRegistry + '/' + id, json: pkg }, function(err, resCouch, body){
               if(err) return next(err);
               if(resCouch.statusCode >= 400){
-                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: pkgnameIfIsFirst});               
+                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: pkgnameIfIsFirst});
                 return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
               }
-              //TODO: enhance
-              res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+
+              postpublish(req, pkg, rev, function(err, pkg, rev){
+                request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev} }, function(err, resCouchPost, bodyPost){
+                  if(err){
+                    console.error(err, bodyPost);
+                  }
+                  return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+                });
+              });
+
             });
           };
 
@@ -696,7 +704,14 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
           if(resCouch.statusCode >= 400){
             return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
           }
-          res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+          postpublish(req, pkg, rev, function(err, pkg, rev){
+            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev} }, function(err, resCouchPost, body){
+              if(err){
+                console.error(err, bodyPost);
+              }
+              return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+            });
+          });
         });
       }
     });
@@ -705,8 +720,6 @@ app.put('/:name/:version', forceAuth, function(req, res, next){
 
 });
 
-//app.put('/:name/:version', forceAuth, publish);
-
 
 app.del('/:name/:version?', forceAuth, function(req, res, next){
 
@@ -714,7 +727,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
     function(cb){ //get (all) the versions
       if (req.params.version) return cb(null, [req.params.name + '@' +req.params.version]);
-      registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: false}, function(err, body){      
+      registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: false}, function(err, body){
         if(err) return cb(err);
         var ids = body.rows.map(function(x){return x.id;});
         if(!ids.length){
@@ -725,7 +738,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
     },
 
     function(ids, cb){ //delete (all) the versions
-      
+
       async.each(ids, function(id, cb2){
 
         registry.head(id, function(err, _, headers) {
@@ -746,7 +759,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
               return cb2(errorCode(body.reason, resp.statusCode));
             }
             cb2(null, body);
-          });          
+          });
         });
 
       }, function(err, _){
@@ -756,7 +769,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
     },
 
-  ], function(err, name){ //remove maintainers if all version of the package have been deleted    
+  ], function(err, name){ //remove maintainers if all version of the package have been deleted
     if(err) return next(err);
 
     registry.view('registry', 'byNameAndVersion', {startkey: [name], endkey: [name, '\ufff0']}, function(err, body){
@@ -773,13 +786,13 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
             res.json({ok:true});
           });
 
-        });          
-        
+        });
+
       } else {
         res.json({ok:true});
       }
-    });    
-    
+    });
+
   });
 
 });

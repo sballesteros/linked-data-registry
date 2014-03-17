@@ -4,8 +4,6 @@ module.exports = [
   { from: '/versions/:name', to: '/_list/versions/byNameAndVersion', method: 'GET',
     query: {reduce: 'false', startkey: [':name'], endkey: [':name', '\ufff0'], include_docs:'false'} },
 
-  { from: "/maintainers/:ctnr_id", to: "/_update/maintainers/:ctnr_id", method: "PUT" },
-
   { from: '/:name/latest', to: '/_list/latest/byNameAndVersion', method: 'GET',
     query: {reduce: 'false', descending: 'true', startkey: [':name', '\ufff0'], endkey: [':name'], limit: '1', include_docs:'true'} },
 

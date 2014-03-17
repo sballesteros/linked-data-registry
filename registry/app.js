@@ -8,7 +8,6 @@ var ddoc = module.exports = {
   views: require("./lib/views"),
   fulltext: require("./lib/fulltext"), //vanilla couchdb
   indexes: require("./lib/indexes"), //cloudant
-  updates: require("./lib/updates"),
   validate_doc_update: require("./lib/validate_doc_update"),
   language: "javascript"
 };
