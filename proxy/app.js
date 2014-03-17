@@ -614,10 +614,19 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
 });
 
 
-app.put('/:md5', forceAuth, function(req, res, next){
+app.put('/:sha1', forceAuth, function(req, res, next){
 
-  var md5Hex = new Buffer(req.headers['content-md5'], 'base64').toString('hex');
-  var checkStream = req.pipe(sha.stream(md5Hex, {algorithm: 'md5'}));
+  if(!req.headers['x-content-sha1']){
+    res.json(400, {error: 'headers need a X-Content-Sha1 header'});
+  }
+
+  if(req.params.sha1 !== req.headers['x-content-sha1']){
+    res.json(400, {error: 'X-Content-Sha1 must match URL'});
+  }
+
+  console.log(req.headers);
+
+  var checkStream = req.pipe(sha.stream(req.headers['x-content-sha1']));
   var checkErr = null;
 
   checkStream.on('error', function(err){
@@ -625,12 +634,13 @@ app.put('/:md5', forceAuth, function(req, res, next){
   });
 
   var opts = {
-    Key: req.params.md5,
+    Key: req.params.sha1,
     Body: checkStream,
     ContentType: req.headers['content-type'],
     ContentLength: parseInt(req.headers['content-length'], 10),
-    ContentMD5: req.headers['content-md5']
   };
+
+  console.log(opts);
 
   if(req.headers['content-encoding']){
     opts['ContentEncoding'] = req.headers['content-encoding']

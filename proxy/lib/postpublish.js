@@ -90,8 +90,8 @@ function processDataset(req, pkg, rev, callback){
           d.encoding = {
             contentSize: opts.ContentLength,
             encodingFormat: 'gzip',
-            hashAlgorithm = 'sha1';
-            hashValue = crypto.createHash('sha1').update(data).digest('hex');
+            hashAlgorithm: 'sha1',
+            hashValue: crypto.createHash('sha1').update(data).digest('hex')
           };
 
           r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});

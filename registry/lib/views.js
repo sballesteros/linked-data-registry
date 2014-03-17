@@ -61,7 +61,7 @@ views.bySha1 = {
 
     function getSha1(uri){
       if(!isUrl(uri)){
-        return urlObj.pathname.replace(/^\//, '');
+        return uri.replace(/^\//, '');
       } else {
         purl = url.parse(uri);
         if(purl.hostname === 'registry.standardanalytics.io'){
