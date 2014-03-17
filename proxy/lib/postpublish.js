@@ -18,19 +18,29 @@ var util = require('util')
  * post publish
  * modifies pkg in place
  */
-module.exports = function(req, pkg, rev, callback){
+module.exports = function(req, body, callback){
 
-  pkg.datePublished = (new Date()).toISOString();
+  request(req.app.get('rootCouchRegistry') + '/_design/registry/_rewrite/' + body.id, function(err, resp, pkg){
 
-  processDataset(req, pkg, rev, function(err, pkg, rev){
-    if(err) console.error(err);
-    processCode(req, pkg, rev, function(err, pkg, rev){
+    if(err) return callback(err);
+    if (resp.statusCode >= 400){
+      return callback(errorCode('oops something went wrong when trying to GET ' + body.id, resp.statusCode));
+    }
+    pkg = JSON.parse(pkg);
+
+    pkg.datePublished = (new Date()).toISOString();
+
+    processDataset(req, pkg, body.rev, function(err, pkg, rev){
       if(err) console.error(err);
-      processArticle(req, pkg, rev, function(err, pkg, rev){
+      processCode(req, pkg, body.rev, function(err, pkg, rev){
         if(err) console.error(err);
-        processFigure(req, pkg, rev, callback);
+        processArticle(req, pkg, body.rev, function(err, pkg, rev){
+          if(err) console.error(err);
+          processFigure(req, pkg, body.rev, callback);
+        });
       });
     });
+
   });
 
 };
@@ -180,7 +190,7 @@ function processFigure(req, pkg, rev, callback){
 function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
 
   if(!figures.length){
-    return callback(null);
+    return callback(null, pkg, rev);
   }
 
   var r = figures[cnt];
@@ -189,7 +199,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
     if (++cnt < figures.length) {
       return _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback);
     } else {
-      return callback(null, rev, pkg);
+      return callback(null, pkg, rev);
     }
   }
 

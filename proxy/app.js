@@ -575,11 +575,11 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
 
 
 /**
- * get env_ or readme: do not log
+ * get readme: do not log
  */
 app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
 
-  if(['about', 'env'].indexOf(req.params.type) === -1){
+  if(['about'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));
   }
 
@@ -678,59 +678,70 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
   }
 
-  req.pipe(concat(function(pkg){
-    pkg = JSON.parse(pkg);
 
-    registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){
+  registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){
 
-      if(err) return next(err);
-      if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
-        _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+    if(err) return next(err);
 
-          if(err) return next(err);
+    var reqCouch;
 
-          if(headers['status-code'] >= 400){
-            return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
-          } else {
-            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(err, resCouch, body){
-              if(err) return next(err);
-              if(resCouch.statusCode >= 400){
-                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name});
-                return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
-              }
+    if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
 
-              postpublish(req, pkg, body._rev, function(err, pkg, rev){
-                request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
-                  if(err){
-                    console.error(err, bodyPost);
-                  }
-                  return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
-                });
+      _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+
+        if(err) return next(err);
+
+        if(headers['status-code'] >= 400){
+          return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
+        } else {
+          reqCouch = request.put({ url: rootCouchRegistry + '/' + id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(err, resCouch, body){
+            if(err) return next(err);
+            body = JSON.parse(body);
+            if(resCouch.statusCode >= 400){
+              _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name});
+              return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
+            }
+
+            postpublish(req, body, function(err, pkg, rev){
+
+              request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
+                if(err){
+                  console.error(err, bodyPost);
+                }
+                return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
               });
-
             });
-          };
 
-        });
-      } else {
-        request.put({url: rootCouchRegistry + '/'+ id, json: pkg, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
-          if(err) return next(err);
-          if(resCouch.statusCode >= 400){
-            return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
-          }
-          postpublish(req, pkg, body._rev, function(err, pkg, rev){
-            request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, body){
-              if(err){
-                console.error(err, bodyPost);
-              }
-              return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
-            });
+          });
+          req.pipe(reqCouch);
+        };
+
+      });
+
+
+    } else { //version update
+
+      reqCouch = request.put({url: rootCouchRegistry + '/'+ id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
+        if(err) return next(err);
+
+        body = JSON.parse(body);
+        if(resCouch.statusCode >= 400){
+          return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
+        }
+        postpublish(req, body, function(err, pkg, rev){
+          request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, body){
+            if(err){
+              console.error(err, bodyPost);
+            }
+            return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
           });
         });
-      }
-    });
+      });
+      req.pipe(reqCouch);
 
-  }));
+    }
+
+  });
 
 });
 

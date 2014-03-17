@@ -26,14 +26,14 @@ shows.dataset = function(doc, req){
       };
     }
 
-    if (req.query.content in doc._attachments){ // attachments
+    if (req.query.content in doc._attachments) { // attachments
 
       return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
-    } else if ( (req.query.content === '_content')  && r.distribution && r.distribution.contentUrl) { 
+    } else if ( (req.query.content === '_content')  && r.distribution && r.distribution.contentUrl) {
 
-      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.distribution.contentUrl) } };      
-      
+      return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.distribution.contentUrl) } };
+
     } else { //might be inline attachment
 
       var splt = req.query.content.split('.');
@@ -113,7 +113,7 @@ shows.figure = function(doc, req){
 
       return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
-    } else if ( (req.query.content === '_content')  && r.contentUrl) { 
+    } else if ( (req.query.content === '_content')  && r.contentUrl) {
 
       return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.contentUrl) } };
 
@@ -148,7 +148,7 @@ shows.article = function(doc, req){
 
       return { code : 301, headers : { 'Location' : util.root(req) + '/' + doc._id + '/' + req.query.content } };
 
-    } else if ( (req.query.content === '_content')  && r.encoding && r.encoding.contentUrl ) { 
+    } else if ( (req.query.content === '_content')  && r.encoding && r.encoding.contentUrl ) {
 
       return { code : 301, headers : { 'Location' : util.resolveProxy(req, r.encoding.contentUrl) } };
 
