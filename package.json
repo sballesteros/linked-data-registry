@@ -53,7 +53,8 @@
     "clone": "~0.1.11",
     "ldstars": "*",
     "aws-sdk": "^2.0.0-rc11",
-    "sha": "^1.2.3"
+    "sha": "^1.2.3",
+    "concat-stream": "^1.4.4"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

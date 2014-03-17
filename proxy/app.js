@@ -652,7 +652,60 @@ app.put('/:md5', forceAuth, function(req, res, next){
 });
 
 
-app.put('/:name/:version', forceAuth, publish);
+app.put('/:name/:version', forceAuth, function(req, res, next){
+
+  var id = encodeURIComponent(req.params.name + '@' + req.params.version);
+
+  if(!('content-length' in req.headers)){
+    return res.json(411, {error: 'Length Required'});
+  }
+  
+  if(req.headers['content-length'] > 16777216){
+    return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
+  }
+
+  req.pipe(concat(function(pkg){
+    pkg = JSON.parse(pkg);
+    
+    registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){      
+
+      if(err) return next(err);
+      if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
+        _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+
+          if(err) return next(err);
+
+          if(headers['status-code'] >= 400){
+            return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
+          } else {
+            request.put({url: rootCouchRegistry + '/'+ id, json: pkg}, function(err, resCouch, body){
+              if(err) return next(err);
+              if(resCouch.statusCode >= 400){
+                _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: pkgnameIfIsFirst});               
+                return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
+              }
+              //TODO: enhance
+              res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+            });
+          };
+
+        });
+      } else {
+        var reqCouch = request.put({url: rootCouchRegistry + '/'+ id, json: pkg}, function(err, resCouch, body){
+          if(err) return next(err);
+          if(resCouch.statusCode >= 400){
+            return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
+          }
+          res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+        });
+      }
+    });
+
+  }));
+
+});
+
+//app.put('/:name/:version', forceAuth, publish);
 
 
 app.del('/:name/:version?', forceAuth, function(req, res, next){

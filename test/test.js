@@ -110,7 +110,7 @@ function rmAll(done){
 describe('linked data registry', function(){
   this.timeout(10000);
 
-  describe.skip('auth: no side effect search and versions', function(){
+  describe('auth: no side effect search and versions', function(){
 
     before(function(done){
       createFixture(done);
@@ -248,7 +248,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('auth: side effects', function(){
+  describe('auth: side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -601,7 +601,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('figure', function(){
+  describe.skip('figure', function(){
 
     before(function(done){     
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
