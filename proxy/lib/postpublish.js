@@ -21,24 +21,13 @@ var util = require('util')
  */
 module.exports = function(req, body, callback){
 
-  request({url: req.app.get('rootCouchRegistry') + '/' + body.id, qs:{att_encoding_info: true} }, function(err, resp, pkg){
-
-    if(pkg._attachments && pkg._attachments['README.md']){
-      pkg.about = { name:  'README.md', url: pkg.name + '/' + pkg.version + '/about/README.md' };
-    }
-
-    delete pkg._id;
-    delete pkg._rev;
-    delete pkg._revisions;
-    delete pkg._attachments;
+  request( { url: req.app.get('rootCouchRegistry') + '/' + body.id }, function(err, resp, pkg){
 
     if(err) return callback(err);
     if (resp.statusCode >= 400){
       return callback(sutil.errorCode('oops something went wrong when trying to GET ' + body.id, resp.statusCode));
     }
     pkg = JSON.parse(pkg);
-
-    pkg.datePublished = (new Date()).toISOString();
 
     processDataset(req, pkg, body.rev, function(err, pkg, rev){
       if(err) console.error(err);

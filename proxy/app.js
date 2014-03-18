@@ -671,7 +671,6 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
     return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
   }
 
-
   registry.view('registry', 'byNameAndVersion', {startkey: [req.params.name], endkey: [req.params.name, '\ufff0'], reduce: true}, function(err, body, headers){
 
     if(err) return next(err);
@@ -679,7 +678,6 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
     var reqCouch;
 
     if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
-
       _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
 
         if(err) return next(err);
@@ -688,6 +686,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
         } else {
           reqCouch = request.put({ url: rootCouchRegistry + '/' + id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(err, resCouch, body){
+
             if(err) return next(err);
             body = JSON.parse(body);
             if(resCouch.statusCode >= 400){
@@ -696,13 +695,13 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
             }
 
             postpublish(req, body, function(err, pkg, rev){
-
-              request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
+              registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
                 if(err){
                   console.error(err, bodyPost);
                 }
                 return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
               });
+
             });
 
           });
@@ -721,16 +720,17 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
         }
         postpublish(req, body, function(err, pkg, rev){
-          request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
+
+          registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
             if(err){
               console.error(err, bodyPost);
             }
             return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
           });
+
         });
       });
       req.pipe(reqCouch);
-
     }
 
   });
