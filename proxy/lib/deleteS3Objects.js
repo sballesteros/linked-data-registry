@@ -1,6 +1,6 @@
 var request = require('request')
   , url = require('url')
-  , async = require(async)
+  , async = require('async')
   , isUrl = require('is-url');
 
 
@@ -19,6 +19,8 @@ function getSha1(uri){
 module.exports = function(req, pkg, callback){
 
   var sha1s = [];
+
+  console.log(require('util').inspect(pkg, {depth:null}));
 
   (pkg.dataset || []).forEach(function(r){
     if(r.distribution && r.distribution.contentUrl){
@@ -56,15 +58,24 @@ module.exports = function(req, pkg, callback){
     }
   });
 
+  console.log(sha1s);
+
   async.filter(sha1s, function(sha1, cb){
 
-    request(req.app.get('rootCouchRegistry') + '/_design/registry/_view/bySha1?key="' + '"', function(err, resp, body){
+    request(req.app.get('rootCouchRegistry') + '/_design/registry/_view/bySha1?key="' + sha1 + '"', function(err, resp, body){
+      if(err) return cb(false);
+      if(resp.statusCode >=400) return cb(null, false);
 
+      cb(! JSON.parse(body).rows.length);
     });
 
-  }, function(err, fsha1s){
+  }, function(fsha1s){
 
-    s3.deleteObjects({Delete:{Objects: fsha1s.map(function(x){return {Key: x};})}}, callback);
+    if (fsha1s.length) {
+      req.app.get('s3').deleteObjects({Delete:{Objects: fsha1s.map(function(x){return {Key: x};})}}, callback);
+    } else {
+      callback(null);
+    }
 
   });
 

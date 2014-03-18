@@ -20,7 +20,7 @@ var util = require('util')
  */
 module.exports = function(req, body, callback){
 
-  request(req.app.get('rootCouchRegistry') + '/_design/registry/_rewrite/' + body.id, function(err, resp, pkg){
+  request(req.app.get('rootCouchRegistry') + '/_design/registry/_rewrite/' + body.id + '?contentData=true', function(err, resp, pkg){
 
     if(err) return callback(err);
     if (resp.statusCode >= 400){
@@ -204,17 +204,24 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
   }
 
   if ('contentUrl' in r) {
+    
+    var sha1;
+    if(!isUrl(r.contentUrl)){
+      sha1 = r.contentUrl.replace(/^\//, '');
+    } else {
+      purl = url.parse(r.contentUrl);
+      if(purl.hostname === 'registry.standardanalytics.io'){
+        sha1 = purl.pathname.replace(/^\//, '');
+      }
+    }
 
-    var uri = (isUrl(r.contentUrl)) ? r.contentUrl : req.stanProxy + '/' + r.contentUrl;
+    if (sha1) {
+      var s3Stream = s3.getObject({Key: req.params.sha1}).createReadStream();
+      s3Stream.on('error', function(err){
+        console.error(err);
+      });    
 
-    //get attachment and get size
-    var reqAtt = request(uri);
-    reqAtt.on('error', function(err){ console.error(err); });
-    reqAtt.on('response', function(resAttStream){
-
-      if(resAttStream.statusCode >= 400) return _next(rev);
-
-      gm(resAttStream).size({bufferStream: true}, function (err, size) {
+      gm(s3Stream).size({bufferStream: true}, function (err, size) {
 
         if (err) return _next(rev);
 
@@ -255,7 +262,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
           stdout.pipe(rthumb);
         });
       });
-    });
+    }
 
   } else {
 

@@ -23,6 +23,7 @@ var http = require('http')
   , postpublish = require('./lib/postpublish')
   , AWS = require('aws-sdk')
   , sha = require('sha')
+  , deleteS3Objects = require('./lib/deleteS3Objects')
   , concat = require('concat-stream')
   , pkgJson = require('../package.json');
 
@@ -728,7 +729,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
         }
         postpublish(req, body, function(err, pkg, rev){
-          request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, body){
+          request.put({ url: rootCouchRegistry + '/' + id, json: pkg, headers: {'If-Match': rev, 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token)} }, function(err, resCouchPost, bodyPost){
             if(err){
               console.error(err, bodyPost);
             }
