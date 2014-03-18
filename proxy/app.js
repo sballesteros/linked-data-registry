@@ -599,34 +599,26 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 /**
  * rname is the name of the resource, content can be _content (to get default content)
  */
-app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownload, function(req, res, next){
-
-  if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
-    return next(errorCode('not found', 404));
-  }
-
-  if(couch.ssl == 1){
-    req.query.secure = true;
-  }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
-  rurl += (qs) ? '?' + qs : '';
-  res.redirect(rootCouchRegistry + rurl);
-});
+//app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownload, function(req, res, next){
+//
+//  if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
+//    return next(errorCode('not found', 404));
+//  }
+//
+//  if(couch.ssl == 1){
+//    req.query.secure = true;
+//  }
+//
+//  var qs = querystring.stringify(req.query);
+//  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
+//  rurl += (qs) ? '?' + qs : '';
+//  res.redirect(rootCouchRegistry + rurl);
+//});
 
 
 app.put('/r/:sha1', forceAuth, function(req, res, next){
 
-  if(!req.headers['x-content-sha1']){
-    res.json(400, {error: 'request needs a X-Content-Sha1 header'});
-  }
-
-  if(req.params.sha1 !== req.headers['x-content-sha1']){
-    res.json(400, {error: 'X-Content-Sha1 must match URL'});
-  }
-
-  var checkStream = req.pipe(sha.stream(req.headers['x-content-sha1']));
+  var checkStream = req.pipe(sha.stream(req.params.sha1));
   var checkErr = null;
 
   checkStream.on('error', function(err){
@@ -659,7 +651,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
 
 });
 
-app.get('/r/:sha1', function(req, res, next){
+app.get('/r/:sha1', logDownload, function(req, res, next){
   var s = s3.getObject({Key:req.params.sha1}).createReadStream();
   s.on('error', function(err){
     console.error(err);

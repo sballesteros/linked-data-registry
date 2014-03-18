@@ -7,18 +7,31 @@ var util = require('util')
   , clone = require('clone')
   , request = require('request')
   , Readable = require('stream').Readable
+  , crypto = require('crypto')
   , querystring = require('querystring')
   , pjsonld = require('package-jsonld')
   , cms = require('couch-multipart-stream')
+  , AWS = require('aws-sdk')
+  , zlib = require('zlib')
+  , mime = require('mime')
   , crypto = require('crypto');
 
 var root = path.dirname(__filename);
+
+var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+
+AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
+
+var bucket = 'standardanalytics';
+var s3 = new AWS.S3({params: {Bucket: bucket}});
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
 
 var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
+
+
 
 function rurl(path){
   return 'http://127.0.0.1:3000' + path
@@ -98,7 +111,10 @@ function rmAll(done){
         rm(registry, 'test-pkg@0.0.0', function(){
           rm(registry, 'test-pkg@0.0.1', function(){
             rm(registry, 'test-pkg@0.0.2', function(){
-              done();
+              var key = crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex');
+              s3.deleteObject({Key: key}, function(err, data){
+                done();
+              });
             });
           });
         });
@@ -110,7 +126,67 @@ function rmAll(done){
 describe('linked data registry', function(){
   this.timeout(10000);
 
-  describe('auth: no side effect search and versions', function(){
+
+  describe.skip('s3', function(){
+
+    it('should upload compressible attachments', function(done){
+      var headers = {
+        'Content-Length': 0,
+        'Content-Type': mime.lookup('trace_0.csv'),
+        'Content-Encoding': 'gzip'
+      };
+
+      var digest;
+      var s = fs.createReadStream(path.join(root, 'fixture', 'trace_0.csv')).pipe(zlib.createGzip());
+      var sha1 = crypto.createHash('sha1');
+      s.on('data', function(d) {
+        headers['Content-Length'] += d.length;
+        sha1.update(d);
+      });
+      s.on('end', function() {
+        digest = sha1.digest('hex');
+
+        var r =request.put( { url: rurl('/r/' + digest), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
+          if(err) throw err;
+          assert('ETag' in JSON.parse(body));
+          s3.deleteObject({Key: digest}, function(err, data){
+            done();
+          });
+        });
+        fs.createReadStream(path.join(root, 'fixture', 'trace_0.csv')).pipe(zlib.createGzip()).pipe(r);
+      });
+    });
+
+    it('should upload non compressible attachments', function(done){
+      var headers = {
+        'Content-Length': 0,
+        'Content-Type': mime.lookup('daftpunk.jpg')
+      };
+
+      var s = fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'));
+      var sha1 = crypto.createHash('sha1');
+      s.on('data', function(d) {
+        headers['Content-Length'] += d.length;
+        sha1.update(d);
+      });
+      s.on('end', function() {
+        digest = sha1.digest('hex');
+
+        var r =request.put( { url: rurl('/r/' + digest), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
+          if(err) throw err;
+          assert('ETag' in JSON.parse(body));
+          s3.deleteObject({Key: digest}, function(err, data){
+            done();
+          });
+        });
+        fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg')).pipe(r);
+      });
+    });
+
+  });
+
+
+  describe.skip('auth: no side effects', function(){
 
     before(function(done){
       createFixture(done);
@@ -149,47 +225,6 @@ describe('linked data registry', function(){
       registry.get('test-pkg@0.0.0', function(err, body){
         if(err) console.error(err, body);
         assert.equal(body._id, 'test-pkg@0.0.0');
-        done();
-      });
-    });
-
-    it('should search', function(done){
-      request(rurl('/search?keys=["test"]'), function(err, resp, body){
-        var expected = [
-          {"id":"test-pkg@0.0.0","key":"test","value": {"_id":"test-pkg@0.0.0","name":"test-pkg","description":""}},
-          {"id":"test-pkg@0.0.1","key":"test","value": {"_id":"test-pkg@0.0.1","name":"test-pkg","description":""}}
-        ].map(function(x){ return JSON.stringify(x); }).join('\n') + '\n';
-
-        assert.equal(body, expected);
-        done();
-      });
-    });
-
-    it('should retrieve all the versions of test-pkg', function(done){
-      request(rurl('/test-pkg'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
-        done();
-      });
-    });
-
-    it('should retrieve the latest version of test-pkg as JSON interpreded as JSON-LD', function(done){
-      request(rurl('/test-pkg/latest'), function(err, resp, body){
-        assert.equal(linkHeader, resp.headers.link);
-        assert.equal(JSON.parse(body).version, '0.0.1');
-        done();
-      });
-    });
-
-    it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
-      request(rurl('/test-pkg/latest?' + querystring.stringify({range: '<0.0.1'})), function(err, resp, body){
-        assert.equal(JSON.parse(body).version, '0.0.0');
-        done();
-      });
-    });
-
-    it('should 404 on range that cannot be statisfied', function(done){
-      request(rurl('/test-pkg/latest?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, body){
-        assert.equal(resp.statusCode, 404);
         done();
       });
     });
@@ -248,7 +283,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('auth: side effects', function(){
+  describe.skip('auth: side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -313,6 +348,60 @@ describe('linked data registry', function(){
     });
 
     afterEach(function(done){
+      rmAll(done);
+    });
+
+  });
+
+
+  describe.skip('search and versions', function(){
+
+    before(function(done){
+      createFixture(done);
+    });
+
+    it('should search', function(done){
+      request(rurl('/search?keys=["test"]'), function(err, resp, body){
+        var expected = [
+          {"id":"test-pkg@0.0.0","key":"test","value": {"_id":"test-pkg@0.0.0","name":"test-pkg","description":""}},
+          {"id":"test-pkg@0.0.1","key":"test","value": {"_id":"test-pkg@0.0.1","name":"test-pkg","description":""}}
+        ].map(function(x){ return JSON.stringify(x); }).join('\n') + '\n';
+
+        assert.equal(body, expected);
+        done();
+      });
+    });
+
+    it('should retrieve all the versions of test-pkg', function(done){
+      request(rurl('/test-pkg'), function(err, resp, body){
+        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
+        done();
+      });
+    });
+
+    it('should retrieve the latest version of test-pkg as JSON interpreded as JSON-LD', function(done){
+      request(rurl('/test-pkg/latest'), function(err, resp, body){
+        assert.equal(linkHeader, resp.headers.link);
+        assert.equal(JSON.parse(body).version, '0.0.1');
+        done();
+      });
+    });
+
+    it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
+      request(rurl('/test-pkg/latest?' + querystring.stringify({range: '<0.0.1'})), function(err, resp, body){
+        assert.equal(JSON.parse(body).version, '0.0.0');
+        done();
+      });
+    });
+
+    it('should 404 on range that cannot be statisfied', function(done){
+      request(rurl('/test-pkg/latest?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, body){
+        assert.equal(resp.statusCode, 404);
+        done();
+      });
+    });
+
+    after(function(done){
       rmAll(done);
     });
 
