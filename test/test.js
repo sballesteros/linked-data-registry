@@ -474,8 +474,7 @@ describe('linked data registry', function(){
   });
 
 
-
-  describe('dataset', function(){
+  describe.skip('dataset', function(){
 
     before(function(done){
 
@@ -513,7 +512,6 @@ describe('linked data registry', function(){
                 ]
               };
 
-
               request.put({url: rurl('/test-pkg/0.0.0'), json: mypkg, auth: {user:'user_a', pass: pass}}, function(err, resp, body){
                 done();
               })
@@ -525,6 +523,7 @@ describe('linked data registry', function(){
         });
       });
     });
+
 
     it('should have added datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){
       request.get(rurl('/test-pkg/0.0.0'), function(err, resp, body){
@@ -623,7 +622,6 @@ describe('linked data registry', function(){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
           s3.deleteObjects({Delete:{Objects: [{Key: '82cbfde6af09536e6c40eb9799b137abe299c0f3'}, {Key: '5b813770c87f8e6dcd9fbaa71d0d9382d027b4c7'}]}}, done);
-
         });
       });
     });
@@ -631,93 +629,96 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('code', function(){
+  describe('code', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-        var mypkg = {
-          name: 'test-pkg',
-          version: '0.0.0',
-          code: [
-            { name: 'comp', targetProduct: { filePath: 'script.r' } },
-            { name: 'externalurl', targetProduct: { downloadUrl: 'https://raw2.github.com/standard-analytics/linked-data-registry/master/test/fixture/script.r' } }
-          ]
-        };
 
         fs.stat(path.join(root, 'fixture', 'script.r'), function(err, stat){
+
+          var headers = { 'Content-Length': 0, 'Content-Type': 'text/plain' };
+
+          var digest;
           var s = fs.createReadStream(path.join(root, 'fixture', 'script.r'));
-          mypkg._attachments = { 'script.r': { follows: true, length: stat.size, 'content_type': 'text/plain', _stream: s } };
+          var sha1 = crypto.createHash('sha1');
+          s.on('data', function(d) { headers['Content-Length'] += d.length; sha1.update(d); });
+          s.on('end', function() {
+            digest = sha1.digest('hex');
 
-          var uploadStream = cms(mypkg);
+            var r =request.put( { url: rurl('/r/' + digest), auth: {user:'user_a', pass: pass}, headers: headers }, function(err, resp, body){
+              var mypkg = {
+                name: 'test-pkg',
+                version: '0.0.0',
+                code:[
+                  {
+                    name: 'comp',
+                    targetProduct: {
+                      fileSize: stat.size,
+                      filePath: 'script.r',
+                      fileFormat: 'text/plain',
+                      downloadUrl: 'r/' + digest,
+                      hashAlgorithm: 'sha1',
+                      hashValue: digest
+                    }
+                  },
+                  {
+                    name: 'externalurl',
+                    targetProduct: {
+                      downloadUrl: 'https://raw2.github.com/standard-analytics/linked-data-registry/master/test/fixture/script.r'
+                    }
+                  }
+                ]
+              };
 
-          var options = {
-            port: 3000,
-            hostname: '127.0.0.1',
-            method: 'PUT',
-            path: '/' + mypkg.name + '/' + mypkg.version,
-            auth: 'user_a:' + pass,
-            headers: uploadStream.headers
-          };
+              request.put({url: rurl('/test-pkg/0.0.0'), json: mypkg, auth: {user:'user_a', pass: pass}}, function(err, resp, body){
+                done();
+              })
 
-          var req = http.request(options, function(res){
-            res.resume();
-            res.on('end', function(){
-              done();
             });
+            fs.createReadStream(path.join(root, 'fixture', 'script.r')).pipe(r);
           });
-          uploadStream.pipe(req);
+
         });
-
       });
+
     });
 
-    it('should get a code entry with populated metadata (fileSize, hash...)', function(done){
+    it('should get a code entry', function(done){
       request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
-
-        var expected = {
-          '@id': 'test-pkg/0.0.0/code/comp',
-          '@type': 'Code',
-          name: 'comp',
-          contentRating: 'uri',
-          targetProduct: {
-            filePath: 'script.r',
-            downloadUrl: 'test-pkg/0.0.0/code/comp/script.r',
-            fileSize: 21,
-            fileFormat: 'text/plain',
-            hashAlgorithm: 'md5',
-            hashValue: '59e68bf53d595dd5d0dda32e54c528a6',
-            encoding: { contentSize: 41, encodingFormat: 'application/x-gzip' },
-            '@type': 'SoftwareApplication'
-          },
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
-        };
-
-
-        assert.deepEqual(JSON.parse(body), expected);
+        assert.equal(JSON.parse(body).name, 'comp');
         done();
       });
     });
 
-    it('should get content with _content', function(done){
-      request.get({url: rurl('/test-pkg/0.0.0/code/comp/script.r'), encoding:null,  headers: { 'Accept-Encoding' : 'gzip'}}, function(err, resp, body){
-        var md5 = crypto.createHash('md5');
-        md5.update(body)
-        assert.equal(md5.digest('hex'), '59e68bf53d595dd5d0dda32e54c528a6');
-        done();
+    it('should get content with', function(done){
+      request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
+        body = JSON.parse(body);
+        request.get(rurl('/' + body.targetProduct.downloadUrl), function(err, resp, data){
+          fs.readFile(path.join(root, 'fixture', 'script.r'), {encoding:'utf8'}, function(err, odata){
+            assert.equal(data, odata);
+            assert.equal(body.targetProduct.hashValue, crypto.createHash('sha1').update(odata).digest('hex'));
+            done();
+          });
+        });
       });
     });
 
     it('should get content from external url', function(done){
-      request.get(rurl('/test-pkg/0.0.0/code/externalurl/_content'), function(err, resp, body){
-        assert.equal(body, fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}));
-        done();
+      request.get(rurl('/test-pkg/0.0.0/code/externalurl'), function(err, resp, body){
+        body = JSON.parse(body);
+        request.get(body.targetProduct.downloadUrl, function(err, resp, body){
+          assert.equal(body, fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}));
+          done();
+        });
       });
     });
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          done();
+          s3.deleteObject({Key: '66eb98f8e52a487a604f048e545f0acadb2360d2'}, function(err, data){
+            done();
+          });
         });
       });
     });
