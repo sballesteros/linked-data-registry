@@ -20,6 +20,11 @@ shows.dataset = function(doc, req){
   if(r){
 
     if(!req.query.content){
+
+      if(r.distribution && r.distribution.contentData){
+        delete r.distribution.contentData;
+      }
+
       return {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(r, null, 2)

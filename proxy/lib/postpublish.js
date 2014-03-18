@@ -74,34 +74,37 @@ function processDataset(req, pkg, rev, callback){
       d.hashValue = crypto.createHash('sha1').update(s).digest('hex');
 
       //put to S3
-      zlib.gzip(s, function(err, data){
-        if(err) console.error(err);
+      zlib.gzip(s, function(errGzip, dataGzip){
+        if(errGzip) console.error(errGzip);
 
         var opts = {
-          Key: d.hashValue,
-          Body: (err) ? s: data,
+          Key: (errGzip) ? d.hashValue: crypto.createHash('sha1').update(dataGzip).digest('hex'),
+          Body: (errGzip) ? s: dataGzip,
           ContentType: format,
-          ContentLength: (err) ? d.contentSize: data.length
+          ContentLength: (errGzip) ? d.contentSize: dataGzip.length
         };
 
-        if(!err){
+        if(!errGzip){
           opts.ContentEncoding = 'gzip';
         }
 
-        req.app.get('s3').putObject(opts, function(err, resS3){
-          if(err) {
-            console.error(err);
+        req.app.get('s3').putObject(opts, function(errS3, resS3){
+          if(errS3) {
+            console.error(errS3);
             r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
             return cb(null);
           }
 
-          d.contentUrl = 'r/' + d.hashValue;
-          d.encoding = {
-            contentSize: opts.ContentLength,
-            encodingFormat: 'gzip',
-            hashAlgorithm: 'sha1',
-            hashValue: crypto.createHash('sha1').update(data).digest('hex')
-          };
+          d.contentUrl = 'r/' + opts.Key;
+
+          if(!errGzip){
+            d.encoding = {
+              contentSize: opts.ContentLength,
+              encodingFormat: 'gzip',
+              hashAlgorithm: 'sha1',
+              hashValue: opts.Key
+            };
+          }
 
           r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
           cb(null);

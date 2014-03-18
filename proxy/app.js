@@ -652,11 +652,36 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
 });
 
 app.get('/r/:sha1', logDownload, function(req, res, next){
-  var s = s3.getObject({Key:req.params.sha1}).createReadStream();
-  s.on('error', function(err){
-    console.error(err);
+
+  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
+
+    if(err) return next(errorCode(err.code, err.statusCode));
+
+    if(s3Headers.ContentLength){
+      res.set('Content-Length', s3Headers.ContentLength);
+    }
+    if(s3Headers.ContentType){
+      res.set('Content-Type', s3Headers.ContentType);
+    }
+    if(s3Headers.ContentEncoding){
+      res.set('Content-Encoding', s3Headers.ContentEncoding);
+    }
+    if(s3Headers.Etag){
+      res.set('Etag', s3Headers.Etag);
+    }
+    if(s3Headers.LastModified){
+      res.set('Last-Modified', s3Headers.LastModified);
+    }
+
+    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
+    s.on('error', function(err){
+      console.error(err);
+    });
+    s.pipe(res);
+
   });
-  s.pipe(res);
+
+
 });
 
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){

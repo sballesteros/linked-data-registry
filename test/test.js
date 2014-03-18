@@ -408,7 +408,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('readme', function(){
+  describe.skip('readme', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -475,115 +475,80 @@ describe('linked data registry', function(){
 
 
 
-  describe.skip('dataset', function(){
-
-    var expected = {
-      '@id': 'test-pkg/0.0.0',
-      "@type": ["Package", "DataCatalog"],
-      name: 'test-pkg',
-      version: '0.0.0',
-      contentRating: 'of-uri',
-      dataset: [
-        {
-          '@id': 'test-pkg/0.0.0/dataset/inline',
-          '@type': 'Dataset',
-          name: 'inline',
-          contentRating: 'of-uri',
-          about: [
-            { name: 'a', valueType: 'xsd:string' },
-            { name: 'b', valueType: 'xsd:integer' }
-          ],
-          distribution: {
-            '@type': 'DataDownload',
-            contentUrl: 'test-pkg/0.0.0/dataset/inline/inline.json',
-            contentSize: 33,
-            encodingFormat: 'application/json',
-            hashAlgorithm: 'md5',
-            hashValue: '9c25c6c3f5a37454d9c5d6a772212821',
-            //uploadDate: '2014-01-12T01:16:24.939Z'
-          },
-          catalog: { "@type": ["Package", "DataCatalog"], name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
-        },
-        {
-          '@id': 'test-pkg/0.0.0/dataset/x1',
-          '@type': 'Dataset',
-          name: 'x1',
-          contentRating: 'of-uri',
-          distribution: {
-            '@type': 'DataDownload',
-            contentPath: 'x1.csv',
-            contentUrl: 'test-pkg/0.0.0/dataset/x1/x1.csv',
-            contentSize: 11,
-            encodingFormat: 'text/csv',
-            hashAlgorithm: 'md5',
-            hashValue: 'cdf8263c082af5d04f3505bb24a400ec',
-            encoding: { contentSize: 31, encodingFormat: 'application/x-gzip' },
-            //uploadDate: '2014-01-12T01:16:24.939Z'
-          },
-          catalog: { "@type": ["Package","DataCatalog"], name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
-        }
-      ],
-      //datePublished: '2014-01-12T01:16:24.939Z',
-      registry: { name: 'Standard Analytics IO', url: 'https://registry.standardanalytics.io/' }
-    };
-
-    expected = pjsonld.linkPackage(expected, {addCtx:false});
+  describe('dataset', function(){
 
     before(function(done){
-      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
 
-        var mypkg = clone(pkg);
+      fs.stat(path.join(root, 'fixture', 'trace_0.csv'), function(err, stat){
 
-        var s1 = new Readable();
-        s1.push(x1);
-        s1.push(null);
+        request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
+          var headers = { 'Content-Length': 0, 'Content-Type': 'text/csv', 'Content-Encoding': 'gzip' };
 
-        mypkg.dataset.push({name: 'x1', distribution: {contentPath: 'x1.csv'}});
-        mypkg._attachments = { 'x1.csv': { follows: true, length: Buffer.byteLength(x1), 'content_type': 'text/csv', _stream: s1 } };
+          var digest;
+          var s = fs.createReadStream(path.join(root, 'fixture', 'trace_0.csv')).pipe(zlib.createGzip());
+          var sha1 = crypto.createHash('sha1');
+          s.on('data', function(d) { headers['Content-Length'] += d.length; sha1.update(d); });
+          s.on('end', function() {
+            digest = sha1.digest('hex');
 
-        var s = cms(mypkg);
+            var r =request.put( { url: rurl('/r/' + digest), auth: {user:'user_a', pass: pass}, headers: headers }, function(err, resp, body){
+              var mypkg = {
+                name: 'test-pkg',
+                version: '0.0.0',
+                dataset:[
+                  {
+                    name: 'trace',
+                    distribution: {
+                      contentSize: stat.size,
+                      contentPath: 'trace_0.csv',
+                      encodingFormat: 'text/csv',
+                      contentUrl: 'r/' + digest,
+                      encoding:{ encodingFormat: 'gzip', hashAlgorithm: 'sha1', hashValue: digest, contentSize: headers['Content-Length'] }
+                    }
+                  },
+                  {
+                    name: 'inline',
+                    distribution: { contentData: pkg.dataset[0].distribution.contentData }
+                  }
+                ]
+              };
 
-        var options = {
-          port: 3000,
-          hostname: '127.0.0.1',
-          method: 'PUT',
-          path: '/' + mypkg.name + '/' + mypkg.version,
-          auth: userData.name + ':' + pass,
-          headers: s.headers
-        };
 
-        var req = http.request(options, function(res){
-          res.resume();
-          res.on('end', function(){
-            done();
+              request.put({url: rurl('/test-pkg/0.0.0'), json: mypkg, auth: {user:'user_a', pass: pass}}, function(err, resp, body){
+                done();
+              })
+
+            });
+            fs.createReadStream(path.join(root, 'fixture', 'trace_0.csv')).pipe(zlib.createGzip()).pipe(r);
           });
+
         });
-        s.pipe(req);
       });
     });
 
-    it('should have appended dataset.distribution, add datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){
+    it('should have added datePublished, deleted dataset.distribution.contentData and serve the pkg as JSON interpreted as JSON-LD', function(done){
       request.get(rurl('/test-pkg/0.0.0'), function(err, resp, body){
         body = JSON.parse(body);
+
         assert('datePublished' in body);
         delete body.datePublished;
-        body.dataset.forEach(function(d){
-          if('distribution' in d){
-            assert('uploadDate' in d.distribution);
-            delete d.distribution.uploadDate;
-          }
-        });
-
         assert.equal(linkHeader, resp.headers.link);
-        assert.deepEqual(body, expected);
-        done();
+        assert(!body.dataset[1].distribution.dataset);
+
+        assert.equal(body.dataset[1].distribution.hashValue, crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex'));
+        zlib.gzip(JSON.stringify(pkg.dataset[0].distribution.contentData), function(err, data){
+          var sha1 = crypto.createHash('sha1').update(data).digest('hex');
+          assert.equal(body.dataset[1].distribution.encoding.hashValue, sha1);
+          assert.equal(body.dataset[1].distribution.contentUrl, 'r/' + sha1);
+          done();
+        })
       });
     });
 
     it('should have kept dataset.distribution.contentData when queried with ?contentData=true', function(done){
       request.get(rurl('/test-pkg/0.0.0?contentData=true'), function(err, resp, body){
         body = JSON.parse(body);
-        assert.deepEqual(body.dataset[0].distribution.contentData, pkg.dataset[0].distribution.contentData);
+        assert.deepEqual(body.dataset[1].distribution.contentData, pkg.dataset[0].distribution.contentData);
         done();
       });
     });
@@ -613,47 +578,52 @@ describe('linked data registry', function(){
     });
 
     it('should get a JSON dataset interpreted as JSON-LD', function(done){
-      request.get(rurl('/' + expected.dataset[1]['@id']), function(err, resp, body){
+      request.get(rurl('/test-pkg/0.0.0/dataset/inline'), function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
         body = JSON.parse(body);
-        delete body.distribution.uploadDate;
-        assert.deepEqual(body, expected.dataset[1]);
+        assert.equal(body.name, 'inline');
         done();
       });
     });
 
     it('should get an attachment coming from a file', function(done){
-      request.get(rurl('/test-pkg/0.0.0/dataset/x1/x1.csv'), function(err, resp, body){
-        assert.equal(body, x1);
-        done();
-      });
-    });
-
-    it('should get an attachment coming from a file when _content is used to specify the content', function(done){
-      request.get(rurl('/test-pkg/0.0.0/dataset/x1/_content'), function(err, resp, body){
-        assert.equal(body, x1);
-        done();
+      request.get(rurl('/test-pkg/0.0.0/dataset/trace'), function(err, resp, body){
+        body = JSON.parse(body);
+        request.get({url:rurl('/' + body.distribution.contentUrl), encoding:null}, function(err, resp, body){
+          zlib.gunzip(body, function(err, data){
+            fs.readFile(path.join(root, 'fixture', 'trace_0.csv'), function(err, odata){
+              assert.equal(data.toString(), odata.toString());
+              done();
+            });
+          });
+        });
       });
     });
 
     it('should error on invalid attachment location', function(done){
-      request.get(rurl('/test-pkg/0.0.0/dataset/x1/x1xxxxx.csv'), function(err, resp, body){
+      request.get(rurl('/r/x1xxxxx'), function(err, resp, body){
         assert(resp.statusCode, 404);
         done();
       });
     });
 
+
     it('should get a pseudo attachment coming from a inline data', function(done){
-      request.get(rurl('/test-pkg/0.0.0/dataset/inline/inline.json'), function(err, resp, body){
-        assert.deepEqual(JSON.parse(body), pkg.dataset[0].distribution.contentData);
-        done();
+      request.get(rurl('/test-pkg/0.0.0/dataset/inline'), function(err, resp, body){
+        request.get({url:rurl('/' + JSON.parse(body).distribution.contentUrl), encoding:null}, function(err, resp, body){
+          zlib.gunzip(body, function(err, data){
+            assert.deepEqual(JSON.parse(data.toString()), pkg.dataset[0].distribution.contentData);
+            done();
+          });
+        });
       });
     });
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          done();
+          s3.deleteObjects({Delete:{Objects: [{Key: '82cbfde6af09536e6c40eb9799b137abe299c0f3'}, {Key: '5b813770c87f8e6dcd9fbaa71d0d9382d027b4c7'}]}}, done);
+
         });
       });
     });
