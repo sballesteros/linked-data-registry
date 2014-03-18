@@ -21,7 +21,16 @@ var util = require('util')
  */
 module.exports = function(req, body, callback){
 
-  request(req.app.get('rootCouchRegistry') + '/_design/registry/_rewrite/' + body.id + '?contentData=true', function(err, resp, pkg){
+  request({url: req.app.get('rootCouchRegistry') + '/' + body.id, qs:{att_encoding_info: true} }, function(err, resp, pkg){
+
+    if(pkg._attachments && pkg._attachments['README.md']){
+      pkg.about = { name:  'README.md', url: pkg.name + '/' + pkg.version + '/about/README.md' };
+    }
+
+    delete pkg._id;
+    delete pkg._rev;
+    delete pkg._revisions;
+    delete pkg._attachments;
 
     if(err) return callback(err);
     if (resp.statusCode >= 400){

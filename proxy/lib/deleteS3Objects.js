@@ -9,8 +9,6 @@ module.exports = function(req, pkg, callback){
 
   var sha1s = [];
 
-  console.log(require('util').inspect(pkg, {depth:null}));
-
   (pkg.dataset || []).forEach(function(r){
     if(r.distribution && r.distribution.contentUrl){
       var sha1 = sutil.getSha1(r.distribution.contentUrl);

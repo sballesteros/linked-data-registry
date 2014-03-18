@@ -186,7 +186,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('auth: no side effects', function(){
+  describe('auth: no side effects', function(){
 
     before(function(done){
       createFixture(done);
@@ -409,8 +409,6 @@ describe('linked data registry', function(){
 
 
   describe.skip('dataset and attachments', function(){
-
-    var x1 = [["a","b"],[1,2],[3,4]].join('\n'); //CSV data
 
     var expected = {
       '@id': 'test-pkg/0.0.0',

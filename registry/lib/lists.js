@@ -6,10 +6,10 @@ lists.latest = function(head, req){
   if(!row){
     throw ['error', 'not_found', 'no results'];
   }
-  
+
   var doc = row.doc;
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   start({ "headers": { "Content-Type": "application/json" } });
   send(JSON.stringify(util.clean(doc, req), null, 2));
@@ -29,13 +29,13 @@ lists.versions = function(head, req){
       url: row.value.name + '/' + row.value.version,
     });
   }
-  
+
   if(!packages.length){
-    start({ 
-      code: 404,   
+    start({
+      code: 404,
       headers: {"Content-Type": "application/json"}
     });
-    return send(JSON.stringify({error: "no results"}));        
+    return send(JSON.stringify({error: "no results"}));
   } else {
     start({"headers": {"Content-Type": "application/json"}});
     send(JSON.stringify({
@@ -46,7 +46,7 @@ lists.versions = function(head, req){
 };
 
 
-lists.search = function(head, req){  
+lists.search = function(head, req){
   var row;
   var cnt = 0;
   start({"headers": {"Content-Type": "application/x-ldjson"}});
@@ -54,7 +54,7 @@ lists.search = function(head, req){
     send(JSON.stringify(row) + '\n');
     cnt++;
   }
-  
+
   if(!cnt){
     throw ['error', 'not_found', 'no results'];
   }

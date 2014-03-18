@@ -10,15 +10,15 @@ module.exports = [
   {from: '/search', to: '/_list/search/byKeyword', method: 'GET', query: {reduce: 'false'}},
   //{ from: '/search', to: '/_view/byKeyword', method: 'GET', query: {reduce: 'false'}},
 
-  { from: '/:ctnr_id', to: '/_show/package/:ctnr_id', method: 'GET' },
-  { from: '/first/:ctnr_id', to: '/_show/package/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/dataset/:dataset', to: '/_show/dataset/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/code/:code', to: '/_show/code/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/figure/:figure', to: '/_show/figure/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/article/:article', to: '/_show/article/:ctnr_id', method: 'GET' },
+  { from: '/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
+  { from: '/first/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/dataset/:dataset', to: '/_show/dataset/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/code/:code', to: '/_show/code/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/figure/:figure', to: '/_show/figure/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/article/:article', to: '/_show/article/:pkg_id', method: 'GET' },
 
-  { from: '/:ctnr_id/dataset/:dataset/:content', to: '/_show/dataset/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/code/:code/:content', to: '/_show/code/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/figure/:figure/:content', to: '/_show/figure/:ctnr_id', method: 'GET' },
-  { from: '/:ctnr_id/article/:article/:content', to: '/_show/article/:ctnr_id', method: 'GET' }
+  { from: '/:pkg_id/dataset/:dataset/:content', to: '/_show/dataset/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/code/:code/:content', to: '/_show/code/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/figure/:figure/:content', to: '/_show/figure/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/article/:article/:content', to: '/_show/article/:pkg_id', method: 'GET' }
 ];

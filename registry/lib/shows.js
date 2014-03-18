@@ -2,7 +2,7 @@ var shows = exports;
 
 shows.package = function(doc,req){
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   return {
     headers: { 'Content-Type': 'application/json' },
@@ -14,7 +14,7 @@ shows.package = function(doc,req){
 
 shows.dataset = function(doc, req){
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){
@@ -59,7 +59,7 @@ shows.dataset = function(doc, req){
 
 shows.code = function(doc, req){
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   var r = doc.code.filter(function(x){ return x.name === req.query.code; })[0];
   if(r){
@@ -97,7 +97,7 @@ shows.code = function(doc, req){
 
 shows.figure = function(doc, req){
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   var r = doc.figure.filter(function(x){ return x.name === req.query.figure; })[0];
   if(r){
@@ -132,7 +132,7 @@ shows.figure = function(doc, req){
 
 shows.article = function(doc, req){
 
-  var util = require('ctnr-util');
+  var util = require('pkg-util');
 
   var r = doc.article.filter(function(x){ return x.name === req.query.article; })[0];
   if(r){
