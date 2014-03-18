@@ -34,7 +34,7 @@ describe('s3', function(){
     s.on('end', function() {
       headers['X-Content-Sha1'] = sha1.digest('hex');
 
-      var r =request.put( { url: rurl('/' + headers['X-Content-Sha1']), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
+      var r =request.put( { url: rurl('/r/' + headers['X-Content-Sha1']), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
         if(err) throw err;
         assert('ETag' in JSON.parse(body));
         done();
@@ -59,7 +59,7 @@ describe('s3', function(){
     s.on('end', function() {
       headers['X-Content-Sha1'] = sha1.digest('hex');
 
-      var r =request.put( { url: rurl('/' + headers['X-Content-Sha1']), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
+      var r =request.put( { url: rurl('/r/' + headers['X-Content-Sha1']), auth: {user:'seb', pass: 'seb'}, headers: headers }, function(err, resp, body){
         if(err) throw err;
         assert('ETag' in JSON.parse(body));
         done();

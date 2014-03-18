@@ -616,7 +616,7 @@ app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownlo
 });
 
 
-app.put('/:sha1', forceAuth, function(req, res, next){
+app.put('/r/:sha1', forceAuth, function(req, res, next){
 
   if(!req.headers['x-content-sha1']){
     res.json(400, {error: 'request needs a X-Content-Sha1 header'});
@@ -659,7 +659,7 @@ app.put('/:sha1', forceAuth, function(req, res, next){
 
 });
 
-app.get('/:sha1', function(req, res, next){
+app.get('/r/:sha1', function(req, res, next){
   var s = s3.getObject({Key:req.params.sha1}).createReadStream();
   s.on('error', function(err){
     console.error(err);

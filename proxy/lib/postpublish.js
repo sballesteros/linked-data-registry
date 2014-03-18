@@ -12,6 +12,7 @@ var util = require('util')
   , zlib = require('zlib')
   , clone = require('clone')
   , concat = require('concat-stream')
+  , sutil = require('./util')
   , ldstars = require('ldstars');
 
 /**
@@ -24,7 +25,7 @@ module.exports = function(req, body, callback){
 
     if(err) return callback(err);
     if (resp.statusCode >= 400){
-      return callback(errorCode('oops something went wrong when trying to GET ' + body.id, resp.statusCode));
+      return callback(sutil.errorCode('oops something went wrong when trying to GET ' + body.id, resp.statusCode));
     }
     pkg = JSON.parse(pkg);
 
@@ -96,7 +97,7 @@ function processDataset(req, pkg, rev, callback){
             return cb(null);
           }
 
-          d.contentUrl = d.hashValue;
+          d.contentUrl = 'r/' + d.hashValue;
           d.encoding = {
             contentSize: opts.ContentLength,
             encodingFormat: 'gzip',
@@ -204,22 +205,14 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
   }
 
   if ('contentUrl' in r) {
-    
-    var sha1;
-    if(!isUrl(r.contentUrl)){
-      sha1 = r.contentUrl.replace(/^\//, '');
-    } else {
-      purl = url.parse(r.contentUrl);
-      if(purl.hostname === 'registry.standardanalytics.io'){
-        sha1 = purl.pathname.replace(/^\//, '');
-      }
-    }
+
+    var sha1 = sutil.getSha1(r.contentUrl);
 
     if (sha1) {
       var s3Stream = s3.getObject({Key: req.params.sha1}).createReadStream();
       s3Stream.on('error', function(err){
         console.error(err);
-      });    
+      });
 
       gm(s3Stream).size({bufferStream: true}, function (err, size) {
 
@@ -271,11 +264,4 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
 
   }
 
-};
-
-
-function errorCode(msg, code){
-  var err = new Error(msg);
-  err.code = code;
-  return err;
 };

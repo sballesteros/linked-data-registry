@@ -61,15 +61,16 @@ views.bySha1 = {
 
     function getSha1(uri){
       if(!isUrl(uri)){
-        return uri.replace(/^\//, '');
+        return uri.replace(/^\/|\/$/g, '').split('/')[1];
       } else {
         purl = url.parse(uri);
         if(purl.hostname === 'registry.standardanalytics.io'){
-          return purl.pathname.replace(/^\//, '');
+          return purl.pathname.replace(/^\/|\/$/g, '').split('/')[1];
         }
       }
       return undefined;
     };
+
 
     (doc.dataset || []).forEach(function(r){
       if(r.distribution && r.distribution.contentUrl){
