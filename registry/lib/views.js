@@ -106,6 +106,7 @@ views.bySha1 = {
         }
       }
     });
+
   },
   reduce: '_count'
 };

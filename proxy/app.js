@@ -718,7 +718,6 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
       });
 
-
     } else { //version update
 
       reqCouch = request.put({url: rootCouchRegistry + '/'+ id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
@@ -766,25 +765,38 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
 
       async.each(ids, function(id, cb2){
 
-        registry.head(id, function(err, _, headers) {
-          if(err) return cb2(err);
-          var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
+        request(rootCouchRegistry + '/_design/registry/_rewrite/' + id, function(errPkg, respPkg, pkg){
 
-          //Do NOT do that as admin: otherwise doc are ALWAYS deleted so DO NOT USE registry.destroy(id, etag, cb2);
-          request.del({
-            url: rootCouchRegistry + '/' + id + '?rev=' +etag,
-            headers: {
-              'X-CouchDB-WWW-Authenticate': 'Cookie',
-              'Cookie': cookie.serialize('AuthSession', req.user.token)
-            }
-          }, function(err, resp, body){
+          registry.head(id, function(err, _, headers) {
             if(err) return cb2(err);
-            body = JSON.parse(body);
-            if(resp.statusCode === 403){
-              return cb2(errorCode(body.reason, resp.statusCode));
-            }
-            cb2(null, body);
+            var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
+
+            //Do NOT do that as admin: otherwise doc are ALWAYS deleted so DO NOT USE registry.destroy(id, etag, cb2);
+            request.del({
+              url: rootCouchRegistry + '/' + id + '?rev=' +etag,
+              headers: {
+                'X-CouchDB-WWW-Authenticate': 'Cookie',
+                'Cookie': cookie.serialize('AuthSession', req.user.token)
+              }
+            }, function(err, resp, body){
+              if(err) return cb2(err);
+              body = JSON.parse(body);
+              if(resp.statusCode === 403){
+                return cb2(errorCode(body.reason, resp.statusCode));
+              }
+
+              if(!errPkg){
+                deleteS3Objects(req, JSON.parse(pkg), function(err){
+                  if(err) console.error(err);
+                  cb2(null, body);
+                });
+              } else {
+                cb2(null, body);
+              }
+
+            });
           });
+
         });
 
       }, function(err, _){
@@ -846,8 +858,3 @@ s3.createBucket(function() {
   console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
   console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
 });
-
-
-//s3.deleteObjects({Delete:{Objects: filenames.map(function(x){return {Key: x};})}}, function(err, data){
-//
-//});
