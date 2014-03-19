@@ -639,12 +639,13 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
   s3.putObject(opts, function(err, data){
     if(err) return next(err);
     if(checkErr){
-      s3.deleteObject({Key: req.params.md5}, function(err, data) {
+      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
         if (err) console.error(err);
 
         return next(checkErr);
       })
     } else {
+      res.set('ETag', data.ETag);
       res.json(data);
     }
   });
@@ -666,8 +667,8 @@ app.get('/r/:sha1', logDownload, function(req, res, next){
     if(s3Headers.ContentEncoding){
       res.set('Content-Encoding', s3Headers.ContentEncoding);
     }
-    if(s3Headers.Etag){
-      res.set('Etag', s3Headers.Etag);
+    if(s3Headers.ETag){
+      res.set('ETag', s3Headers.ETag);
     }
     if(s3Headers.LastModified){
       res.set('Last-Modified', s3Headers.LastModified);
