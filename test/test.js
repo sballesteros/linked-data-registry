@@ -127,7 +127,7 @@ describe('linked data registry', function(){
   this.timeout(10000);
 
 
-  describe.skip('s3', function(){
+  describe('s3', function(){
 
     it('should upload compressible attachments', function(done){
       var headers = {
@@ -186,7 +186,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('auth: no side effects', function(){
+  describe('auth: no side effects', function(){
 
     before(function(done){
       createFixture(done);
@@ -283,7 +283,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('auth: side effects', function(){
+  describe('auth: side effects', function(){
 
     beforeEach(function(done){
       createFixture(done);
@@ -354,7 +354,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('search and versions', function(){
+  describe('search and versions', function(){
 
     before(function(done){
       createFixture(done);
@@ -408,7 +408,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('readme', function(){
+  describe('readme', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -474,7 +474,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('dataset', function(){
+  describe('dataset', function(){
 
     before(function(done){
 
@@ -629,7 +629,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('code', function(){
+  describe('code', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -776,7 +776,6 @@ describe('linked data registry', function(){
 
     it('should get a figure entry with thumbnail', function(done){
       request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
-        console.log(err, JSON.parse(body));
         body = JSON.parse(body);
         assert.equal(body.name, 'fig');
         assert.equal(body.thumbnailUrl, 'test-pkg/0.0.0/thumbnail/thumb-fig-256.jpeg');
@@ -810,85 +809,78 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('article', function(){
+  describe('article', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-        var mypkg = {
-          name: 'test-pkg',
-          version: '0.0.0',
-          article: [ { name: 'pone', encoding: {contentPath: 'article.pdf'} } ]
-        };
 
         fs.stat(path.join(root, 'fixture', 'article.pdf'), function(err, stat){
+
+          var headers = { 'Content-Length': 0, 'Content-Type': 'application/pdf' };
+
+          var digest;
           var s = fs.createReadStream(path.join(root, 'fixture', 'article.pdf'));
-          mypkg._attachments = { 'article.pdf': { follows: true, length: stat.size, 'content_type': 'application/pdf', _stream: s } };
+          var sha1 = crypto.createHash('sha1');
+          s.on('data', function(d) { headers['Content-Length'] += d.length; sha1.update(d); });
+          s.on('end', function() {
+            digest = sha1.digest('hex');
 
-          var uploadStream = cms(mypkg);
+            var r =request.put( { url: rurl('/r/' + digest), auth: {user:'user_a', pass: pass}, headers: headers }, function(err, resp, body){
+              var mypkg = {
+                name: 'test-pkg',
+                version: '0.0.0',
+                article: [{
+                  name: 'pone',
+                  encoding: {
+                    fileSize: stat.size,
+                    filePath: 'article.pdf',
+                    fileFormat: 'application/pdf',
+                    contentUrl: 'r/' + digest,
+                    hashAlgorithm: 'sha1',
+                    hashValue: digest
+                  }
+                }]
+              };
 
-          var options = {
-            port: 3000,
-            hostname: '127.0.0.1',
-            method: 'PUT',
-            path: '/' + mypkg.name + '/' + mypkg.version,
-            auth: 'user_a:' + pass,
-            headers: uploadStream.headers
-          };
+              request.put({url: rurl('/test-pkg/0.0.0'), json: mypkg, auth: {user:'user_a', pass: pass}}, function(err, resp, body){
+                done();
+              })
 
-          var req = http.request(options, function(res){
-            res.resume();
-            res.on('end', function(){
-              done();
             });
+            fs.createReadStream(path.join(root, 'fixture', 'article.pdf')).pipe(r);
           });
-          uploadStream.pipe(req);
-        });
 
+        });
       });
+
     });
 
     it('should get an article entry', function(done){
       request.get(rurl('/test-pkg/0.0.0/article/pone'), function(err, resp, body){
-
-        var expected = {
-          name: 'pone',
-          contentRating: 'of-uri',
-          encoding:{
-            '@type': 'MediaObject',
-            contentPath: 'article.pdf',
-            contentUrl: 'test-pkg/0.0.0/article/pone/article.pdf',
-            contentSize: 381544,
-            encodingFormat: 'application/pdf',
-            hashAlgorithm: 'md5',
-            hashValue: 'c995484d14a9a78f00141fa1ec919aa5'
-            //uploadDate: '2014-03-07T22:02:42.486Z',
-          },
-          '@id': 'test-pkg/0.0.0/article/pone',
-          '@type': 'Article',
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
-        };
-
-        var result = JSON.parse(body);
-        delete result.encoding.uploadDate;
-
-        assert.deepEqual(result, expected);
+        assert.equal(JSON.parse(body).name, 'pone');
         done();
       });
     });
 
-    it('should get content with _content', function(done){
-      request.get({url: rurl('/test-pkg/0.0.0/article/pone/_content'), encoding: null}, function(err, resp, body){
-        var md5 = crypto.createHash('md5');
-        md5.update(body)
-        assert.equal(md5.digest('hex'), 'c995484d14a9a78f00141fa1ec919aa5');
-        done();
+    it('should get content', function(done){
+      request.get(rurl('/test-pkg/0.0.0/article/pone'), function(err, resp, body){
+        body = JSON.parse(body);
+        request.get(rurl('/' + body.encoding.contentUrl), function(err, resp, data){
+          fs.readFile(path.join(root, 'fixture', 'article.pdf'), function(err, odata){
+            assert.equal(data, odata);
+            assert.equal(body.encoding.hashValue, crypto.createHash('sha1').update(odata).digest('hex'));
+            done();
+          });
+        });
       });
     });
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          done();
+          s3.deleteObject({Key: 'e573544bd953390b342246b3f2fb4094f681efcf'}, function(err, data){
+            done();
+          });
         });
       });
     });
