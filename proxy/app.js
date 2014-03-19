@@ -576,11 +576,11 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
 
 
 /**
- * get readme: do not log
+ * get readme or thumbnails: do not log
  */
 app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
 
-  if(['about'].indexOf(req.params.type) === -1){
+  if(['about', 'thumbnail'].indexOf(req.params.type) === -1){
     return next(errorCode('not found', 404));
   }
 

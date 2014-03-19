@@ -629,7 +629,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('code', function(){
+  describe.skip('code', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -690,7 +690,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should get content with', function(done){
+    it('should get content', function(done){
       request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
         body = JSON.parse(body);
         request.get(rurl('/' + body.targetProduct.downloadUrl), function(err, resp, data){
@@ -726,54 +726,46 @@ describe('linked data registry', function(){
   });
 
 
-  describe.skip('figure', function(){
+  describe('figure', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-        var mypkg = {
-          name: 'test-pkg',
-          version: '0.0.0',
-          figure: [
-            { name: 'g002', contentPath: 'g002.png' },
-            { name: 'fig', contentPath: 'daftpunk.jpg' }
-          ]
-        };
 
-        fs.stat(path.join(root, 'fixture', 'g002.png'), function(err, statg){
-          fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, statdp){
-            mypkg._attachments = {
-              'g002.png': {
-                follows: true,
-                length: statg.size,
-                'content_type': 'image/png',
-                _stream: fs.createReadStream(path.join(root, 'fixture', 'g002.png'))
-              },
-              'daftpunk.jpg': {
-                follows: true,
-                length: statdp.size,
-                'content_type': 'image/jpeg',
-                _stream: fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'))
-              }
-            };
+        fs.stat(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, stat){
 
-            var uploadStream = cms(mypkg);
+          var headers = { 'Content-Length': 0, 'Content-Type': 'image/jpeg' };
 
-            var options = {
-              port: 3000,
-              hostname: '127.0.0.1',
-              method: 'PUT',
-              path: '/' + mypkg.name + '/' + mypkg.version,
-              auth: 'user_a:' + pass,
-              headers: uploadStream.headers
-            };
+          var digest;
+          var s = fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg'));
+          var sha1 = crypto.createHash('sha1');
+          s.on('data', function(d) { headers['Content-Length'] += d.length; sha1.update(d); });
+          s.on('end', function() {
+            digest = sha1.digest('hex');
 
-            var req = http.request(options, function(res){
-              res.resume();
-              res.on('end', function(){
+            var r =request.put( { url: rurl('/r/' + digest), auth: {user:'user_a', pass: pass}, headers: headers }, function(err, resp, body){
+
+              var mypkg = {
+                name: 'test-pkg',
+                version: '0.0.0',
+                figure: [
+                  {
+                    name: 'fig',
+                    contentPath: 'daftpunk.jpg',
+                    contentUrl: 'r/' + digest,
+                    contentSize: headers['Content-Length'],
+                    encodingFormat: headers['Content-Type'],
+                    hashAlgorithm: 'sha1',
+                    hashValue: digest
+                  }
+                ]
+              };
+
+              request.put({url: rurl('/test-pkg/0.0.0'), json: mypkg, auth: {user:'user_a', pass: pass}}, function(err, resp, body){
                 done();
-              });
+              })
+
             });
-            uploadStream.pipe(req);
+            fs.createReadStream(path.join(root, 'fixture', 'daftpunk.jpg')).pipe(r);
           });
 
         });
@@ -781,48 +773,36 @@ describe('linked data registry', function(){
 
     });
 
-    it('should get a figure entry with populated metadata (fileSize, hash, thumbnailUrl...)', function(done){
+
+    it('should get a figure entry with thumbnail', function(done){
       request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
-
-        var expected = {
-          name: 'fig',
-          contentRating: 'of-uri',
-          contentPath: 'daftpunk.jpg',
-          contentUrl: 'test-pkg/0.0.0/figure/fig/daftpunk.jpg',
-          thumbnailUrl: 'test-pkg/0.0.0/figure/fig/thumb-daftpunk.jpg',
-          contentSize: 368923,
-          encodingFormat: 'image/jpeg',
-          hashAlgorithm: 'md5',
-          hashValue: '4caa440d02a15e1a371b9c794565bade',
-          width: '776px',
-          height: '524px',
-          //uploadDate: '2014-02-23T06:11:56.642Z',
-          '@id': 'test-pkg/0.0.0/figure/fig',
-          '@type': 'ImageObject',
-          'package': { '@type': 'Package', name: 'test-pkg', version: '0.0.0', url: 'test-pkg/0.0.0' }
-        };
-
-        var result = JSON.parse(body);
-        delete result.uploadDate;
-
-        assert.deepEqual(result, expected);
+        console.log(err, JSON.parse(body));
+        body = JSON.parse(body);
+        assert.equal(body.name, 'fig');
+        assert.equal(body.thumbnailUrl, 'test-pkg/0.0.0/thumbnail/thumb-fig-256.jpeg');
         done();
       });
     });
 
-    it('should get content with _content', function(done){
-      request.get({url: rurl('/test-pkg/0.0.0/figure/fig/_content'), encoding: null }, function(err, resp, body){
-        var md5 = crypto.createHash('md5');
-        md5.update(body)
-        assert.equal(md5.digest('hex'), '4caa440d02a15e1a371b9c794565bade');
-        done();
+    it('should get content', function(done){
+      request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
+        body = JSON.parse(body);
+        request.get(rurl('/' + body.contentUrl), function(err, resp, data){
+          fs.readFile(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, odata){
+            assert.equal(data, odata);
+            assert.equal(body.hashValue, crypto.createHash('sha1').update(odata).digest('hex'));
+            done();
+          });
+        });
       });
     });
 
     after(function(done){
       rm(_users, 'org.couchdb.user:user_a', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          done();
+          s3.deleteObject({Key: 'c294be54372d85d904303dfede9b06b902c3c34a'}, function(err, data){
+            done();
+          });
         });
       });
     });

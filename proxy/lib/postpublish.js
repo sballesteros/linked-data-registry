@@ -181,7 +181,7 @@ function processFigure(req, pkg, rev, callback){
   var figure = pkg.figure || [];
   var cnt = 0;
 
-  _thumbnail(figure, cnt, rev, rootCouchRegistry, admin, pkg, callback);
+  _thumbnail(figure, cnt, rev, rootCouchRegistry, admin, req.app.get('s3'), pkg, callback);
 
 };
 
@@ -189,7 +189,7 @@ function processFigure(req, pkg, rev, callback){
 /**
  * recursively thumbnail figures (has to be sequential so that latest _rev is passed to couch)
  */
-function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
+function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
 
   if(!figures.length){
     return callback(null, pkg, rev);
@@ -199,7 +199,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
 
   function _next(rev){
     if (++cnt < figures.length) {
-      return _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback);
+      return _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
     } else {
       return callback(null, pkg, rev);
     }
@@ -210,7 +210,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
     var sha1 = sutil.getSha1(r.contentUrl);
 
     if (sha1) {
-      var s3Stream = s3.getObject({Key: req.params.sha1}).createReadStream();
+      var s3Stream = s3.getObject({Key: sha1}).createReadStream();
       s3Stream.on('error', function(err){
         console.error(err);
       });
@@ -242,7 +242,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, pkg, callback){
             if (resp.statusCode === 201) {
               body = JSON.parse(body);
 
-              r.thumbnailUrl = pkg.name + '/' + pkg.version + '/' + '/figure/' + r.name + '/thumb-' + r.name + '-' + '256' + '.' + mime.extension(r.encodingFormat);
+              r.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/thumb-' + r.name + '-' + '256' + '.' + mime.extension(r.encodingFormat);
 
               return _next(body.rev);
 
