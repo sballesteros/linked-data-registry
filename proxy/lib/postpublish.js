@@ -260,7 +260,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callba
 
   } else {
 
-    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(d), r.name, r.version), pkg.license, {string:true});
+    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
     return _next(rev);
 
   }
