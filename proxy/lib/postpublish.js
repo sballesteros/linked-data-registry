@@ -35,11 +35,16 @@ module.exports = function(req, body, callback){
         if(err) console.error(err);
         processArticle(req, pkg, body.rev, function(err, pkg, rev){
           if(err) console.error(err);
-          processFigure(req, pkg, body.rev, callback);
+          processFigure(req, pkg, body.rev, function(err, pkg, rev){
+            if(err) console.error(err);
+
+            pkg.contentRating = ldstars.rate(pjsonld.linkPackage(clone(pkg)), {string:true});
+            callback(err, pkg, rev);
+
+          });
         });
       });
     });
-
   });
 
 };
