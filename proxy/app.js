@@ -360,6 +360,8 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
  */
 app.get('/:name', getStanProxyUrl, function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
+  console.error(rurl)
+  console.log(rurl)
   serveJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
 });
 
@@ -402,6 +404,26 @@ function maxSatisfyingVersion(req, res, next){
  */
 function serveJsonLd(docUrl, linkify, req, res, next){
 
+  /* var user = auth(req);
+
+  nano.auth(user.name, user.pass, function (err, body, headers) {
+    if (err) {
+      return next(err);
+    }
+
+    if (headers && headers['set-cookie']) {
+      try {
+        var token = cookie.parse(headers['set-cookie'][0])['AuthSession'];
+      } catch(e){
+        return next(new Error('no cookie for auth: ' + e.message));
+      }
+      req.user = { name: user.name, token: token };
+      // next();
+    } else {
+      res.json(403 , {'error': 'Forbidden'});
+    }
+  }); */
+
   request(docUrl, function(err, resp, body){
 
     if(err) return next(err);
@@ -423,6 +445,12 @@ function serveJsonLd(docUrl, linkify, req, res, next){
     context['@context']['@base'] = req.stanProxy + '/';
     var contextUrl = context['@context']['@base'] + 'package.jsonld';
 
+    /* if (!user && body.private === true) {
+      return res.json(401 , {'error': 'Unauthorized'});
+    }  */
+
+    // reqCouch = request.get({url: rootCouchRegistry + '/'+ id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
+
     res.format({
       'text/html': function(){
 
@@ -437,8 +465,8 @@ function serveJsonLd(docUrl, linkify, req, res, next){
         }
 
         res
-          .status(resp.statusCode)
-          .render('explore', {snippet:snippet});
+        .status(resp.statusCode)
+        .render('explore', {snippet:snippet});
       },
 
       'application/json': function(){
@@ -456,20 +484,20 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
           switch(profile){
 
-          case 'http://www.w3.org/ns/json-ld#expanded':
+            case 'http://www.w3.org/ns/json-ld#expanded':
             jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
               res.json(resp.statusCode, expanded);
             });
             break;
 
-          case 'http://www.w3.org/ns/json-ld#flattened':
+            case 'http://www.w3.org/ns/json-ld#flattened':
             jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
               res.json(resp.statusCode, flattened);
             });
             break;
 
-          default: //#compacted and everything else
-            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+            default: //#compacted and everything else
+              res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
 
@@ -480,7 +508,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
       //TODO text/html / RDFa 1.1 lite case
 
-    });
+    }); 
   });
 
 };

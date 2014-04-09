@@ -73,6 +73,10 @@ var pkg = {
   ]
 };
 
+var privatePkg = clone(pkg);
+privatePkg.private = true;
+privatePkg.name = 'test-private-pkg';
+
 var maintainers = [{'name': 'user_a', 'email': 'user@domain.io'}, {'name': 'user_b','email': 'user@domain.io'}];
 
 function createFixture(done){
@@ -94,9 +98,14 @@ function createFixture(done){
             if(err) console.error(err);
             request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-pkg'}}, function(err, resp, body){
               if(err) console.error(err);
-              done();
+              request.put( { url: rurl('/test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: privatePkg }, function(err, resp, body){
+                if(err) console.error(err);
+                  request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-private-pkg'}}, function(err, resp, body){
+                    if(err) console.error(err);
+                    done();
+                });
+              });
             });
-
           });
         });
       });
@@ -109,11 +118,13 @@ function rmAll(done){
     rm(_users, 'org.couchdb.user:user_b', function(){
       rm(_users, 'org.couchdb.user:user_c', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          rm(registry, 'test-pkg@0.0.1', function(){
-            rm(registry, 'test-pkg@0.0.2', function(){
-              var key = crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex');
-              s3.deleteObject({Key: key}, function(err, data){
-                done();
+          rm(registry, 'test-private-pkg@0.0.0', function(){
+            rm(registry, 'test-pkg@0.0.1', function(){
+              rm(registry, 'test-pkg@0.0.2', function(){
+                var key = crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex');
+                s3.deleteObject({Key: key}, function(err, data){
+                  done();
+                });
               });
             });
           });
@@ -228,6 +239,27 @@ describe('linked data registry', function(){
         done();
       });
     });
+
+    it('should not show a private pkg to unauthorized users', function(done){
+      registry.get('test-private-pkg@0.0.0', function(err, body){
+        if(err) console.error(err, body);
+        console.error(body);
+        assert.equal(body, 'Curses');
+        done();
+      });
+    });
+
+    /*
+    it('should show text-private-pkg to user_a', function(done){
+      registry.get({ url: rurl('test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass} }, function(err, body){
+        if(err) console.error(err, body);
+        console.error(body);
+        assert.equal(body._id, 'test-private-pkg@0.0.0');
+        done();
+      });
+    });
+
+   */
 
     it('user_a and user_b should be maintainers of test-pkg', function(done){
       request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
