@@ -394,7 +394,7 @@ function maxSatisfyingVersion(req, res, next){
 
 };
 
-function checkAuth(code, body, linkify, req, res, next) {
+function checkAuth(body, linkify, req, res, next) {
   var document;
   if (!!body.package) {
     document = body.package[0];
@@ -420,7 +420,7 @@ function checkAuth(code, body, linkify, req, res, next) {
           }
           authBody.forEach(function (elem, i, array) {
             if (elem.name === user.name) {
-              serveJsonld(code, body, linkify, req, res, next);
+              serveJsonld(body, linkify, req, res, next);
             }
           })
           // return error if user is not found
@@ -429,7 +429,7 @@ function checkAuth(code, body, linkify, req, res, next) {
       }); 
     }
   } else {
-    serveJsonld(code, body, linkify, req, res, next);
+    serveJsonld(body, linkify, req, res, next);
   }
 };
 
@@ -455,13 +455,15 @@ function getAndServeJsonLd(docUrl, linkify, req, res, next){
       return next(e);
     }
 
-    checkAuth(resp.statusCode, body, linkify, req, res, next);
+    res.status(resp.statusCode)
+
+    checkAuth(body, linkify, req, res, next);
   });
 
 };
 
 
-function serveJsonld(code, body, linkify, req, res, next) {
+function serveJsonld(body, linkify, req, res, next) {
     //patch context
     var context = pjsonld.context;
 
@@ -481,15 +483,13 @@ function serveJsonld(code, body, linkify, req, res, next) {
           snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
         }
 
-        res
-        .status(code)
-        .render('explore', {snippet:snippet});
+        res.render('explore', {snippet:snippet});
       },
 
       'application/json': function(){
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
-        res.send(code, linkify(body, {addCtx:false}));
+        res.send(linkify(body, {addCtx:false}));
       },
 
       'application/ld+json': function(){
@@ -503,23 +503,23 @@ function serveJsonld(code, body, linkify, req, res, next) {
 
             case 'http://www.w3.org/ns/json-ld#expanded':
             jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
-              res.json(code, expanded);
+              res.json(expanded);
             });
             break;
 
             case 'http://www.w3.org/ns/json-ld#flattened':
             jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
-              res.json(code, flattened);
+              res.json(flattened);
             });
             break;
 
             default: //#compacted and everything else
-              res.json(code, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+              res.json(linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
 
         } else {
-          res.json(code, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+          res.json(linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
 
