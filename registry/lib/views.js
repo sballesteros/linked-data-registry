@@ -16,7 +16,7 @@ views.lib = {
 
 views.byName = {
   map: function(doc){
-    emit(doc.name, { _id: doc._id, name: doc.name, version: doc.version, description: (('description' in doc) ? doc.description : '') } );
+    emit(doc.name, { _id: doc._id, name: doc.name, version: doc.version, private: doc.private, description: (('description' in doc) ? doc.description : '') } );
   },
   reduce: '_count'
 };
@@ -24,7 +24,7 @@ views.byName = {
 
 views.byNameAndVersion = {
   map: function(doc){
-    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id, name: doc.name, version: doc.version, description: (('description' in doc) ? doc.description : '') } );
+    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id, name: doc.name, version: doc.version, private: doc.private, description: (('description' in doc) ? doc.description : '') } );
   },
   reduce: '_count'
 };
@@ -33,7 +33,7 @@ views.byNameAndVersion = {
 views.byKeyword = {
   map: function (doc) {
 
-    var objTop = { _id: doc._id, name: doc.name, description: doc.description || '' };
+    var objTop = { _id: doc._id, name: doc.name, private: doc.private, description: doc.description || '' };
 
     doc.name.trim().toLowerCase().split('-').forEach(function(n){
       emit(n, objTop);

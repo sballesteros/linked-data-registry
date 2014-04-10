@@ -18,14 +18,17 @@ lists.latest = function(head, req){
 
 
 lists.versions = function(head, req){
+  log("*****DDEBUG DEBUG *******");
   var row;
   var packages = [];
   while(row = getRow()){
+    log(row.value);
     packages.push({
       '@type': 'Package',
       name: row.value.name,
       version: row.value.version,
       description: row.value.description,
+      private: row.value.private,
       url: row.value.name + '/' + row.value.version,
     });
   }

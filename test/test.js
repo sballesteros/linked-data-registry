@@ -240,27 +240,6 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should not show a private pkg to unauthorized users', function(done){
-      registry.get('test-private-pkg@0.0.0', function(err, body){
-        if(err) console.error(err, body);
-        console.error(body);
-        assert.equal(body, 'Curses');
-        done();
-      });
-    });
-
-    /*
-    it('should show text-private-pkg to user_a', function(done){
-      registry.get({ url: rurl('test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass} }, function(err, body){
-        if(err) console.error(err, body);
-        console.error(body);
-        assert.equal(body._id, 'test-private-pkg@0.0.0');
-        done();
-      });
-    });
-
-   */
-
     it('user_a and user_b should be maintainers of test-pkg', function(done){
       request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body), maintainers);
@@ -392,7 +371,7 @@ describe('linked data registry', function(){
       createFixture(done);
     });
 
-    it('should search', function(done){
+    it('should search public packages', function(done){
       request(rurl('/search?keys=["test"]'), function(err, resp, body){
         var expected = [
           {"id":"test-pkg@0.0.0","key":"test","value": {"_id":"test-pkg@0.0.0","name":"test-pkg","description":""}},
@@ -407,6 +386,21 @@ describe('linked data registry', function(){
     it('should retrieve all the versions of test-pkg', function(done){
       request(rurl('/test-pkg'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
+        done();
+      });
+    });
+
+    it('should retrieve versions of test-private-pkg for user_a', function(done){
+      request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        console.error(body)
+        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
+        done();
+      });
+    });
+
+    it('should not retrieve versions of test-private-pkg for unauthed users', function(done){
+      request(rurl('/test-private-pkg'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
         done();
       });
     });

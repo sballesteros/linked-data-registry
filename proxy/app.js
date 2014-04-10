@@ -360,9 +360,7 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
  */
 app.get('/:name', getStanProxyUrl, function(req, res, next){
   var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
-  console.error(rurl)
-  console.log(rurl)
-  serveJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
 });
 
 
@@ -396,33 +394,51 @@ function maxSatisfyingVersion(req, res, next){
 
 };
 
+function checkAuth(code, body, linkify, req, res, next) {
+  var document;
+  if (!!body.package) {
+    document = body.package[0];
+  } else {
+    document = body;
+  }
+
+  if (document.private === true) {
+    var user = auth(req);
+
+    if (!user) {
+      return res.json(401 , {'error': 'Unauthorized'});
+    } else {
+      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
+        if (err) {
+          return next(err);
+        }
+
+        // check if user has access
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, authBody, headers) {
+          if (err) {
+            return next(err);
+          }
+          authBody.forEach(function (elem, i, array) {
+            if (elem.name === user.name) {
+              serveJsonld(code, body, linkify, req, res, next);
+            }
+          })
+          // return error if user is not found
+          return res.json(401 , {'error': 'Unauthorized'});
+        });
+      }); 
+    }
+  } else {
+    serveJsonld(code, body, linkify, req, res, next);
+  }
+};
 
 /**
  * get a doc from couchdb located at docUrl and serve it according to
  * the profile parameter of the Accept header
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
-function serveJsonLd(docUrl, linkify, req, res, next){
-
-  /* var user = auth(req);
-
-  nano.auth(user.name, user.pass, function (err, body, headers) {
-    if (err) {
-      return next(err);
-    }
-
-    if (headers && headers['set-cookie']) {
-      try {
-        var token = cookie.parse(headers['set-cookie'][0])['AuthSession'];
-      } catch(e){
-        return next(new Error('no cookie for auth: ' + e.message));
-      }
-      req.user = { name: user.name, token: token };
-      // next();
-    } else {
-      res.json(403 , {'error': 'Forbidden'});
-    }
-  }); */
+function getAndServeJsonLd(docUrl, linkify, req, res, next){
 
   request(docUrl, function(err, resp, body){
 
@@ -439,17 +455,18 @@ function serveJsonLd(docUrl, linkify, req, res, next){
       return next(e);
     }
 
+    checkAuth(resp.statusCode, body, linkify, req, res, next);
+  });
+
+};
+
+
+function serveJsonld(code, body, linkify, req, res, next) {
     //patch context
     var context = pjsonld.context;
 
     context['@context']['@base'] = req.stanProxy + '/';
     var contextUrl = context['@context']['@base'] + 'package.jsonld';
-
-    /* if (!user && body.private === true) {
-      return res.json(401 , {'error': 'Unauthorized'});
-    }  */
-
-    // reqCouch = request.get({url: rootCouchRegistry + '/'+ id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) }}, function(err, resCouch, body){
 
     res.format({
       'text/html': function(){
@@ -465,14 +482,14 @@ function serveJsonLd(docUrl, linkify, req, res, next){
         }
 
         res
-        .status(resp.statusCode)
+        .status(code)
         .render('explore', {snippet:snippet});
       },
 
       'application/json': function(){
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
-        res.send(resp.statusCode, linkify(body, {addCtx:false}));
+        res.send(code, linkify(body, {addCtx:false}));
       },
 
       'application/ld+json': function(){
@@ -486,31 +503,29 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
             case 'http://www.w3.org/ns/json-ld#expanded':
             jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
-              res.json(resp.statusCode, expanded);
+              res.json(code, expanded);
             });
             break;
 
             case 'http://www.w3.org/ns/json-ld#flattened':
             jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
-              res.json(resp.statusCode, flattened);
+              res.json(code, flattened);
             });
             break;
 
             default: //#compacted and everything else
-              res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+              res.json(code, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
 
         } else {
-          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+          res.json(code, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
 
       //TODO text/html / RDFa 1.1 lite case
 
     }); 
-  });
-
 };
 
 
@@ -527,7 +542,7 @@ app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, f
   }
   rurl += '?' + querystring.stringify(q);
 
-  serveJsonLd(rootCouchRegistry + rurl, pjsonld.linkPackage, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, pjsonld.linkPackage, req, res, next);
 });
 
 
@@ -545,7 +560,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -563,7 +578,7 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, log
     return pjsonld.linkCode(code, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -581,7 +596,7 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
@@ -599,7 +614,7 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
     return pjsonld.linkArticle(article, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
 
