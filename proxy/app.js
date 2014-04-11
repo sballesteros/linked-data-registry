@@ -394,7 +394,7 @@ function maxSatisfyingVersion(req, res, next){
 
 };
 
-function checkAuth(body, linkify, req, res, next) {
+function checkAuthAndServe(body, linkify, req, res, next) {
   var document;
   if (!!body.package) {
     document = body.package[0];
@@ -457,7 +457,7 @@ function getAndServeJsonLd(docUrl, linkify, req, res, next){
 
     res.status(resp.statusCode)
 
-    checkAuth(body, linkify, req, res, next);
+    checkAuthAndServe(body, linkify, req, res, next);
   });
 
 };
@@ -560,6 +560,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
+  console.error(rurl)
   getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 

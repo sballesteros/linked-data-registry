@@ -18,7 +18,6 @@ lists.latest = function(head, req){
 
 
 lists.versions = function(head, req){
-  log("*****DDEBUG DEBUG *******");
   var row;
   var packages = [];
   while(row = getRow()){

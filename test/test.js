@@ -392,7 +392,6 @@ describe('linked data registry', function(){
 
     it('should retrieve versions of test-private-pkg for user_a', function(done){
       request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
-        console.error(body)
         assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
         done();
       });
@@ -401,6 +400,25 @@ describe('linked data registry', function(){
     it('should not retrieve versions of test-private-pkg for unauthed users', function(done){
       request(rurl('/test-private-pkg'), function(err, resp, body){
         assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should not get a dataset from a private package unauthed', function(done){
+      request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
+        assert.equal(resp.statusCode, 404)
+        done();
+      });
+    });
+
+    it('should get a private dataset logged in as user_a', function(done){
+      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/inline'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        console.error(rurl('/test-private-pkg/0.0.0/dataset/inline'))
+        console.error(body)
+        assert.equal(linkHeader, resp.headers.link);
+        body = JSON.parse(body);
+        console.error(body)
+        assert.equal(body.name, 'inline');
         done();
       });
     });
