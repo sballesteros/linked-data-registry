@@ -149,6 +149,11 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
+function getPkgNameUrl(req, res, next){
+  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
+  next();
+};
+
 app.get('/auth', forceAuth, function(req, res, next){
   if(req.user){
     res.json(req.user);
@@ -358,9 +363,8 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
 /**
  * list of versions
  */
-app.get('/:name', getStanProxyUrl, function(req, res, next){
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
-  getAndServeJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
+app.get('/:name', getStanProxyUrl, getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
+  serveJsonld(function(x){return x;}, req, res, next);
 });
 
 
@@ -391,6 +395,55 @@ function maxSatisfyingVersion(req, res, next){
 
     next();
   });
+
+};
+
+function checkAuth(req, res, next){
+  console.error("******** AUTH DEBUG *******") 
+  console.error(req.couchDocument)
+
+  var package;
+  if (!!req.couchDocument.package) {
+    package = req.couchDocument.package[0];
+  } else {
+    package = req.couchDocument;
+  }
+  console.error("******** PACKAGE DEBUG *******") 
+  console.error(package)
+
+  if (package.private === true) {
+    console.error("******** PRIVATE *******") 
+    var user = auth(req);
+
+    if (!user) {
+      return res.json(401 , {'error': 'Unauthorized'});
+    } else {
+      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
+        if (err) {
+          return next(err);
+        }
+
+        // check if user has access
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, authBody, headers) {
+          console.error("******** PULL MAINTAINERS *******") 
+          if (err) {
+            return next(err);
+          }
+          console.error(authBody)
+          authBody.forEach(function (elem, i, array) {
+            if (elem.name === user.name) {
+              next();
+            }
+          })
+          // return error if user is not found
+          return res.json(401 , {'error': 'Unauthorized'});
+        });
+      }); 
+    }
+  } else {
+    console.error("******** PUBLIC *******") 
+    next();
+  }
 
 };
 
@@ -438,9 +491,14 @@ function checkAuthAndServe(body, linkify, req, res, next) {
  * the profile parameter of the Accept header
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
-function getAndServeJsonLd(docUrl, linkify, req, res, next){
+function getCouchDocument(req, res, next){
 
-  request(docUrl, function(err, resp, body){
+  console.error("***** DEBUG GET DOC *******")
+  console.error(req.couchUrl)
+
+  request(req.couchUrl, function(err, resp, body){
+    console.error("***** DEBUG BAD DOC *******")
+    console.error(body)
 
     if(err) return next(err);
 
@@ -455,15 +513,24 @@ function getAndServeJsonLd(docUrl, linkify, req, res, next){
       return next(e);
     }
 
-    res.status(resp.statusCode)
+    req.couchDocument = body
 
-    checkAuthAndServe(body, linkify, req, res, next);
+    console.error("***** DEBUG *******")
+    console.error(req.couchDocument)
+    console.error("***** BODY *******")
+    console.error(body)
+
+    res.status(resp.statusCode)
+    next();
+
   });
 
 };
 
+function serveJsonld(linkify, req, res, next) {
 
-function serveJsonld(body, linkify, req, res, next) {
+    console.error("****** DEBUG SERVE JSON *********")
+    console.error(req.couchDocument)
     //patch context
     var context = pjsonld.context;
 
@@ -473,7 +540,7 @@ function serveJsonld(body, linkify, req, res, next) {
     res.format({
       'text/html': function(){
 
-        var l = linkify(body, {addCtx:false});
+        var l = linkify(req.couchDocument, {addCtx:false});
 
         var snippet;
         try{
@@ -489,7 +556,7 @@ function serveJsonld(body, linkify, req, res, next) {
       'application/json': function(){
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
-        res.send(linkify(body, {addCtx:false}));
+        res.send(linkify(req.couchDocument, {addCtx:false}));
       },
 
       'application/ld+json': function(){
@@ -502,31 +569,31 @@ function serveJsonld(body, linkify, req, res, next) {
           switch(profile){
 
             case 'http://www.w3.org/ns/json-ld#expanded':
-            jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
+            jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
               res.json(expanded);
             });
             break;
 
             case 'http://www.w3.org/ns/json-ld#flattened':
-            jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
+            jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
               res.json(flattened);
             });
             break;
 
             default: //#compacted and everything else
-              res.json(linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+              res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
 
         } else {
-          res.json(linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+          res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
 
       //TODO text/html / RDFa 1.1 lite case
 
     }); 
-};
+}
 
 
 app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
@@ -560,7 +627,6 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
-  console.error(rurl)
   getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
 });
 
