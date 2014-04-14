@@ -413,11 +413,83 @@ app.get('/owner/ls/:pkgname', function(req, res, next){
   });
 });
 
+app.put('/r/:sha1', forceAuth, function(req, res, next){
+
+  var checkStream = req.pipe(sha.stream(req.params.sha1));
+  var checkErr = null;
+
+  checkStream.on('error', function(err){
+    checkErr = err;
+  });
+
+  var opts = {
+    Key: req.params.sha1,
+    Body: checkStream,
+    ContentType: req.headers['content-type'],
+    ContentLength: parseInt(req.headers['content-length'], 10),
+  };
+
+  if(req.headers['content-encoding']){
+    opts['ContentEncoding'] = req.headers['content-encoding']
+  }
+
+  s3.putObject(opts, function(err, data){
+    if(err) return next(err);
+    if(checkErr){
+      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
+        if (err) console.error(err);
+
+        return next(checkErr);
+      })
+    } else {
+      res.set('ETag', data.ETag);
+      res.json(data);
+    }
+  });
+
+});
+
+app.get('/r/:sha1', logDownload, function(req, res, next){
+  console.error("***** GET SHA ***********");
+
+  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
+
+    if(err) return next(errorCode(err.code, err.statusCode));
+
+    if(s3Headers.ContentLength){
+      res.set('Content-Length', s3Headers.ContentLength);
+    }
+    if(s3Headers.ContentType){
+      res.set('Content-Type', s3Headers.ContentType);
+    }
+    if(s3Headers.ContentEncoding){
+      res.set('Content-Encoding', s3Headers.ContentEncoding);
+    }
+    if(s3Headers.ETag){
+      res.set('ETag', s3Headers.ETag);
+    }
+    if(s3Headers.LastModified){
+      res.set('Last-Modified', s3Headers.LastModified);
+    }
+
+    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
+    s.on('error', function(err){
+      console.error(err);
+    });
+    s.pipe(res);
+
+  });
+
+
+});
+
 
 /**
  * list of versions
  */
 app.get('/:name', getStanProxyUrl, getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
+
+  console.error("***** GET ALL VERSIONS *******")
   serveJsonld(function(x){return x;}, req, res, next);
 });
 
@@ -453,8 +525,7 @@ function maxSatisfyingVersion(req, res, next){
 };
 
 function checkAuth(req, res, next){
-  console.error("******** AUTH DEBUG *******") 
-  console.error(req.couchDocument)
+  console.error("******** CHECK AUTH *******") 
 
   var package;
   if (!!req.couchDocument.package) {
@@ -462,8 +533,6 @@ function checkAuth(req, res, next){
   } else {
     package = req.couchDocument;
   }
-  console.error("******** PACKAGE DEBUG *******") 
-  console.error(package)
 
   if (package.private === true) {
     console.error("******** PRIVATE *******") 
@@ -483,7 +552,6 @@ function checkAuth(req, res, next){
           if (err) {
             return next(err);
           }
-          console.error(authBody)
           authBody.forEach(function (elem, i, array) {
             if (elem.name === user.name) {
               next();
@@ -507,13 +575,9 @@ function checkAuth(req, res, next){
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
 function getCouchDocument(req, res, next){
-
-  console.error("***** DEBUG GET DOC *******")
-  console.error(req.couchUrl)
+  console.error("****** GET COUCH DOC ********")
 
   request(req.couchUrl, function(err, resp, body){
-    console.error("***** DEBUG BAD DOC *******")
-    console.error(body)
 
     if(err) return next(err);
 
@@ -529,11 +593,6 @@ function getCouchDocument(req, res, next){
     }
 
     req.couchDocument = body
-
-    console.error("***** DEBUG *******")
-    console.error(req.couchDocument)
-    console.error("***** BODY *******")
-    console.error(body)
 
     res.status(resp.statusCode)
     next();
@@ -554,6 +613,7 @@ function serveJsonld(linkify, req, res, next) {
 
     res.format({
       'text/html': function(){
+        console.error("****** TEXT HTML *********")
 
         var l = linkify(req.couchDocument, {addCtx:false});
 
@@ -569,12 +629,14 @@ function serveJsonld(linkify, req, res, next) {
       },
 
       'application/json': function(){
+        console.error("****** JSON *********")
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
         res.send(linkify(req.couchDocument, {addCtx:false}));
       },
 
       'application/ld+json': function(){
+        console.error("****** JSON-LD *********")
         var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
 
         if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
@@ -601,6 +663,7 @@ function serveJsonld(linkify, req, res, next) {
           }
 
         } else {
+          console.error("****** ELSE *********")
           res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
@@ -613,11 +676,15 @@ function serveJsonld(linkify, req, res, next) {
 
 app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, getVersionUrl, getCouchDocument, checkAuth, logDownload,  function(req, res, next){
 
+  console.error("***** GET PACKAGE VERSION *******")
+
   serveJsonld(pjsonld.linkPackage, req, res, next);
 });
 
 
 app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, getDatasetUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+
+  console.error("***** GET DATASET *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -632,6 +699,7 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 
 
 app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, getCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+  console.error("***** GET CODE *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -646,6 +714,8 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, get
 
 
 app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+  console.error("****** GET COUCH FIGURE ********")
+  console.error(req)
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -655,11 +725,15 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
+  console.error(pjsonld.linkFigure)
+
   serveJsonld(linkify, req, res, next);
 });
 
 
 app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, getArticleUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+
+  console.error("***** GET ARTICLE *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -713,75 +787,6 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 //  res.redirect(rootCouchRegistry + rurl);
 //});
 
-
-app.put('/r/:sha1', forceAuth, function(req, res, next){
-
-  var checkStream = req.pipe(sha.stream(req.params.sha1));
-  var checkErr = null;
-
-  checkStream.on('error', function(err){
-    checkErr = err;
-  });
-
-  var opts = {
-    Key: req.params.sha1,
-    Body: checkStream,
-    ContentType: req.headers['content-type'],
-    ContentLength: parseInt(req.headers['content-length'], 10),
-  };
-
-  if(req.headers['content-encoding']){
-    opts['ContentEncoding'] = req.headers['content-encoding']
-  }
-
-  s3.putObject(opts, function(err, data){
-    if(err) return next(err);
-    if(checkErr){
-      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
-        if (err) console.error(err);
-
-        return next(checkErr);
-      })
-    } else {
-      res.set('ETag', data.ETag);
-      res.json(data);
-    }
-  });
-
-});
-
-app.get('/r/:sha1', logDownload, function(req, res, next){
-
-  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
-
-    if(err) return next(errorCode(err.code, err.statusCode));
-
-    if(s3Headers.ContentLength){
-      res.set('Content-Length', s3Headers.ContentLength);
-    }
-    if(s3Headers.ContentType){
-      res.set('Content-Type', s3Headers.ContentType);
-    }
-    if(s3Headers.ContentEncoding){
-      res.set('Content-Encoding', s3Headers.ContentEncoding);
-    }
-    if(s3Headers.ETag){
-      res.set('ETag', s3Headers.ETag);
-    }
-    if(s3Headers.LastModified){
-      res.set('Last-Modified', s3Headers.LastModified);
-    }
-
-    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
-    s.on('error', function(err){
-      console.error(err);
-    });
-    s.pipe(res);
-
-  });
-
-
-});
 
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
