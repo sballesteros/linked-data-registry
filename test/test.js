@@ -413,11 +413,8 @@ describe('linked data registry', function(){
 
     it('should get a private dataset logged in as user_a', function(done){
       request.get({url: rurl('/test-private-pkg/0.0.0/dataset/inline'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
-        console.error(rurl('/test-private-pkg/0.0.0/dataset/inline'))
-        console.error(body)
         assert.equal(linkHeader, resp.headers.link);
         body = JSON.parse(body);
-        console.error(body)
         assert.equal(body.name, 'inline');
         done();
       });

@@ -154,6 +154,60 @@ function getPkgNameUrl(req, res, next){
   next();
 };
 
+function getVersionUrl(req, res, next){
+  var q = req.query || {};
+  q.proxy = req.stanProxy;
+
+  var rurl;
+  if (req.params.version === 'latest'){
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+  } else {
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+  }
+  rurl += '?' + querystring.stringify(q);
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+}
+
+function getDatasetUrl(req, res, next){
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getCodeUrl(req, res, next){
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getFigureUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getArticleUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
 app.get('/auth', forceAuth, function(req, res, next){
   if(req.user){
     res.json(req.user);
@@ -447,45 +501,6 @@ function checkAuth(req, res, next){
 
 };
 
-function checkAuthAndServe(body, linkify, req, res, next) {
-  var document;
-  if (!!body.package) {
-    document = body.package[0];
-  } else {
-    document = body;
-  }
-
-  if (document.private === true) {
-    var user = auth(req);
-
-    if (!user) {
-      return res.json(401 , {'error': 'Unauthorized'});
-    } else {
-      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
-        if (err) {
-          return next(err);
-        }
-
-        // check if user has access
-        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, authBody, headers) {
-          if (err) {
-            return next(err);
-          }
-          authBody.forEach(function (elem, i, array) {
-            if (elem.name === user.name) {
-              serveJsonld(body, linkify, req, res, next);
-            }
-          })
-          // return error if user is not found
-          return res.json(401 , {'error': 'Unauthorized'});
-        });
-      }); 
-    }
-  } else {
-    serveJsonld(body, linkify, req, res, next);
-  }
-};
-
 /**
  * get a doc from couchdb located at docUrl and serve it according to
  * the profile parameter of the Accept header
@@ -596,92 +611,65 @@ function serveJsonld(linkify, req, res, next) {
 }
 
 
-app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, getVersionUrl, getCouchDocument, checkAuth, logDownload,  function(req, res, next){
 
-  var q = req.query || {};
-  q.proxy = req.stanProxy;
-
-  var rurl;
-  if (req.params.version === 'latest'){
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
-  } else {
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
-  }
-  rurl += '?' + querystring.stringify(q);
-
-  getAndServeJsonLd(rootCouchRegistry + rurl, pjsonld.linkPackage, req, res, next);
+  serveJsonld(pjsonld.linkPackage, req, res, next);
 });
 
 
-app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, getDatasetUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(dataset, options){
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
-  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, getCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(code, options){
     return pjsonld.linkCode(code, req.params.name, req.params.version);
   };
 
-  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(figure, options){
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
-  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, getArticleUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
-  rurl += (qs) ? '?' + qs : '';
-
   function linkify(article, options){
     return pjsonld.linkArticle(article, req.params.name, req.params.version);
   };
 
-  getAndServeJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
@@ -987,3 +975,4 @@ s3.createBucket(function() {
   console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
   console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
 });
+
