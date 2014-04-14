@@ -293,7 +293,6 @@ describe('linked data registry', function(){
 
   });
 
-
   describe('auth: side effects', function(){
 
     beforeEach(function(done){
@@ -364,6 +363,58 @@ describe('linked data registry', function(){
 
   });
 
+  describe('private repos', function(){
+
+    beforeEach(function(done){
+      createFixture(done);
+    });
+
+    it('should retrieve versions of test-private-pkg for user_a', function(done){
+      request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
+        done();
+      });
+    });
+
+    it('should not retrieve versions of test-private-pkg for unauthed users', function(done){
+      request(rurl('/test-private-pkg'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should not get a dataset from a private package unauthed ARAR', function(done){
+      request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
+        console.error(body)
+        assert.equal(resp.statusCode, 404)
+        done();
+      });
+    });
+
+    it('should get a private dataset logged in as user_a', function(done){
+      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/inline'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(linkHeader, resp.headers.link);
+        body = JSON.parse(body);
+        assert.equal(body.name, 'inline');
+        done();
+      });
+    });
+
+    it('user_a and user_b should be maintainers of test-private-pkg', function(done){
+      request({url: rurl('/owner/ls/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.deepEqual(JSON.parse(body), maintainers);
+        done();
+      });
+    });
+
+    it('should not get owners of a private package unauthed ACR', function(done){
+      request(rurl('/owner/ls/test-private-pkg'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+  });
 
   describe('search and versions', function(){
 
@@ -386,36 +437,6 @@ describe('linked data registry', function(){
     it('should retrieve all the versions of test-pkg', function(done){
       request(rurl('/test-pkg'), function(err, resp, body){
         assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
-        done();
-      });
-    });
-
-    it('should retrieve versions of test-private-pkg for user_a', function(done){
-      request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
-        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
-        done();
-      });
-    });
-
-    it('should not retrieve versions of test-private-pkg for unauthed users', function(done){
-      request(rurl('/test-private-pkg'), function(err, resp, body){
-        assert.equal(resp.statusCode, 401)
-        done();
-      });
-    });
-
-    it('should not get a dataset from a private package unauthed', function(done){
-      request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
-        assert.equal(resp.statusCode, 404)
-        done();
-      });
-    });
-
-    it('should get a private dataset logged in as user_a', function(done){
-      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/inline'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
-        assert.equal(linkHeader, resp.headers.link);
-        body = JSON.parse(body);
-        assert.equal(body.name, 'inline');
         done();
       });
     });

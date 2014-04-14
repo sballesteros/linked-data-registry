@@ -406,13 +406,16 @@ app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 });
 
 
-app.get('/owner/ls/:pkgname', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.pkgname}, function(err, body, headers) {
+app.get('/owner/ls/:name', getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, body, headers) {
     if (err) return next(err);
     res.json(headers['status-code'], body);
   });
 });
 
+/**
+ * moved the r/:sha routes up because they were being handled by another function
+ */
 app.put('/r/:sha1', forceAuth, function(req, res, next){
 
   var checkStream = req.pipe(sha.stream(req.params.sha1));
@@ -526,6 +529,7 @@ function maxSatisfyingVersion(req, res, next){
 
 function checkAuth(req, res, next){
   console.error("******** CHECK AUTH *******") 
+  console.error(req.couchDocument)
 
   var package;
   if (!!req.couchDocument.package) {
@@ -537,6 +541,8 @@ function checkAuth(req, res, next){
   if (package.private === true) {
     console.error("******** PRIVATE *******") 
     var user = auth(req);
+
+    console.error(user)
 
     if (!user) {
       return res.json(401 , {'error': 'Unauthorized'});
@@ -604,7 +610,6 @@ function getCouchDocument(req, res, next){
 function serveJsonld(linkify, req, res, next) {
 
     console.error("****** DEBUG SERVE JSON *********")
-    console.error(req.couchDocument)
     //patch context
     var context = pjsonld.context;
 
@@ -715,7 +720,6 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, get
 
 app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
   console.error("****** GET COUCH FIGURE ********")
-  console.error(req)
 
   if(couch.ssl == 1){
     req.query.secure = true;
