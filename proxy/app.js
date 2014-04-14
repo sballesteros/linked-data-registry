@@ -548,23 +548,26 @@ function checkAuth(req, res, next){
       return res.json(401 , {'error': 'Unauthorized'});
     } else {
       nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
+        var userFound = false;
+
         if (err) {
           return next(err);
         }
 
         // check if user has access
         _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, authBody, headers) {
-          console.error("******** PULL MAINTAINERS *******") 
           if (err) {
             return next(err);
           }
+          console.error(authBody)
           authBody.forEach(function (elem, i, array) {
             if (elem.name === user.name) {
+              userFound = true;
               next();
             }
           })
           // return error if user is not found
-          return res.json(401 , {'error': 'Unauthorized'});
+          if (!userFound) { return res.json(401 , {'error': 'Unauthorized'}) };
         });
       }); 
     }

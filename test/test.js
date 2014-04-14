@@ -321,7 +321,7 @@ describe('linked data registry', function(){
         assert.equal(resp.statusCode, 200);
 
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.equal(resp.statusCode, 404);
+          assert.equal(resp.statusCode, 400);
           done();
         });
 
@@ -383,7 +383,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should not get a dataset from a private package unauthed ARAR', function(done){
+    it('should not get a dataset from a private package unauthed', function(done){
       request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
         console.error(body)
         assert.equal(resp.statusCode, 404)
@@ -407,7 +407,7 @@ describe('linked data registry', function(){
       });
     });
 
-    it('should not get owners of a private package unauthed ACR', function(done){
+    it('should not get owners of a private package unauthed', function(done){
       request(rurl('/owner/ls/test-private-pkg'), function(err, resp, body){
         assert.equal(resp.statusCode, 401)
         done();
