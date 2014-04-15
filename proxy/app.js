@@ -542,13 +542,11 @@ function checkAuth(req, res, next){
     console.error("******** PRIVATE *******") 
     var user = auth(req);
 
-    console.error(user)
-
     if (!user) {
       return res.json(401 , {'error': 'Unauthorized'});
     } else {
       nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
-        var userFound = false;
+        var userIsMaintainer = false;
 
         if (err) {
           return next(err);
@@ -559,15 +557,14 @@ function checkAuth(req, res, next){
           if (err) {
             return next(err);
           }
-          console.error(authBody)
           authBody.forEach(function (elem, i, array) {
             if (elem.name === user.name) {
-              userFound = true;
-              next();
+              userIsMaintainer = true;
+              return next();
             }
           })
           // return error if user is not found
-          if (!userFound) { return res.json(401 , {'error': 'Unauthorized'}) };
+          if (!userIsMaintainer) { return res.json(401 , {'error': 'Unauthorized'}) };
         });
       }); 
     }
