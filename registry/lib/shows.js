@@ -19,6 +19,10 @@ shows.dataset = function(doc, req){
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){
 
+    if(doc.private){
+      r.private = doc.private;
+    }
+
     if(!req.query.content){
 
       if(r.distribution && r.distribution.contentData){
@@ -69,6 +73,11 @@ shows.code = function(doc, req){
   var r = doc.code.filter(function(x){ return x.name === req.query.code; })[0];
   if(r){
 
+    if(doc.private){
+      r.private = doc.private;
+    }
+
+
     if(!req.query.content){
       return {
         headers: { 'Content-Type': 'application/json' },
@@ -107,6 +116,10 @@ shows.figure = function(doc, req){
   var r = doc.figure.filter(function(x){ return x.name === req.query.figure; })[0];
   if(r){
 
+    if(doc.private){
+      r.private = doc.private;
+    }
+
     if(!req.query.content){
       return {
         headers: { 'Content-Type': 'application/json' },
@@ -141,6 +154,10 @@ shows.article = function(doc, req){
 
   var r = doc.article.filter(function(x){ return x.name === req.query.article; })[0];
   if(r){
+
+    if(doc.private){
+      r.private = doc.private;
+    }
 
     if(!req.query.content){
       return {

@@ -27,7 +27,6 @@ var http = require('http')
   , concat = require('concat-stream')
   , pkgJson = require('../package.json');
 
-
 mime.define({
   'application/ld+json': ['jsonld'],
   'application/x-ldjson': ['ldjson', 'ldj'],
@@ -40,7 +39,6 @@ AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
 
 var bucket = 'standardanalytics';
 var s3 = new AWS.S3({params: {Bucket: bucket}});
-
 
 var credentials = {
   key: fs.readFileSync(path.join($HOME, 'certificate', 'standardanalytics.key')),
