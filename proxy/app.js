@@ -580,8 +580,12 @@ function checkAuth(req, res, next){
  */
 function getCouchDocument(req, res, next){
   console.error("****** GET COUCH DOC ********")
+  console.error(req.couchUrl)
 
   request(req.couchUrl, function(err, resp, body){
+
+    console.error("****** COUCH REQUEST ********")
+    console.error(body)
 
     if(err) return next(err);
 
@@ -597,6 +601,8 @@ function getCouchDocument(req, res, next){
     }
 
     req.couchDocument = body
+    console.error("****** GOT DOC ********")
+    console.error(req.couchDocument)
 
     res.status(resp.statusCode)
     next();

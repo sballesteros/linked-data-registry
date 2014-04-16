@@ -76,6 +76,7 @@ var pkg = {
 var privatePkg = clone(pkg);
 privatePkg.private = true;
 privatePkg.name = 'test-private-pkg';
+privatePkg.description = 'ugh!';
 
 var maintainers = [{'name': 'user_a', 'email': 'user@domain.io'}, {'name': 'user_b','email': 'user@domain.io'}];
 
@@ -100,9 +101,9 @@ function createFixture(done){
               if(err) console.error(err);
               request.put( { url: rurl('/test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: privatePkg }, function(err, resp, body){
                 if(err) console.error(err);
-                  request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-private-pkg'}}, function(err, resp, body){
-                    if(err) console.error(err);
-                    done();
+                request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-private-pkg'}}, function(err, resp, body){
+                  if(err) console.error(err);
+                  done();
                 });
               });
             });
@@ -370,7 +371,12 @@ describe('linked data registry', function(){
     });
 
     it('should retrieve versions of test-private-pkg for user_a', function(done){
+      request(rurl('/test-pkg'), function(err, resp, body){
+        console.error(body)
+        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
+      });
       request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        console.error(body)
         assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
         done();
       });
@@ -386,7 +392,7 @@ describe('linked data registry', function(){
     it('should not get a dataset from a private package unauthed', function(done){
       request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
         console.error(body)
-        assert.equal(resp.statusCode, 404)
+        assert.equal(resp.statusCode, 401)
         done();
       });
     });
@@ -414,6 +420,9 @@ describe('linked data registry', function(){
       });
     });
 
+    after(function(done){
+      rmAll(done);
+    });
   });
 
   describe('search and versions', function(){
