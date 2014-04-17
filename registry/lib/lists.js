@@ -21,7 +21,6 @@ lists.versions = function(head, req){
   var row;
   var packages = [];
   while(row = getRow()){
-    log(row.value);
     packages.push({
       '@type': 'Package',
       name: row.value.name,

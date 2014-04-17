@@ -384,12 +384,7 @@ describe('linked data registry', function(){
     });
 
     it('should retrieve versions of test-private-pkg for user_a', function(done){
-      request(rurl('/test-pkg'), function(err, resp, body){
-        console.error(body)
-        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0', '0.0.1']);
-      });
       request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
-        console.error(body)
         assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
         done();
       });
@@ -404,7 +399,6 @@ describe('linked data registry', function(){
 
     it('should not get a dataset from a private package unauthed', function(done){
       request.get(rurl('/test-private-pkg/0.0.0/dataset/borderRadius'), function(err, resp, body){
-        console.error(body)
         assert.equal(resp.statusCode, 401)
         done();
       });
@@ -433,11 +427,25 @@ describe('linked data registry', function(){
       });
     });
 
-    /*
+    it('should not retrive a private document by sha1 when unauthed', function(done){
+      request(rurl('/r/afee76d3c52d65d5a47c7f7083f39391cdb22295'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should retrive a private document by sha1 when authed', function(done){
+      request({url: rurl('/r/afee76d3c52d65d5a47c7f7083f39391cdb22295'), auth: {user:'user_a', pass: pass}, encoding:null }, function(err, resp, body){
+        zlib.gunzip(body, function(err, data){
+          assert.equal(data.toString(), '[{"x":"y","c":42},{"z":"zz","q":1}]')
+          done();
+        });
+      });
+    });
+
     after(function(done){
       rmAll(done);
     });
-    */
   });
 
   describe('search and versions', function(){
@@ -676,7 +684,6 @@ describe('linked data registry', function(){
         body = JSON.parse(body);
         console.error(body)
         request.get({url:rurl('/' + body.distribution.contentUrl), encoding:null}, function(err, resp, body){
-          console.error(body)
           zlib.gunzip(body, function(err, data){
             fs.readFile(path.join(root, 'fixture', 'trace_0.csv'), function(err, odata){
               assert.equal(data.toString(), odata.toString());

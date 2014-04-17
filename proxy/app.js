@@ -493,7 +493,6 @@ app.get('/r/:sha1', getSha1Url, getCouchDocument, checkAuth, logDownload, functi
  */
 app.get('/:name', getStanProxyUrl, getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
 
-  console.error("***** GET ALL VERSIONS *******")
   serveJsonld(function(x){return x;}, req, res, next);
 });
 
@@ -533,15 +532,13 @@ function checkAuth(req, res, next){
   var package;
   if (!!req.couchDocument.package) {
     package = req.couchDocument.package[0];
-  } else if (!!req.couchDocument.rows) {
-    console.error(req.couchDocument.rows)
-    package = req.couchDocument.rows[0]; 
+  } else if (!!req.couchDocument.rows) { // query by sha1
+    package = req.couchDocument.rows[0].value; 
   } else {
     package = req.couchDocument;
   }
 
   if (package.private === true) {
-    console.error("******** PRIVATE *******") 
     var user = auth(req);
 
     if (!user) {
@@ -555,7 +552,8 @@ function checkAuth(req, res, next){
         }
 
         // check if user has access
-        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, authBody, headers) {
+        key = req.params.name || req.couchDocument.rows[0].id.split('@')[0]
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: key}, function(err, authBody, headers) {
           if (err) {
             return next(err);
           }
@@ -571,7 +569,6 @@ function checkAuth(req, res, next){
       }); 
     }
   } else {
-    console.error("******** PUBLIC *******") 
     next();
   }
 
@@ -583,13 +580,8 @@ function checkAuth(req, res, next){
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
 function getCouchDocument(req, res, next){
-  console.error("****** GET COUCH DOC ********")
-  console.error(req.couchUrl)
 
   request(req.couchUrl, function(err, resp, body){
-
-    console.error("****** COUCH REQUEST ********")
-    console.error(body)
 
     if(err) return next(err);
 
@@ -615,7 +607,6 @@ function getCouchDocument(req, res, next){
 
 function serveJsonld(linkify, req, res, next) {
 
-    console.error("****** DEBUG SERVE JSON *********")
     //patch context
     var context = pjsonld.context;
 
@@ -624,7 +615,6 @@ function serveJsonld(linkify, req, res, next) {
 
     res.format({
       'text/html': function(){
-        console.error("****** TEXT HTML *********")
 
         var l = linkify(req.couchDocument, {addCtx:false});
 
@@ -640,14 +630,12 @@ function serveJsonld(linkify, req, res, next) {
       },
 
       'application/json': function(){
-        console.error("****** JSON *********")
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
         res.send(linkify(req.couchDocument, {addCtx:false}));
       },
 
       'application/ld+json': function(){
-        console.error("****** JSON-LD *********")
         var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
 
         if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
@@ -674,7 +662,6 @@ function serveJsonld(linkify, req, res, next) {
           }
 
         } else {
-          console.error("****** ELSE *********")
           res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
@@ -687,15 +674,11 @@ function serveJsonld(linkify, req, res, next) {
 
 app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, getVersionUrl, getCouchDocument, checkAuth, logDownload,  function(req, res, next){
 
-  console.error("***** GET PACKAGE VERSION *******")
-
   serveJsonld(pjsonld.linkPackage, req, res, next);
 });
 
 
 app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, getDatasetUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
-
-  console.error("***** GET DATASET *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -710,7 +693,6 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 
 
 app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, getCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
-  console.error("***** GET CODE *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -725,7 +707,6 @@ app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, get
 
 
 app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
-  console.error("****** GET COUCH FIGURE ********")
 
   if(couch.ssl == 1){
     req.query.secure = true;
@@ -735,15 +716,11 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
-  console.error(pjsonld.linkFigure)
-
   serveJsonld(linkify, req, res, next);
 });
 
 
 app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, getArticleUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
-
-  console.error("***** GET ARTICLE *******")
 
   if(couch.ssl == 1){
     req.query.secure = true;
