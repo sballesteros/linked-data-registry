@@ -76,7 +76,7 @@ views.bySha1 = {
       if(r.distribution && r.distribution.contentUrl){
         var sha1 = getSha1(r.distribution.contentUrl);
         if(sha1){
-          emit(sha1, { _id: doc._id } );
+          emit(sha1, { _id: doc._id, private: doc.private } );
         }
       }
     });
@@ -85,7 +85,7 @@ views.bySha1 = {
       if(r.targetProduct && r.targetProduct.downloadUrl){
         var sha1 = getSha1(r.targetProduct.downloadUrl);
         if(sha1){
-          emit(sha1, { _id: doc._id } );
+          emit(sha1, { _id: doc._id, private: doc.private } );
         }
       }
     });
@@ -94,7 +94,7 @@ views.bySha1 = {
       if(r.contentUrl){
         var sha1 = getSha1(r.contentUrl);
         if(sha1){
-          emit(sha1, { _id: doc._id } );
+          emit(sha1, { _id: doc._id, private: doc.private } );
         }
       }
     });
@@ -103,7 +103,7 @@ views.bySha1 = {
       if(r.encoding && r.encoding.contentUrl){
         var sha1 = getSha1(r.encoding.contentUrl);
         if(sha1){
-          emit(sha1, { _id: doc._id } );
+          emit(sha1, { _id: doc._id, private: doc.private } );
         }
       }
     });

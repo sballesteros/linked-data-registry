@@ -73,10 +73,23 @@ var pkg = {
   ]
 };
 
-var privatePkg = clone(pkg);
-privatePkg.private = true;
-privatePkg.name = 'test-private-pkg';
-privatePkg.description = 'ugh!';
+var privatePkg = {
+  name: 'test-private-pkg',
+  version: '0.0.0',
+  private: true,
+  dataset: [
+    {
+      name: 'borderRadius',
+      about: [
+        { name: 'c', valueType: 'xsd:string' },
+        { name: 'd', valueType: 'xsd:integer' }
+      ],
+      distribution: {
+        contentData: [{'x': 'y', 'c': 42}, {'z': 'zz', 'q': 1} ]
+      }
+    }
+  ]
+};
 
 var maintainers = [{'name': 'user_a', 'email': 'user@domain.io'}, {'name': 'user_b','email': 'user@domain.io'}];
 
@@ -390,7 +403,7 @@ describe('linked data registry', function(){
     });
 
     it('should not get a dataset from a private package unauthed', function(done){
-      request.get(rurl('/test-private-pkg/0.0.0/dataset/inline'), function(err, resp, body){
+      request.get(rurl('/test-private-pkg/0.0.0/dataset/borderRadius'), function(err, resp, body){
         console.error(body)
         assert.equal(resp.statusCode, 401)
         done();
@@ -398,10 +411,10 @@ describe('linked data registry', function(){
     });
 
     it('should get a private dataset logged in as user_a', function(done){
-      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/inline'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/borderRadius'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
         assert.equal(linkHeader, resp.headers.link);
         body = JSON.parse(body);
-        assert.equal(body.name, 'inline');
+        assert.equal(body.name, 'borderRadius');
         done();
       });
     });
@@ -420,9 +433,11 @@ describe('linked data registry', function(){
       });
     });
 
+    /*
     after(function(done){
       rmAll(done);
     });
+    */
   });
 
   describe('search and versions', function(){
@@ -659,7 +674,9 @@ describe('linked data registry', function(){
     it('should get an attachment coming from a file', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/trace'), function(err, resp, body){
         body = JSON.parse(body);
+        console.error(body)
         request.get({url:rurl('/' + body.distribution.contentUrl), encoding:null}, function(err, resp, body){
+          console.error(body)
           zlib.gunzip(body, function(err, data){
             fs.readFile(path.join(root, 'fixture', 'trace_0.csv'), function(err, odata){
               assert.equal(data.toString(), odata.toString());

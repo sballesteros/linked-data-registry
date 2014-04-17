@@ -147,6 +147,11 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
+function getSha1Url(req, res, next){
+  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_view/bySha1?key=' + encodeURIComponent('"'+req.params.sha1+'"') + '&reduce=false');
+  next();
+}
+
 function getPkgNameUrl(req, res, next){
   req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
   next();
@@ -450,9 +455,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
 
 });
 
-app.get('/r/:sha1', logDownload, function(req, res, next){
-  console.error("***** GET SHA ***********");
-
+app.get('/r/:sha1', getSha1Url, getCouchDocument, checkAuth, logDownload, function(req, res, next){
   s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
 
     if(err) return next(errorCode(err.code, err.statusCode));
@@ -526,12 +529,13 @@ function maxSatisfyingVersion(req, res, next){
 };
 
 function checkAuth(req, res, next){
-  console.error("******** CHECK AUTH *******") 
-  console.error(req.couchDocument)
 
   var package;
   if (!!req.couchDocument.package) {
     package = req.couchDocument.package[0];
+  } else if (!!req.couchDocument.rows) {
+    console.error(req.couchDocument.rows)
+    package = req.couchDocument.rows[0]; 
   } else {
     package = req.couchDocument;
   }
@@ -601,8 +605,6 @@ function getCouchDocument(req, res, next){
     }
 
     req.couchDocument = body
-    console.error("****** GOT DOC ********")
-    console.error(req.couchDocument)
 
     res.status(resp.statusCode)
     next();
