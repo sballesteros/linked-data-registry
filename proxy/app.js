@@ -147,6 +147,70 @@ function getStanProxyUrl(req, res, next){
   next();
 };
 
+function getSha1Url(req, res, next){
+  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_view/bySha1?key=' + encodeURIComponent('"'+req.params.sha1+'"') + '&reduce=false');
+  next();
+}
+
+function getPkgNameUrl(req, res, next){
+  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
+  next();
+};
+
+function getVersionUrl(req, res, next){
+  var q = req.query || {};
+  q.proxy = req.stanProxy;
+
+  var rurl;
+  if (req.params.version === 'latest'){
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+  } else {
+    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+  }
+  rurl += '?' + querystring.stringify(q);
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+}
+
+function getDatasetUrl(req, res, next){
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getCodeUrl(req, res, next){
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getFigureUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getArticleUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
 app.get('/auth', forceAuth, function(req, res, next){
   if(req.user){
     res.json(req.user);
@@ -345,20 +409,91 @@ app.post('/owner/rm', jsonParser, forceAuth, function(req, res, next){
 });
 
 
-app.get('/owner/ls/:pkgname', function(req, res, next){
-  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.pkgname}, function(err, body, headers) {
+app.get('/owner/ls/:name', getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
+  _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: req.params.name}, function(err, body, headers) {
     if (err) return next(err);
     res.json(headers['status-code'], body);
   });
+});
+
+/**
+ * moved the r/:sha routes up because they were being handled by another function
+ */
+app.put('/r/:sha1', forceAuth, function(req, res, next){
+
+  var checkStream = req.pipe(sha.stream(req.params.sha1));
+  var checkErr = null;
+
+  checkStream.on('error', function(err){
+    checkErr = err;
+  });
+
+  var opts = {
+    Key: req.params.sha1,
+    Body: checkStream,
+    ContentType: req.headers['content-type'],
+    ContentLength: parseInt(req.headers['content-length'], 10),
+  };
+
+  if(req.headers['content-encoding']){
+    opts['ContentEncoding'] = req.headers['content-encoding']
+  }
+
+  s3.putObject(opts, function(err, data){
+    if(err) return next(err);
+    if(checkErr){
+      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
+        if (err) console.error(err);
+
+        return next(checkErr);
+      })
+    } else {
+      res.set('ETag', data.ETag);
+      res.json(data);
+    }
+  });
+
+});
+
+app.get('/r/:sha1', getSha1Url, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
+
+    if(err) return next(errorCode(err.code, err.statusCode));
+
+    if(s3Headers.ContentLength){
+      res.set('Content-Length', s3Headers.ContentLength);
+    }
+    if(s3Headers.ContentType){
+      res.set('Content-Type', s3Headers.ContentType);
+    }
+    if(s3Headers.ContentEncoding){
+      res.set('Content-Encoding', s3Headers.ContentEncoding);
+    }
+    if(s3Headers.ETag){
+      res.set('ETag', s3Headers.ETag);
+    }
+    if(s3Headers.LastModified){
+      res.set('Last-Modified', s3Headers.LastModified);
+    }
+
+    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
+    s.on('error', function(err){
+      console.error(err);
+    });
+    s.pipe(res);
+
+  });
+
+
 });
 
 
 /**
  * list of versions
  */
-app.get('/:name', getStanProxyUrl, function(req, res, next){
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
-  serveJsonLd(rootCouchRegistry + rurl, function(x){return x;}, req, res, next);
+app.get('/:name', getStanProxyUrl, getPkgNameUrl, getCouchDocument, checkAuth, function(req, res, next){
+
+  serveJsonld(function(x){return x;}, req, res, next);
 });
 
 
@@ -392,15 +527,61 @@ function maxSatisfyingVersion(req, res, next){
 
 };
 
+function checkAuth(req, res, next){
+
+  var package;
+  if (!!req.couchDocument.package) {
+    package = req.couchDocument.package[0];
+  } else if (!!req.couchDocument.rows) { // query by sha1
+    package = req.couchDocument.rows[0].value; 
+  } else {
+    package = req.couchDocument;
+  }
+
+  if (package.private === true) {
+    var user = auth(req);
+
+    if (!user) {
+      return res.json(401 , {'error': 'Unauthorized'});
+    } else {
+      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
+        var userIsMaintainer = false;
+
+        if (err) {
+          return next(err);
+        }
+
+        // check if user has access
+        key = req.params.name || req.couchDocument.rows[0].id.split('@')[0]
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: key}, function(err, authBody, headers) {
+          if (err) {
+            return next(err);
+          }
+          authBody.forEach(function (elem, i, array) {
+            if (elem.name === user.name) {
+              userIsMaintainer = true;
+              return next();
+            }
+          })
+          // return error if user is not found
+          if (!userIsMaintainer) { return res.json(401 , {'error': 'Unauthorized'}) };
+        });
+      }); 
+    }
+  } else {
+    next();
+  }
+
+};
 
 /**
  * get a doc from couchdb located at docUrl and serve it according to
  * the profile parameter of the Accept header
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
-function serveJsonLd(docUrl, linkify, req, res, next){
+function getCouchDocument(req, res, next){
 
-  request(docUrl, function(err, resp, body){
+  request(req.couchUrl, function(err, resp, body){
 
     if(err) return next(err);
 
@@ -415,6 +596,17 @@ function serveJsonLd(docUrl, linkify, req, res, next){
       return next(e);
     }
 
+    req.couchDocument = body
+
+    res.status(resp.statusCode)
+    next();
+
+  });
+
+};
+
+function serveJsonld(linkify, req, res, next) {
+
     //patch context
     var context = pjsonld.context;
 
@@ -424,7 +616,7 @@ function serveJsonLd(docUrl, linkify, req, res, next){
     res.format({
       'text/html': function(){
 
-        var l = linkify(body, {addCtx:false});
+        var l = linkify(req.couchDocument, {addCtx:false});
 
         var snippet;
         try{
@@ -434,15 +626,13 @@ function serveJsonLd(docUrl, linkify, req, res, next){
           snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
         }
 
-        res
-          .status(resp.statusCode)
-          .render('explore', {snippet:snippet});
+        res.render('explore', {snippet:snippet});
       },
 
       'application/json': function(){
         var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
         res.set('Link', linkHeader);
-        res.send(resp.statusCode, linkify(body, {addCtx:false}));
+        res.send(linkify(req.couchDocument, {addCtx:false}));
       },
 
       'application/ld+json': function(){
@@ -454,122 +644,93 @@ function serveJsonLd(docUrl, linkify, req, res, next){
 
           switch(profile){
 
-          case 'http://www.w3.org/ns/json-ld#expanded':
-            jsonld.expand(linkify(body, {addCtx: false}), {expandContext: context}, function(err, expanded){
-              res.json(resp.statusCode, expanded);
+            case 'http://www.w3.org/ns/json-ld#expanded':
+            jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
+              res.json(expanded);
             });
             break;
 
-          case 'http://www.w3.org/ns/json-ld#flattened':
-            jsonld.flatten(linkify(body, {addCtx: false}), context, function(err, flattened){
-              res.json(resp.statusCode, flattened);
+            case 'http://www.w3.org/ns/json-ld#flattened':
+            jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
+              res.json(flattened);
             });
             break;
 
-          default: //#compacted and everything else
-            res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+            default: //#compacted and everything else
+              res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
             break;
           }
 
         } else {
-          res.json(resp.statusCode, linkify(body, {ctx: req.stanProxy + '/package.jsonld'}));
+          res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
         }
       }
 
       //TODO text/html / RDFa 1.1 lite case
 
-    });
-  });
-
-};
+    }); 
+}
 
 
-app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, getVersionUrl, getCouchDocument, checkAuth, logDownload,  function(req, res, next){
 
-  var q = req.query || {};
-  q.proxy = req.stanProxy;
-
-  var rurl;
-  if (req.params.version === 'latest'){
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
-  } else {
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
-  }
-  rurl += '?' + querystring.stringify(q);
-
-  serveJsonLd(rootCouchRegistry + rurl, pjsonld.linkPackage, req, res, next);
+  serveJsonld(pjsonld.linkPackage, req, res, next);
 });
 
 
-app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersion, getDatasetUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(dataset, options){
     return pjsonld.linkDataset(dataset, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, getCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(code, options){
     return pjsonld.linkCode(code, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
-  rurl += (qs) ? '?' + qs : '';
 
   function linkify(figure, options){
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, logDownload, function(req, res, next){
+app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersion, getArticleUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
-  var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
-  rurl += (qs) ? '?' + qs : '';
-
   function linkify(article, options){
     return pjsonld.linkArticle(article, req.params.name, req.params.version);
   };
 
-  serveJsonLd(rootCouchRegistry + rurl, linkify, req, res, next);
+  serveJsonld(linkify, req, res, next);
 });
 
 
@@ -613,75 +774,6 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 //  res.redirect(rootCouchRegistry + rurl);
 //});
 
-
-app.put('/r/:sha1', forceAuth, function(req, res, next){
-
-  var checkStream = req.pipe(sha.stream(req.params.sha1));
-  var checkErr = null;
-
-  checkStream.on('error', function(err){
-    checkErr = err;
-  });
-
-  var opts = {
-    Key: req.params.sha1,
-    Body: checkStream,
-    ContentType: req.headers['content-type'],
-    ContentLength: parseInt(req.headers['content-length'], 10),
-  };
-
-  if(req.headers['content-encoding']){
-    opts['ContentEncoding'] = req.headers['content-encoding']
-  }
-
-  s3.putObject(opts, function(err, data){
-    if(err) return next(err);
-    if(checkErr){
-      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
-        if (err) console.error(err);
-
-        return next(checkErr);
-      })
-    } else {
-      res.set('ETag', data.ETag);
-      res.json(data);
-    }
-  });
-
-});
-
-app.get('/r/:sha1', logDownload, function(req, res, next){
-
-  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
-
-    if(err) return next(errorCode(err.code, err.statusCode));
-
-    if(s3Headers.ContentLength){
-      res.set('Content-Length', s3Headers.ContentLength);
-    }
-    if(s3Headers.ContentType){
-      res.set('Content-Type', s3Headers.ContentType);
-    }
-    if(s3Headers.ContentEncoding){
-      res.set('Content-Encoding', s3Headers.ContentEncoding);
-    }
-    if(s3Headers.ETag){
-      res.set('ETag', s3Headers.ETag);
-    }
-    if(s3Headers.LastModified){
-      res.set('Last-Modified', s3Headers.LastModified);
-    }
-
-    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
-    s.on('error', function(err){
-      console.error(err);
-    });
-    s.pipe(res);
-
-  });
-
-
-});
 
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
@@ -875,3 +967,4 @@ s3.createBucket(function() {
   console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
   console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
 });
+

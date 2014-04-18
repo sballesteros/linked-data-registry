@@ -73,6 +73,24 @@ var pkg = {
   ]
 };
 
+var privatePkg = {
+  name: 'test-private-pkg',
+  version: '0.0.0',
+  private: true,
+  dataset: [
+    {
+      name: 'borderRadius',
+      about: [
+        { name: 'c', valueType: 'xsd:string' },
+        { name: 'd', valueType: 'xsd:integer' }
+      ],
+      distribution: {
+        contentData: [{'x': 'y', 'c': 42}, {'z': 'zz', 'q': 1} ]
+      }
+    }
+  ]
+};
+
 var maintainers = [{'name': 'user_a', 'email': 'user@domain.io'}, {'name': 'user_b','email': 'user@domain.io'}];
 
 function createFixture(done){
@@ -94,9 +112,14 @@ function createFixture(done){
             if(err) console.error(err);
             request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-pkg'}}, function(err, resp, body){
               if(err) console.error(err);
-              done();
+              request.put( { url: rurl('/test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: privatePkg }, function(err, resp, body){
+                if(err) console.error(err);
+                request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-private-pkg'}}, function(err, resp, body){
+                  if(err) console.error(err);
+                  done();
+                });
+              });
             });
-
           });
         });
       });
@@ -109,11 +132,13 @@ function rmAll(done){
     rm(_users, 'org.couchdb.user:user_b', function(){
       rm(_users, 'org.couchdb.user:user_c', function(){
         rm(registry, 'test-pkg@0.0.0', function(){
-          rm(registry, 'test-pkg@0.0.1', function(){
-            rm(registry, 'test-pkg@0.0.2', function(){
-              var key = crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex');
-              s3.deleteObject({Key: key}, function(err, data){
-                done();
+          rm(registry, 'test-private-pkg@0.0.0', function(){
+            rm(registry, 'test-pkg@0.0.1', function(){
+              rm(registry, 'test-pkg@0.0.2', function(){
+                var key = crypto.createHash('sha1').update(JSON.stringify(pkg.dataset[0].distribution.contentData)).digest('hex');
+                s3.deleteObject({Key: key}, function(err, data){
+                  done();
+                });
               });
             });
           });
@@ -282,7 +307,6 @@ describe('linked data registry', function(){
 
   });
 
-
   describe('auth: side effects', function(){
 
     beforeEach(function(done){
@@ -311,7 +335,7 @@ describe('linked data registry', function(){
         assert.equal(resp.statusCode, 200);
 
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.equal(resp.statusCode, 404);
+          assert.equal(resp.statusCode, 400);
           done();
         });
 
@@ -353,6 +377,76 @@ describe('linked data registry', function(){
 
   });
 
+  describe('private repos', function(){
+
+    beforeEach(function(done){
+      createFixture(done);
+    });
+
+    it('should retrieve versions of test-private-pkg for user_a', function(done){
+      request({url: rurl('/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.deepEqual(JSON.parse(body).package.map(function(x){return x.version;}), ['0.0.0']);
+        done();
+      });
+    });
+
+    it('should not retrieve versions of test-private-pkg for unauthed users', function(done){
+      request(rurl('/test-private-pkg'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should not get a dataset from a private package unauthed', function(done){
+      request.get(rurl('/test-private-pkg/0.0.0/dataset/borderRadius'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should get a private dataset logged in as user_a', function(done){
+      request.get({url: rurl('/test-private-pkg/0.0.0/dataset/borderRadius'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.equal(linkHeader, resp.headers.link);
+        body = JSON.parse(body);
+        assert.equal(body.name, 'borderRadius');
+        done();
+      });
+    });
+
+    it('user_a and user_b should be maintainers of test-private-pkg', function(done){
+      request({url: rurl('/owner/ls/test-private-pkg'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        assert.deepEqual(JSON.parse(body), maintainers);
+        done();
+      });
+    });
+
+    it('should not get owners of a private package unauthed', function(done){
+      request(rurl('/owner/ls/test-private-pkg'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should not retrive a private document by sha1 when unauthed', function(done){
+      request(rurl('/r/afee76d3c52d65d5a47c7f7083f39391cdb22295'), function(err, resp, body){
+        assert.equal(resp.statusCode, 401)
+        done();
+      });
+    });
+
+    it('should retrive a private document by sha1 when authed', function(done){
+      request({url: rurl('/r/afee76d3c52d65d5a47c7f7083f39391cdb22295'), auth: {user:'user_a', pass: pass}, encoding:null }, function(err, resp, body){
+        zlib.gunzip(body, function(err, data){
+          assert.equal(data.toString(), '[{"x":"y","c":42},{"z":"zz","q":1}]')
+          done();
+        });
+      });
+    });
+
+    after(function(done){
+      rmAll(done);
+    });
+  });
 
   describe('search and versions', function(){
 
@@ -360,7 +454,7 @@ describe('linked data registry', function(){
       createFixture(done);
     });
 
-    it('should search', function(done){
+    it('should search public packages', function(done){
       request(rurl('/search?keys=["test"]'), function(err, resp, body){
         var expected = [
           {"id":"test-pkg@0.0.0","key":"test","value": {"_id":"test-pkg@0.0.0","name":"test-pkg","description":""}},
@@ -588,6 +682,7 @@ describe('linked data registry', function(){
     it('should get an attachment coming from a file', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/trace'), function(err, resp, body){
         body = JSON.parse(body);
+        console.error(body)
         request.get({url:rurl('/' + body.distribution.contentUrl), encoding:null}, function(err, resp, body){
           zlib.gunzip(body, function(err, data){
             fs.readFile(path.join(root, 'fixture', 'trace_0.csv'), function(err, odata){

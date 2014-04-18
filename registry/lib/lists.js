@@ -26,6 +26,7 @@ lists.versions = function(head, req){
       name: row.value.name,
       version: row.value.version,
       description: row.value.description,
+      private: row.value.private,
       url: row.value.name + '/' + row.value.version,
     });
   }
@@ -51,7 +52,9 @@ lists.search = function(head, req){
   var cnt = 0;
   start({"headers": {"Content-Type": "application/x-ldjson"}});
   while(row = getRow()){
-    send(JSON.stringify(row) + '\n');
+    if (row.value.private !== true) {
+      send(JSON.stringify(row) + '\n');
+    }
     cnt++;
   }
 
