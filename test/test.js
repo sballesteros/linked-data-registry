@@ -334,7 +334,7 @@ describe('linked data registry', function(){
         assert.equal(resp.statusCode, 200);
 
         request(rurl('/owner/ls/test-pkg'), function(err, resp, body){
-          assert.equal(resp.statusCode, 400);
+          assert.equal(resp.statusCode, 404);
           done();
         });
 

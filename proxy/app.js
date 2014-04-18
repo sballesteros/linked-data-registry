@@ -71,7 +71,6 @@ var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use(couch.registry)
   , _users = nano.db.use('_users');
 
-
 app.set('registry',  registry);
 app.set('_users',  _users);
 app.set('admin',  admin);
@@ -533,7 +532,7 @@ function checkAuth(req, res, next){
   if (!!req.couchDocument.package) {
     package = req.couchDocument.package[0];
   } else if (!!req.couchDocument.rows) { // query by sha1
-    package = req.couchDocument.rows[0].value; 
+    package = req.couchDocument.rows[0].value;
   } else {
     package = req.couchDocument;
   }
@@ -566,7 +565,7 @@ function checkAuth(req, res, next){
           // return error if user is not found
           if (!userIsMaintainer) { return res.json(401 , {'error': 'Unauthorized'}) };
         });
-      }); 
+      });
     }
   } else {
     next();
@@ -586,8 +585,7 @@ function getCouchDocument(req, res, next){
     if(err) return next(err);
 
     if (resp.statusCode >= 400){
-      errorCode(body || 'fail', resp.statusCode);
-      return next(err);
+      return next(errorCode(body || 'fail', resp.statusCode));
     }
 
     try {
@@ -668,7 +666,7 @@ function serveJsonld(linkify, req, res, next) {
 
       //TODO text/html / RDFa 1.1 lite case
 
-    }); 
+    });
 }
 
 
@@ -967,4 +965,3 @@ s3.createBucket(function() {
   console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
   console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
 });
-
