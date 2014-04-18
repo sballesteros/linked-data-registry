@@ -32,7 +32,6 @@ var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
 
-
 function rurl(path){
   return 'http://127.0.0.1:3000' + path
 };
@@ -446,6 +445,7 @@ describe('linked data registry', function(){
     after(function(done){
       rmAll(done);
     });
+
   });
 
   describe('search and versions', function(){
@@ -682,7 +682,6 @@ describe('linked data registry', function(){
     it('should get an attachment coming from a file', function(done){
       request.get(rurl('/test-pkg/0.0.0/dataset/trace'), function(err, resp, body){
         body = JSON.parse(body);
-        console.error(body)
         request.get({url:rurl('/' + body.distribution.contentUrl), encoding:null}, function(err, resp, body){
           zlib.gunzip(body, function(err, data){
             fs.readFile(path.join(root, 'fixture', 'trace_0.csv'), function(err, odata){
