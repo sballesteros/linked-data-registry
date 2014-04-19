@@ -99,6 +99,24 @@ views.bySha1 = {
       }
     });
 
+    (doc.audio || []).forEach(function(r){
+      if(r.contentUrl){
+        var sha1 = getSha1(r.contentUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id, private: doc.private } );
+        }
+      }
+    });
+
+    (doc.video || []).forEach(function(r){
+      if(r.contentUrl){
+        var sha1 = getSha1(r.contentUrl);
+        if(sha1){
+          emit(sha1, { _id: doc._id, private: doc.private } );
+        }
+      }
+    });
+
     (doc.article || []).forEach(function(r){
       if(r.encoding && r.encoding.contentUrl){
         var sha1 = getSha1(r.encoding.contentUrl);

@@ -200,6 +200,26 @@ function getFigureUrl(req, res, next){
   next();
 };
 
+function getAudioUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/audio/' + req.params.audio);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
+function getVideoUrl(req, res, next){
+
+  var qs = querystring.stringify(req.query);
+  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/video/' + req.params.video);
+  rurl += (qs) ? '?' + qs : '';
+
+  req.couchUrl = rootCouchRegistry + rurl;
+  next();
+};
+
 function getArticleUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
@@ -712,6 +732,32 @@ app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion,
 
   function linkify(figure, options){
     return pjsonld.linkFigure(figure, req.params.name, req.params.version);
+  };
+
+  serveJsonld(linkify, req, res, next);
+});
+
+app.get('/:name/:version/audio/:audio', getStanProxyUrl, maxSatisfyingVersion, getAudioUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  function linkify(audio, options){
+    return pjsonld.linkAudio(audio, req.params.name, req.params.version);
+  };
+
+  serveJsonld(linkify, req, res, next);
+});
+
+app.get('/:name/:version/video/:video', getStanProxyUrl, maxSatisfyingVersion, getVideoUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+
+  if(couch.ssl == 1){
+    req.query.secure = true;
+  }
+
+  function linkify(video, options){
+    return pjsonld.linkVideo(video, req.params.name, req.params.version);
   };
 
   serveJsonld(linkify, req, res, next);

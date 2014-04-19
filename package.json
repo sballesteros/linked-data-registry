@@ -1,6 +1,6 @@
 {
   "name": "linked-data-registry",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Standard Analytics IO registry for linked data packages",
   "main": "index.js",
   "scripts": {

@@ -30,7 +30,7 @@ updates.postpublish = function(doc, req){
       doc.about = { name: 'README.md', url: doc.name + '/' + doc.version + '/about/README.md' };
     }
 
-    ['dataset', 'code', 'figure', 'article'].forEach(function(t){
+    ['dataset', 'code', 'figure', 'audio', 'video', 'article'].forEach(function(t){
       if(t in data && data[t].length){
         doc[t] = data[t];
       }
