@@ -25,17 +25,19 @@ need to download and install
 API
 ===
 
-The full API is documented here: https://standardanalytics.io/rest.
+The full API is documented here: https://standardanalytics.io/rest
 
 
 Tests
 =====
 
+You need couchdb running with an admin with username:seb, password:seb
+
     couchdb
+    npm init
     npm run push
     npm start
     npm test
-
 
 License
 =======

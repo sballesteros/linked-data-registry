@@ -24,6 +24,7 @@ var http = require('http')
   , sha = require('sha')
   , deleteS3Objects = require('./lib/deleteS3Objects')
   , concat = require('concat-stream')
+  , cqs = require('cqs')
   , pkgJson = require('../package.json');
 
 mime.define({
@@ -54,7 +55,8 @@ var couch = {
   host: process.env['COUCH_HOST'],
   port: process.env['COUCH_PORT'],
   registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
-  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction')
+  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction'),
+  queue: (process.env['QUEUE_DB_NAME'] || 'cqs_queue')
 };
 
 var admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
@@ -69,6 +71,9 @@ var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', co
 var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use(couch.registry)
   , _users = nano.db.use('_users');
+
+cqs = cqs.defaults({ "couch": rootCouchAdmin, "db": couch.queue });
+
 
 app.set('registry',  registry);
 app.set('_users',  _users);
@@ -834,7 +839,10 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
               return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
             }
 
-            return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+            req.app.get('queue').send(body, function(err, msg) {
+              if(err) console.error(err);
+              return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+            });
 
           });
           req.pipe(reqCouch);
@@ -852,7 +860,10 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
         }
 
-        return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+        req.app.get('queue').send(body, function(err, msg) {
+          if(err) console.error(err);
+          return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
+        });
 
       });
       req.pipe(reqCouch);
@@ -966,13 +977,23 @@ function errorCode(msg, code){
 };
 
 
+cqs.CreateQueue('post_publish', function(err, queue) {
+  if(err) throw err;
 
-s3.createBucket(function() {
-  app.set('s3', s3);
-  console.log('S3 bucket (%s) OK', bucket);
+  app.set('queue', queue);
 
-  httpServer.listen(port);
-  httpsServer.listen(portHttps);
-  console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
-  console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
+  console.log('queue (%s) OK', queue.name);
+
+  s3.createBucket(function(err, data) {
+    if(err) throw err;
+
+    app.set('s3', s3);
+    console.log('S3 bucket (%s) OK', bucket);
+
+    httpServer.listen(port);
+    httpsServer.listen(portHttps);
+    console.log('Server running at http://127.0.0.1:' + port + ' (' + host + ')');
+    console.log('Server running at https://127.0.0.1:' + portHttps + ' (' + host + ')');
+  });
+
 });
