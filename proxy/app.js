@@ -370,8 +370,6 @@ app.del('/rmuser/:name', forceAuth, function(req, res, next){
 
 });
 
-
-
 app.post('/owner/add', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
@@ -503,7 +501,6 @@ app.get('/r/:sha1', getSha1Url, getCouchDocument, checkAuth, logDownload, functi
 
   });
 
-
 });
 
 
@@ -594,9 +591,7 @@ function checkAuth(req, res, next){
 };
 
 /**
- * get a doc from couchdb located at docUrl and serve it according to
- * the profile parameter of the Accept header
- * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
+ * get a doc from couchdb located at couchUrl
  */
 function getCouchDocument(req, res, next){
 
@@ -623,6 +618,11 @@ function getCouchDocument(req, res, next){
 
 };
 
+/*
+ * Serve it according to
+ * the profile parameter of the Accept header
+ * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
+ */
 function serveJsonld(linkify, req, res, next) {
 
     //patch context
@@ -797,26 +797,6 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
 
   res.redirect(rootCouchRegistry + rurl);
 });
-
-
-/**
- * rname is the name of the resource, content can be _content (to get default content)
- */
-//app.get('/:name/:version/:type/:rname/:content', maxSatisfyingVersion, logDownload, function(req, res, next){
-//
-//  if(['dataset', 'code', 'figure', 'article'].indexOf(req.params.type) === -1){
-//    return next(errorCode('not found', 404));
-//  }
-//
-//  if(couch.ssl == 1){
-//    req.query.secure = true;
-//  }
-//
-//  var qs = querystring.stringify(req.query);
-//  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.type + '/' + req.params.rname + '/' + req.params.content);
-//  rurl += (qs) ? '?' + qs : '';
-//  res.redirect(rootCouchRegistry + rurl);
-//});
 
 
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){

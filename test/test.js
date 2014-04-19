@@ -147,9 +147,9 @@ function rmAll(done){
   });
 };
 
-describe('linked data registry', function(){
-  this.timeout(10000);
 
+describe('linked data registry', function(){
+  this.timeout(20000);
 
   describe('s3', function(){
 
@@ -801,7 +801,7 @@ describe('linked data registry', function(){
       request.get(rurl('/test-pkg/0.0.0/code/externalurl'), function(err, resp, body){
         body = JSON.parse(body);
         request.get(body.targetProduct.downloadUrl, function(err, resp, body){
-          assert.equal(body, fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}));
+          assert.equal(body.replace(/\n/g, ''), fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}).replace(/\n/g, ''));
           done();
         });
       });
