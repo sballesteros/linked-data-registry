@@ -20,7 +20,6 @@ var http = require('http')
   , gm = require('gm')
   , clone = require('clone')
   , ldstars = require('ldstars')
-  , postpublish = require('./lib/postpublish')
   , AWS = require('aws-sdk')
   , sha = require('sha')
   , deleteS3Objects = require('./lib/deleteS3Objects')
@@ -545,6 +544,8 @@ function maxSatisfyingVersion(req, res, next){
 
 function checkAuth(req, res, next){
 
+  console.log(req.couchDocument);
+
   var package;
   if (!!req.couchDocument.package) {
     package = req.couchDocument.package[0];
@@ -615,7 +616,6 @@ function getCouchDocument(req, res, next){
     next();
 
   });
-
 };
 
 /*
@@ -834,15 +834,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
               return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
             }
 
-            postpublish(req, body, function(err, pkg, rev){
-              registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
-                if(err){
-                  console.error(err, bodyPost);
-                }
-                return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
-              });
-
-            });
+            return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
 
           });
           req.pipe(reqCouch);
@@ -859,16 +851,9 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
         if(resCouch.statusCode >= 400){
           return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
         }
-        postpublish(req, body, function(err, pkg, rev){
 
-          registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
-            if(err){
-              console.error(err, bodyPost);
-            }
-            return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
-          });
+        return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
 
-        });
       });
       req.pipe(reqCouch);
     }
