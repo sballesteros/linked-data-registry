@@ -1,4 +1,5 @@
 var isUrl = require('is-url')
+  , once = require('once')
   , url = require('url');
 
 function getSha1(uri){
@@ -37,6 +38,46 @@ function dereference(uri, s3, callback){
   }
 };
 
+function stream(uri, s3, callback){
+  callback = once(callback);
+
+  var sha1 = getSha1(uri);
+
+  var s = {};
+
+  if(sha1){
+
+    s3.headObject({Key:sha1}, function(err, s3Headers) {
+      if(err) return callback(err);
+
+      if(s3Headers.ContentLength){ s.ContentLength = s3Headers.ContentLength; }
+      if(s3Headers.ContentType){ s.ContentType = s3Headers.ContentType; }
+      if(s3Headers.ContentEncoding){ s.ContentEncoding = s3Headers.ContentEncoding; }
+
+      s.readable = s3.getObject({Key:sha1}).createReadStream();
+
+      return callback(null, s);
+    });
+
+  } else {
+
+    var req = request(this.rOpts(iri));
+    req.on('error', callback);
+    req.on('response', function(resp){
+      if(resp.headers['content-length']){ s.ContentLength = resp.headers['content-length']; }
+      if(resp.headers['content-type']){ s.ContentType = resp.headers['content-type']; }
+      if(resp.headers['content-encoding']){ s.ContentEncoding = resp.headers['content-encoding']; }
+
+      console.log(s);
+
+      s.readable = resp;
+
+      return callback(null, s);
+    });
+
+  }
+};
+
 function errorCode(msg, code){
   var err = new Error(msg);
   err.code = code;
@@ -44,6 +85,7 @@ function errorCode(msg, code){
 };
 
 
+exports.stream = stream;
 exports.dereference = dereference;
 exports.getSha1 = getSha1;
 exports.errorCode = errorCode;

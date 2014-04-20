@@ -13,6 +13,7 @@ var util = require('util')
   , clone = require('clone')
   , concat = require('concat-stream')
   , sutil = require('../../proxy/lib/util')
+  , previewTabularData = require('preview-tabular-data').preview
   , ldstars = require('ldstars');
 
 /**
@@ -60,6 +61,8 @@ function processDataset(conf, pkg, rev, callback){
     if(!r.distribution) return cb(null);
 
     var d = r.distribution;
+
+    r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
 
     if('contentData' in d){
 
@@ -111,16 +114,43 @@ function processDataset(conf, pkg, rev, callback){
             };
           }
 
-          r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
           cb(null);
         });
       });
 
+    } else if('contentUrl' in d) {
+
+      if(d.encodingFormat && ['application/x-ldjson', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv','text/tab-separated-values'].indexOf(d.encodingFormat) === -1){
+        return cb(null);
+      }
+
+      sutil.stream(d.contentUrl, conf.s3, function(err, streamContent){
+
+        if(err){
+          console.error(err);
+          return cb(null);
+        }
+        var readable;
+        if(streamContent.ContentEncoding === 'gzip'){
+          readable = streamContent.readable.pipe(zlib.createGunzip());
+        } else {
+          readable = streamContent.readable;
+        }
+
+        //preview if tabular data
+        previewTabularData(readable, streamContent.ContentType || d.encodingFormat || 'application/octet-stream', streamContent.ContentLength, {nPreview: 10}, function(err, preview){
+          if(err) return cb(null);
+
+          if(preview){
+            r.preview = preview
+          }
+          cb(null);
+        });
+
+      });
+
     } else {
-
-      r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
       cb(null);
-
     }
 
   }, function(err){
@@ -168,7 +198,6 @@ function processArticle(conf, pkg, rev, callback){
   var cnt = 0;
 
   _thumbnailArticle(article, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
-
 };
 
 /**
@@ -190,7 +219,9 @@ function _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg
     }
   }
 
-  r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  if ('encoding' in r) {
+    r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  }
 
   if ('encoding' in r && 'contentUrl' in r.encoding) {
 

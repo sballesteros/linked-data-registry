@@ -47,7 +47,6 @@ s3.createBucket(function(err, data) {
     function processMsg(){
       queue.receive(function(err, msgs) {
 
-        console.log('a');
         if(err){
           console.error(err);
           return setTimeout(processMsg, 10000);
