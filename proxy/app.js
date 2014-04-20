@@ -268,18 +268,18 @@ function maxSatisfyingVersion(req, res, next){
 
 function checkAuth(req, res, next){
 
-  console.log(req.couchDocument);
+  var privatePkg = false;
 
-  var package;
-  if (!!req.couchDocument.package) {
-    package = req.couchDocument.package[0];
-  } else if (!!req.couchDocument.rows) { // query by sha1
-    package = req.couchDocument.rows[0].value;
-  } else {
-    package = req.couchDocument;
+  //req.couchDocument can be a classical package.jsonld, the results of a view (bySha1) or a list function (lists.versions)
+  if ('private' in req.couchDocument) {
+    privatePkg = req.couchDocument['private'];
+  } else if ('rows' in req.couchDocument) { // query by sha1
+    privatePkg = ((req.couchDocument.rows.filter(function(x){return x.value['private'];})).length > 0);
+  } else if ( 'package' in req.couchDocument && Array.isArray(req.couchDocument['package'])) { //list function (lists.versions)
+    privatePkg = ((req.couchDocument.package.filter(function(x){return x['private'];})).length > 0); //TODO: make sure that once smtgh is public, all the previous version are public ??
   }
 
-  if (package.private === true) {
+  if (privatePkg) {
     var user = auth(req);
 
     if (!user) {
