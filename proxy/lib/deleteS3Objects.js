@@ -4,7 +4,6 @@ var request = require('request')
   , isUrl = require('is-url')
   , sutil = require('./util');
 
-
 module.exports = function(req, pkg, callback){
 
   var sha1s = [];
@@ -28,6 +27,24 @@ module.exports = function(req, pkg, callback){
   });
 
   (pkg.figure || []).forEach(function(r){
+    if(r.contentUrl){
+      var sha1 = sutil.getSha1(r.contentUrl);
+      if(sha1){
+        sha1s.push(sha1);
+      }
+    }
+  });
+
+  (pkg.audio || []).forEach(function(r){
+    if(r.contentUrl){
+      var sha1 = sutil.getSha1(r.contentUrl);
+      if(sha1){
+        sha1s.push(sha1);
+      }
+    }
+  });
+
+  (pkg.video || []).forEach(function(r){
     if(r.contentUrl){
       var sha1 = sutil.getSha1(r.contentUrl);
       if(sha1){

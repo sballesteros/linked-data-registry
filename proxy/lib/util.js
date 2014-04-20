@@ -13,6 +13,29 @@ function getSha1(uri){
   return undefined;
 };
 
+function dereference(uri, s3, callback){
+  var sha1 = getSha1(uri);
+
+  if(sha1){
+
+    s3.getObject({Key: sha1}, function(err, data){
+      if(err) return callback(err);
+      return callback(null, data);
+    });
+
+  } else {
+
+    request(uri, function(err, resp, body){
+      if(err) return callback(err);
+      if(resp.statusCode >= 400){
+        return callback(errCode('could not retrieve body ' + uri, resp.statusCode));
+      }
+
+      return callback(null, {Body:body, ContentType: resp.headers['content-type'], ContentLength: resp.headers['content-length']});
+    });
+
+  }
+};
 
 function errorCode(msg, code){
   var err = new Error(msg);
@@ -21,5 +44,6 @@ function errorCode(msg, code){
 };
 
 
+exports.dereference = dereference;
 exports.getSha1 = getSha1;
 exports.errorCode = errorCode;

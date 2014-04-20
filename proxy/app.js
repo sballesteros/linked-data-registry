@@ -234,6 +234,188 @@ function getArticleUrl(req, res, next){
   next();
 };
 
+
+
+/**
+ * middleware to get maxSatisfying version of a Semver range
+ */
+function maxSatisfyingVersion(req, res, next){
+
+  var q = req.query || {};
+
+  if (! ('range' in q)) {
+    return next();
+  }
+
+  //get all the versions of the pkg
+  request(rootCouchRegistry + '/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
+    if(err) return next(err);
+
+    if (res.statusCode >= 400){
+      return next(errorCode('oops something went wrong when trying to validate the version', res.statusCode));
+    }
+
+    versions = JSON.parse(versions).package.map(function(x){return x.version;});
+    req.params.version = semver.maxSatisfying(versions, q.range);
+    if(!req.params.version){
+      return next(errorCode('no version could satisfy the range ' + q.range, 404));
+    }
+
+    next();
+  });
+
+};
+
+function checkAuth(req, res, next){
+
+  console.log(req.couchDocument);
+
+  var package;
+  if (!!req.couchDocument.package) {
+    package = req.couchDocument.package[0];
+  } else if (!!req.couchDocument.rows) { // query by sha1
+    package = req.couchDocument.rows[0].value;
+  } else {
+    package = req.couchDocument;
+  }
+
+  if (package.private === true) {
+    var user = auth(req);
+
+    if (!user) {
+      return res.json(401 , {'error': 'Unauthorized'});
+    } else {
+      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
+        var userIsMaintainer = false;
+
+        if (err) {
+          return next(err);
+        }
+
+        // check if user has access
+        key = req.params.name || req.couchDocument.rows[0].id.split('@')[0]
+        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: key}, function(err, authBody, headers) {
+          if (err) {
+            return next(err);
+          }
+          authBody.forEach(function (elem, i, array) {
+            if (elem.name === user.name) {
+              userIsMaintainer = true;
+              return next();
+            }
+          })
+          // return error if user is not found
+          if (!userIsMaintainer) { return res.json(401 , {'error': 'Unauthorized'}) };
+        });
+      });
+    }
+  } else {
+    next();
+  }
+
+};
+
+/**
+ * get a doc from couchdb located at couchUrl
+ */
+function getCouchDocument(req, res, next){
+
+  request(req.couchUrl, function(err, resp, body){
+
+    if(err) return next(err);
+
+    if (resp.statusCode >= 400){
+      return next(errorCode(body || 'fail', resp.statusCode));
+    }
+
+    try {
+      body = JSON.parse(body);
+    } catch(e){
+      return next(e);
+    }
+
+    req.couchDocument = body
+
+    res.status(resp.statusCode)
+    next();
+
+  });
+};
+
+/*
+ * Serve it according to
+ * the profile parameter of the Accept header
+ * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
+ */
+function serveJsonld(linkify, req, res, next) {
+
+    //patch context
+    var context = pjsonld.context;
+
+    context['@context']['@base'] = req.stanProxy + '/';
+    var contextUrl = context['@context']['@base'] + 'package.jsonld';
+
+    res.format({
+      'text/html': function(){
+
+        var l = linkify(req.couchDocument, {addCtx:false});
+
+        var snippet;
+        try{
+          l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
+          snippet = jsonldHtmlView.urlify(l, context['@context'])
+        }catch(e){
+          snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
+        }
+
+        res.render('explore', {snippet:snippet});
+      },
+
+      'application/json': function(){
+        var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+        res.set('Link', linkHeader);
+        res.send(linkify(req.couchDocument, {addCtx:false}));
+      },
+
+      'application/ld+json': function(){
+        var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
+
+        if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
+
+          var profile = accepted.params.profile.replace(/^"(.*)"$/, '$1') //remove double quotes
+
+          switch(profile){
+
+            case 'http://www.w3.org/ns/json-ld#expanded':
+            jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
+              res.json(expanded);
+            });
+            break;
+
+            case 'http://www.w3.org/ns/json-ld#flattened':
+            jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
+              res.json(flattened);
+            });
+            break;
+
+            default: //#compacted and everything else
+              res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
+            break;
+          }
+
+        } else {
+          res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
+        }
+      }
+
+      //TODO text/html / RDFa 1.1 lite case
+
+    });
+};
+
+
+
+
 app.get('/auth', forceAuth, function(req, res, next){
   if(req.user){
     res.json(req.user);
@@ -517,187 +699,10 @@ app.get('/:name', getStanProxyUrl, getPkgNameUrl, getCouchDocument, checkAuth, f
 });
 
 
-/**
- * middleware to get maxSatisfying version of a Semver range
- */
-function maxSatisfyingVersion(req, res, next){
-
-  var q = req.query || {};
-
-  if (! ('range' in q)) {
-    return next();
-  }
-
-  //get all the versions of the pkg
-  request(rootCouchRegistry + '/_design/registry/_rewrite/versions/' + req.params.name, function(err, res, versions){
-    if(err) return next(err);
-
-    if (res.statusCode >= 400){
-      return next(errorCode('oops something went wrong when trying to validate the version', res.statusCode));
-    }
-
-    versions = JSON.parse(versions).package.map(function(x){return x.version;});
-    req.params.version = semver.maxSatisfying(versions, q.range);
-    if(!req.params.version){
-      return next(errorCode('no version could satisfy the range ' + q.range, 404));
-    }
-
-    next();
-  });
-
-};
-
-function checkAuth(req, res, next){
-
-  console.log(req.couchDocument);
-
-  var package;
-  if (!!req.couchDocument.package) {
-    package = req.couchDocument.package[0];
-  } else if (!!req.couchDocument.rows) { // query by sha1
-    package = req.couchDocument.rows[0].value;
-  } else {
-    package = req.couchDocument;
-  }
-
-  if (package.private === true) {
-    var user = auth(req);
-
-    if (!user) {
-      return res.json(401 , {'error': 'Unauthorized'});
-    } else {
-      nano.auth(user.name, user.pass, function (err, nanoAuthBody, headers) {
-        var userIsMaintainer = false;
-
-        if (err) {
-          return next(err);
-        }
-
-        // check if user has access
-        key = req.params.name || req.couchDocument.rows[0].id.split('@')[0]
-        _users.view_with_list('maintainers', 'maintainers', 'maintainers', {reduce: false, key: key}, function(err, authBody, headers) {
-          if (err) {
-            return next(err);
-          }
-          authBody.forEach(function (elem, i, array) {
-            if (elem.name === user.name) {
-              userIsMaintainer = true;
-              return next();
-            }
-          })
-          // return error if user is not found
-          if (!userIsMaintainer) { return res.json(401 , {'error': 'Unauthorized'}) };
-        });
-      });
-    }
-  } else {
-    next();
-  }
-
-};
-
-/**
- * get a doc from couchdb located at couchUrl
- */
-function getCouchDocument(req, res, next){
-
-  request(req.couchUrl, function(err, resp, body){
-
-    if(err) return next(err);
-
-    if (resp.statusCode >= 400){
-      return next(errorCode(body || 'fail', resp.statusCode));
-    }
-
-    try {
-      body = JSON.parse(body);
-    } catch(e){
-      return next(e);
-    }
-
-    req.couchDocument = body
-
-    res.status(resp.statusCode)
-    next();
-
-  });
-};
-
-/*
- * Serve it according to
- * the profile parameter of the Accept header
- * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
- */
-function serveJsonld(linkify, req, res, next) {
-
-    //patch context
-    var context = pjsonld.context;
-
-    context['@context']['@base'] = req.stanProxy + '/';
-    var contextUrl = context['@context']['@base'] + 'package.jsonld';
-
-    res.format({
-      'text/html': function(){
-
-        var l = linkify(req.couchDocument, {addCtx:false});
-
-        var snippet;
-        try{
-          l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
-          snippet = jsonldHtmlView.urlify(l, context['@context'])
-        }catch(e){
-          snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
-        }
-
-        res.render('explore', {snippet:snippet});
-      },
-
-      'application/json': function(){
-        var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
-        res.set('Link', linkHeader);
-        res.send(linkify(req.couchDocument, {addCtx:false}));
-      },
-
-      'application/ld+json': function(){
-        var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
-
-        if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
-
-          var profile = accepted.params.profile.replace(/^"(.*)"$/, '$1') //remove double quotes
-
-          switch(profile){
-
-            case 'http://www.w3.org/ns/json-ld#expanded':
-            jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
-              res.json(expanded);
-            });
-            break;
-
-            case 'http://www.w3.org/ns/json-ld#flattened':
-            jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
-              res.json(flattened);
-            });
-            break;
-
-            default: //#compacted and everything else
-              res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
-            break;
-          }
-
-        } else {
-          res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
-        }
-      }
-
-      //TODO text/html / RDFa 1.1 lite case
-
-    });
-}
-
-
 app.get('/:name/:version', getStanProxyUrl, maxSatisfyingVersion, getVersionUrl, getCouchDocument, checkAuth, logDownload,  function(req, res, next){
 
   serveJsonld(pjsonld.linkPackage, req, res, next);
+
 });
 
 

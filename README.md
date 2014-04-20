@@ -1,5 +1,5 @@
 linked package registry
-============================
+=======================
 
 A [CouchDB](http://couchdb.apache.org/) powered data registry for
 semantic linked data packages.
@@ -26,7 +26,6 @@ API
 ===
 
 The full API is documented here: https://standardanalytics.io/rest
-
 
 Tests
 =====

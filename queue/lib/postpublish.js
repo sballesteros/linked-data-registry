@@ -31,11 +31,11 @@ module.exports = function(conf, msg, callback){
 
     processDataset(conf, pkg, msg.rev, function(err, pkg, rev){
       if(err) console.error(err);
-      processCode(conf, pkg, msg.rev, function(err, pkg, rev){
+      processCode(conf, pkg, rev, function(err, pkg, rev){
         if(err) console.error(err);
-        processArticle(conf, pkg, msg.rev, function(err, pkg, rev){
+        processArticle(conf, pkg, rev, function(err, pkg, rev){
           if(err) console.error(err);
-          processFigure(conf, pkg, msg.rev, function(err, pkg, rev){
+          processFigure(conf, pkg, rev, function(err, pkg, rev){
             if(err) console.error(err);
 
             pkg.contentRating = ldstars.rate(pjsonld.linkPackage(clone(pkg)), {string:true});
@@ -156,22 +156,104 @@ function processCode(conf, pkg, rev, callback){
   });
 
   callback(null, pkg, rev);
-
 };
 
 
 /**
- * might be async one day hence the callback
+ * create thumbnail of the first page of the pdf (if any)
  */
 function processArticle(conf, pkg, rev, callback){
-  var article = pkg.article || [];
-  article.forEach(function(r){
-    if(!r.encoding) return;
-    r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), r.name, r.version), pkg.license, {string:true});
-  });
 
-  callback(null, pkg, rev);
+  var article = pkg.article || [];
+  var cnt = 0;
+
+  _thumbnailArticle(article, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
+
 };
+
+/**
+ * recursively thumbnail articles (has to be sequential so that latest _rev is passed to couch)
+ */
+function _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
+
+  if(!articles.length){
+    return callback(null, pkg, rev);
+  }
+
+  var r = articles[cnt];
+
+  function _next(rev){
+    if (++cnt < articles.length) {
+      return _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
+    } else {
+      return callback(null, pkg, rev);
+    }
+  }
+
+  r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+
+  if ('encoding' in r && 'contentUrl' in r.encoding) {
+
+    sutil.dereference(r.encoding.contentUrl, s3, function(err, data){
+      if(err) {
+        console.error(err);
+        return _next(rev);
+      }
+
+      if(data['ContentType'] === 'application/pdf' || r.encoding.encodingFormat  === 'application/pdf' ){
+
+        gm(data.Body, 'article.pdf[0]')
+          .resize(400, 400)
+          .toBuffer('png', function (err, buffer) {
+            if (err) return _next(rev);
+
+            var contentType = 'image/png';
+            var thumbnailName = 'thumb-' + r.name + '-' + '400' + '.' + mime.extension(contentType);
+
+            var ropts = {
+              url: rootCouchRegistry + '/' + encodeURIComponent(pkg.name + '@' + pkg.version) + '/' + thumbnailName,
+              method: 'PUT',
+              headers:{
+                'Content-Length': buffer.length,
+                'Content-Type': contentType,
+                'If-Match': rev
+              },
+              auth: admin,
+              body: buffer
+            };
+
+            request(ropts, function(err, resp, body){
+              if(err) return _next(rev);
+
+              if (resp.statusCode === 201) {
+                body = JSON.parse(body);
+
+                r.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/' + thumbnailName;
+
+                return _next(body.rev);
+
+              } else {
+
+                return _next(rev);
+
+              }
+            });
+
+          });
+      } else {
+        return _next(rev);
+      }
+    });
+
+  } else {
+
+    return _next(rev);
+
+  }
+
+};
+
+
 
 
 /**
@@ -182,7 +264,7 @@ function processFigure(conf, pkg, rev, callback){
   var figure = pkg.figure || [];
   var cnt = 0;
 
-  _thumbnail(figure, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
+  _thumbnailFigure(figure, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
 
 };
 
@@ -190,7 +272,7 @@ function processFigure(conf, pkg, rev, callback){
 /**
  * recursively thumbnail figures (has to be sequential so that latest _rev is passed to couch)
  */
-function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
+function _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
 
   if(!figures.length){
     return callback(null, pkg, rev);
@@ -200,7 +282,7 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callba
 
   function _next(rev){
     if (++cnt < figures.length) {
-      return _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
+      return _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
     } else {
       return callback(null, pkg, rev);
     }
@@ -208,56 +290,65 @@ function _thumbnail(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callba
 
   if ('contentUrl' in r) {
 
-    var sha1 = sutil.getSha1(r.contentUrl);
-
-    if (sha1) {
-      var s3Stream = s3.getObject({Key: sha1}).createReadStream();
-      s3Stream.on('error', function(err){
+    sutil.dereference(r.contentUrl, s3, function(err, data){
+      if(err) {
         console.error(err);
-      });
+        return _next(rev);
+      }
 
-      gm(s3Stream).size({bufferStream: true}, function (err, size) {
+      gm(data.Body)
+        .size(function (err, size) {
 
-        if (err) return _next(rev);
-
-        r.width = size.width + 'px';
-        r.height = size.height + 'px';
-        r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), r.name, r.version), pkg.license, {string:true});
-        this.resize('256', '256')
-        this.stream(function (err, stdout, stderr) {
           if (err) return _next(rev);
 
-          var ropts = {
-            url: rootCouchRegistry + '/' + encodeURIComponent(pkg.name + '@' + pkg.version) + '/thumb-' + r.name + '-' + '256' + '.' + mime.extension(r.encodingFormat),
-            method: 'PUT',
-            headers:{
-              'Content-Type': r.encodingFormat,
-              'If-Match': rev
-            },
-            auth: admin
-          };
+          r.width = size.width + 'px';
+          r.height = size.height + 'px';
+          r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), r.name, r.version), pkg.license, {string:true});
 
-          var rthumb = request(ropts, function(err, resp, body){
-            if(err) return _next(rev);
+          if(size.width > 400 || size.height > 400){
+            this.resize('400', '400')
+          }
 
-            if (resp.statusCode === 201) {
-              body = JSON.parse(body);
+          this.toBuffer('png', function (err, buffer) {
 
-              r.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/thumb-' + r.name + '-' + '256' + '.' + mime.extension(r.encodingFormat);
+            if (err) return _next(rev);
 
-              return _next(body.rev);
+            var contentType = 'image/png';
+            var thumbnailName = 'thumb-' + r.name + '-' + '400' + '.' + mime.extension(contentType);
 
-            } else {
+            var ropts = {
+              url: rootCouchRegistry + '/' + encodeURIComponent(pkg.name + '@' + pkg.version) + '/' + thumbnailName,
+              method: 'PUT',
+              headers:{
+                'Content-Length': buffer.length,
+                'Content-Type': contentType,
+                'If-Match': rev
+              },
+              auth: admin,
+              body: buffer
+            };
 
-              return _next(rev);
+            request(ropts, function(err, resp, body){
+              if(err) return _next(rev);
 
-            }
+              if (resp.statusCode === 201) {
+                body = JSON.parse(body);
+
+                r.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/' + thumbnailName;
+
+                return _next(body.rev);
+
+              } else {
+
+                return _next(rev);
+
+              }
+            });
 
           });
-          stdout.pipe(rthumb);
         });
-      });
-    }
+
+    });
 
   } else {
 

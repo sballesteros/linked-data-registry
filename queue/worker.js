@@ -60,16 +60,16 @@ s3.createBucket(function(err, data) {
         var msg = msgs[0];
 
         postPublish({rootCouchRegistry: rootCouchRegistry, admin: admin, s3: s3}, msg.Body, function(err, pkg, rev){
+          if(err){
+            console.error(err);
+            return msg.del(function(err) { processMsg();});
+          }
 
           registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
             if(err){
               console.error(err, bodyPost);
             }
-
-            msg.del(function(err) {
-              processMsg();
-            });
-
+            msg.del(function(err) { processMsg(); });
           });
 
         });

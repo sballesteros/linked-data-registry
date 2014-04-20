@@ -8,7 +8,7 @@
     "push": "(cd registry && NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 REGISTRY_DB_NAME=registry INTERACTION_DB_NAME=interaction ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/registry) && (cd owners && ../node_modules/.bin/couchapp push app.js http://seb:seb@127.0.0.1:5984/_users)",
     "start-proxy": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 QUEUE_DB_NAME=cqs_queue REGISTRY_DB_NAME=registry INTERACTION_DB_NAME=interaction COUCH_USER=seb COUCH_PASS=seb NODE_HOST=localhost NODE_PORT=3000 NODE_PORT_HTTPS=4000 node proxy/app.js",
     "start-worker": "COUCH_SSL=0 COUCH_HOST=127.0.0.1 COUCH_PORT=5984 QUEUE_DB_NAME=cqs_queue REGISTRY_DB_NAME=registry COUCH_USER=seb COUCH_PASS=seb node queue/worker.js",
-    "start": "npm run start-proxy & npm run start-queue",
+    "start": "npm run start-proxy &  npm run start-worker",
     "test": "./node_modules/.bin/mocha test/test.js"
   },
   "repository": {
