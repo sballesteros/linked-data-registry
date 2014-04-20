@@ -131,17 +131,12 @@ function processDataset(conf, pkg, rev, callback){
           return cb(null);
         }
 
-        var readable;
-        if(streamContent.ContentEncoding.match(/\bgzip\b/)){
-          readable = streamContent.readable.pipe(zlib.createGunzip());
-        } else if(streamContent.ContentEncoding.match(/\bdeflate\b/)){
-          readable = streamContent.readable.pipe(zlib.createInflate());
-        } else {
-          readable = streamContent.readable;
-        }
-
         //preview if tabular data
-        previewTabularData(readable, streamContent.ContentType || d.encodingFormat || 'application/octet-stream', streamContent.ContentLength, {nPreview: 10}, function(err, preview){
+        previewTabularData(streamContent.readable, {
+          'content-type': streamContent.ContentType || d.encodingFormat || 'application/octet-stream',
+          'content-length': streamContent.ContentLength,
+          'content-encoding':streamContent.ContentEncoding
+        }, {nPreview: 10}, function(err, preview){
           if(err) return cb(null);
 
           if(preview){

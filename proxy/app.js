@@ -896,12 +896,11 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
     },
 
     function(ids, cb){ //delete (all) the versions
-
       async.each(ids, function(id, cb2){
-
         request(rootCouchRegistry + '/_design/registry/_rewrite/' + id, function(errPkg, respPkg, pkg){
 
           registry.head(id, function(err, _, headers) {
+
             if(err) return cb2(err);
             var etag = headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
 
@@ -913,6 +912,7 @@ app.del('/:name/:version?', forceAuth, function(req, res, next){
                 'Cookie': cookie.serialize('AuthSession', req.user.token)
               }
             }, function(err, resp, body){
+
               if(err) return cb2(err);
               body = JSON.parse(body);
               if(resp.statusCode === 403){
