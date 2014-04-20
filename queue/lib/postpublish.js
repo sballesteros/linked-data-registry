@@ -130,9 +130,12 @@ function processDataset(conf, pkg, rev, callback){
           console.error(err);
           return cb(null);
         }
+
         var readable;
-        if(streamContent.ContentEncoding === 'gzip'){
+        if(streamContent.ContentEncoding.match(/\bgzip\b/)){
           readable = streamContent.readable.pipe(zlib.createGunzip());
+        } else if(streamContent.ContentEncoding.match(/\bdeflate\b/)){
+          readable = streamContent.readable.pipe(zlib.createInflate());
         } else {
           readable = streamContent.readable;
         }
