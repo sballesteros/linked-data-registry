@@ -38,12 +38,16 @@ module.exports = function(conf, msg, callback){
           if(err) console.error(err);
           processFigure(conf, pkg, rev, function(err, pkg, rev){
             if(err) console.error(err);
+            processAudio(conf, pkg, rev, function(err, pkg, rev){
+              if(err) console.error(err);
+              processVideo(conf, pkg, rev, function(err, pkg, rev){
+                if(err) console.error(err);
 
-            //TODO Audio and Video
+                pkg.contentRating = ldstars.rate(pjsonld.linkPackage(clone(pkg)), {string:true});
+                callback(err, pkg, rev);
 
-            pkg.contentRating = ldstars.rate(pjsonld.linkPackage(clone(pkg)), {string:true});
-            callback(err, pkg, rev);
-
+              });
+            });
           });
         });
       });
@@ -62,7 +66,7 @@ function processDataset(conf, pkg, rev, callback){
 
     if(!r.distribution) return cb(null);
 
-    r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
+    r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
 
     async.eachSeries(r.distribution, function(d, cb2){
 
@@ -189,11 +193,43 @@ function processCode(conf, pkg, rev, callback){
       }
     });
 
-    r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), r.name, r.version), pkg.license, {string:true});
+    r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
   });
 
   callback(null, pkg, rev);
 };
+
+/**
+ * might be async one day hence the callback
+ */
+function processAudio(conf, pkg, rev, callback){
+
+  var audio = pkg.audio || [];
+  audio.forEach(function(r){
+    if(!r.audio) return;
+
+    r.contentRating = ldstars.rateResource(pjsonld.linkAudio(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  });
+
+  callback(null, pkg, rev);
+};
+
+
+/**
+ * might be async one day hence the callback
+ */
+function processVideo(conf, pkg, rev, callback){
+
+  var video = pkg.video || [];
+  video.forEach(function(r){
+    if(!r.video) return;
+
+    r.contentRating = ldstars.rateResource(pjsonld.linkVideo(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  });
+
+  callback(null, pkg, rev);
+};
+
 
 
 /**
@@ -329,7 +365,7 @@ function _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, 
   if('figure' in r){
     r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
 
-    _thumbnailImage(r, cnt, rev, rootCouchRegistry, admin, s3, pkg, _next);
+    _thumbnailImage(r, 0, rev, rootCouchRegistry, admin, s3, pkg, _next);
 
   } else {
     return _next(rev);
