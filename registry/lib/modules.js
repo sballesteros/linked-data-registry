@@ -65,7 +65,9 @@ exports['pkg-util'] =
         if('dataset' in pkg){
           pkg.dataset.forEach(function(d){
             if(d.distribution){
-              delete d.distribution.contentData;
+              d.distribution.forEach(function(x){
+                delete x.contentData;
+              });
             }
           });
         }

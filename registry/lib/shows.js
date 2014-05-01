@@ -21,8 +21,12 @@ shows.dataset = function(doc, req){
       r.private = doc.private;
     }
 
-    if(r.distribution && r.distribution.contentData){
-      delete r.distribution.contentData;
+    if(r.distribution){
+      r.distribution.forEach(function(x){
+        if(x.contentData){
+          delete x.contentData;
+        }
+      });
     }
 
     return {

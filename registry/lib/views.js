@@ -73,56 +73,56 @@ views.bySha1 = {
 
 
     (doc.dataset || []).forEach(function(r){
-      if(r.distribution && r.distribution.contentUrl){
-        var sha1 = getSha1(r.distribution.contentUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
-        }
+      if(r.distribution){
+        r.distribution.forEach(function(x){
+          if(x.contentUrl){
+            var sha1 = getSha1(x.contentUrl);
+            if(sha1){
+              emit(sha1, { _id: doc._id, private: doc.private } );
+            }
+          }
+        });
       }
     });
 
     (doc.code || []).forEach(function(r){
       if(r.targetProduct && r.targetProduct.downloadUrl){
-        var sha1 = getSha1(r.targetProduct.downloadUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
-        }
+        r.targetProduct.downloadUrl.forEach(function(x){
+          if(x.downloadUrl){
+            var sha1 = getSha1(x.downloadUrl);
+            if(sha1){
+              emit(sha1, { _id: doc._id, private: doc.private } );
+            }
+          }
+        });
       }
     });
 
-    (doc.figure || []).forEach(function(r){
-      if(r.contentUrl){
-        var sha1 = getSha1(r.contentUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
+    ['figure', 'audio', 'video'].forEach(function(mediaType){
+      (doc[mediaType] || []).forEach(function(r){
+        if(r[mediaType]){
+          r[mediaType].forEach(function(x){
+            if(x.contentUrl){
+              var sha1 = getSha1(r.contentUrl);
+              if(sha1){
+                emit(sha1, { _id: doc._id, private: doc.private } );
+              }
+            }
+          });
         }
-      }
-    });
-
-    (doc.audio || []).forEach(function(r){
-      if(r.contentUrl){
-        var sha1 = getSha1(r.contentUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
-        }
-      }
-    });
-
-    (doc.video || []).forEach(function(r){
-      if(r.contentUrl){
-        var sha1 = getSha1(r.contentUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
-        }
-      }
+      });
     });
 
     (doc.article || []).forEach(function(r){
-      if(r.encoding && r.encoding.contentUrl){
-        var sha1 = getSha1(r.encoding.contentUrl);
-        if(sha1){
-          emit(sha1, { _id: doc._id, private: doc.private } );
-        }
+      if(r.encoding){
+        r.encoding.forEach(function(x){
+          if(x.contentUrl){
+            var sha1 = getSha1(x.contentUrl);
+            if(sha1){
+              emit(sha1, { _id: doc._id, private: doc.private } );
+            }
+          }
+        });
       }
     });
 
