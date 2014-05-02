@@ -267,7 +267,7 @@ function _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg
 
     //find an encoding in PDF AND having a contentUrl
     var enc = r.encoding.filter(function(x){
-      return ('contentUrl' in r.encoding) && (r.encoding.encodingFormat === 'application/pdf' );
+      return ('contentUrl' in x) && (x.encodingFormat === 'application/pdf' );
     })[0];
 
     if(!enc){
