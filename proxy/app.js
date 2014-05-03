@@ -25,6 +25,7 @@ var http = require('http')
   , deleteS3Objects = require('./lib/deleteS3Objects')
   , concat = require('concat-stream')
   , cqs = require('cqs')
+  , bodyParser = require('body-parser')
   , pkgJson = require('../package.json');
 
 mime.define({
@@ -85,11 +86,6 @@ app.set('rootCouchRegistry',  rootCouchRegistry);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(app.router);
-app.use(function(err, req, res, next){
-  res.json(err.code || err.status_code || 400, {'error': err.message || ''});
-});
-
 
 function forceAuth(req, res, next){
 
@@ -134,7 +130,7 @@ function logDownload(req, res, next){
   next();
 };
 
-var jsonParser = express.json();
+var jsonParser = bodyParser.json();
 
 /**
  * middleware to get proxy URL (store it in req.stanProxy)
@@ -151,12 +147,12 @@ function getStanProxyUrl(req, res, next){
 };
 
 function getSha1Url(req, res, next){
-  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_view/bySha1?key=' + encodeURIComponent('"'+req.params.sha1+'"') + '&reduce=false');
+  req.couchUrl = rootCouchRegistry + '/_design/registry/_view/bySha1?key=' + encodeURIComponent('"'+req.params.sha1+'"') + '&reduce=false';
   next();
 }
 
 function getPkgNameUrl(req, res, next){
-  req.couchUrl = rootCouchRegistry + req.url.replace(req.route.regexp, '/_design/registry/_rewrite/versions/' + req.params.name);
+  req.couchUrl = rootCouchRegistry +  '/_design/registry/_rewrite/versions/' + req.params.name;
   next();
 };
 
@@ -164,21 +160,21 @@ function getVersionUrl(req, res, next){
   var q = req.query || {};
   q.proxy = req.stanProxy;
 
-  var rurl;
+  var rurl = '/_design/registry/_rewrite/';
   if (req.params.version === 'latest'){
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name) + '/latest');
+    rurl += encodeURIComponent(req.params.name) + '/latest';
   } else {
-    rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' +  encodeURIComponent(req.params.name + '@' + req.params.version));
+    rurl += encodeURIComponent(req.params.name + '@' + req.params.version);
   }
   rurl += '?' + querystring.stringify(q);
 
   req.couchUrl = rootCouchRegistry + rurl;
   next();
-}
+};
 
 function getDatasetUrl(req, res, next){
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/dataset/' + req.params.dataset;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -187,7 +183,7 @@ function getDatasetUrl(req, res, next){
 
 function getCodeUrl(req, res, next){
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -197,7 +193,7 @@ function getCodeUrl(req, res, next){
 function getFigureUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -207,7 +203,7 @@ function getFigureUrl(req, res, next){
 function getAudioUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/audio/' + req.params.audio);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/audio/' + req.params.audio;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -217,7 +213,7 @@ function getAudioUrl(req, res, next){
 function getVideoUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/video/' + req.params.video);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/video/' + req.params.video;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -227,7 +223,7 @@ function getVideoUrl(req, res, next){
 function getArticleUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article);
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/article/' + req.params.article;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -349,71 +345,61 @@ function getCouchDocument(req, res, next){
  */
 function serveJsonld(linkify, req, res, next) {
 
-    //patch context
-    var context = pjsonld.context;
+  //patch context
+  var context = pjsonld.context;
 
-    context['@context']['@base'] = req.stanProxy + '/';
-    var contextUrl = context['@context']['@base'] + 'package.jsonld';
+  context['@context']['@base'] = req.stanProxy + '/';
+  var contextUrl = context['@context']['@base'] + 'package.jsonld';
 
-    res.format({
-      'text/html': function(){
+  switch(req.accepts('text/html', 'application/json', 'application/ld+json', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"' )){
 
-        var l = linkify(req.couchDocument, {addCtx:false});
+  case 'text/html':
+    var l = linkify(req.couchDocument, {addCtx:false});
+    var snippet;
+    try{
+      l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
+      snippet = jsonldHtmlView.urlify(l, context['@context'])
+    }catch(e){
+      snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
+    }
 
-        var snippet;
-        try{
-          l["<a href='#'>@context</a>"] = util.format("<a href='%s'>%s</a>", contextUrl, contextUrl);
-          snippet = jsonldHtmlView.urlify(l, context['@context'])
-        }catch(e){
-          snippet = '<pre><code>' + JSON.stringify(l, null, 2) + '</code></pre>';
-        }
+    res.render('explore', {snippet:snippet});
+    break;
 
-        res.render('explore', {snippet:snippet});
-      },
+  case 'application/json':
+    var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
+    res.set('Link', linkHeader);
+    res.send(linkify(req.couchDocument, {addCtx:false}));
+    break;
 
-      'application/json': function(){
-        var linkHeader = '<' + contextUrl + '>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"';
-        res.set('Link', linkHeader);
-        res.send(linkify(req.couchDocument, {addCtx:false}));
-      },
+  case 'application/ld+json':
+    res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
+    break;
 
-      'application/ld+json': function(){
-        var accepted = req.accepted.filter(function(x){return x.value === 'application/ld+json';})[0];
+  case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"':
+    res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
+    break;
 
-        if( ( ('params' in accepted) && ('profile' in accepted.params) ) ){
-
-          var profile = accepted.params.profile.replace(/^"(.*)"$/, '$1') //remove double quotes
-
-          switch(profile){
-
-            case 'http://www.w3.org/ns/json-ld#expanded':
-            jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
-              res.json(expanded);
-            });
-            break;
-
-            case 'http://www.w3.org/ns/json-ld#flattened':
-            jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
-              res.json(flattened);
-            });
-            break;
-
-            default: //#compacted and everything else
-              res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
-            break;
-          }
-
-        } else {
-          res.json(linkify(req.couchDocument, {ctx: req.stanProxy + '/package.jsonld'}));
-        }
-      }
-
-      //TODO text/html / RDFa 1.1 lite case
-
+  case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"':
+    jsonld.expand(linkify(req.couchDocument, {addCtx: false}), {expandContext: context}, function(err, expanded){
+      res.json(expanded);
     });
+    break;
+
+  case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"':
+    jsonld.flatten(linkify(req.couchDocument, {addCtx: false}), context, function(err, flattened){
+      res.json(flattened);
+    });
+    break;
+
+
+  default:
+    res.json(406, {'error': 'Not Acceptable'});
+    break;
+
+  };
+
 };
-
-
 
 
 app.get('/auth', forceAuth, function(req, res, next){
@@ -802,7 +788,7 @@ app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, re
   }
 
   var qs = querystring.stringify(req.query);
-  var rurl = req.url.replace(req.route.regexp, '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content);
+  var rurl = '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content;
   rurl += (qs) ? '?' + qs : '';
 
   res.redirect(rootCouchRegistry + rurl);
@@ -980,6 +966,13 @@ function errorCode(msg, code){
   err.code = code;
   return err;
 };
+
+
+
+
+app.use(function(err, req, res, next){
+  res.json(err.code || err.status_code || 400, {'error': err.message || ''});
+});
 
 
 cqs.CreateQueue('post_publish', function(err, queue) {

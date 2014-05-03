@@ -107,6 +107,7 @@ function createFixture(done){
               if(err) console.error(err);
 
               request.put( { url: rurl('/r/' + privatePkg.dataset[0].distribution[0].hashValue), auth: {user:'user_a', pass: pass}, headers: { 'Content-Length': privatePkg.dataset[0].distribution[0].contentSize, 'Content-Type': privatePkg.dataset[0].distribution[0].encodingFormat }, body:dataString }, function(err, resp, body){
+                if(err) console.error(err);
                 request.put( { url: rurl('/test-private-pkg/0.0.0'), auth: {user:'user_a', pass: pass}, json: privatePkg }, function(err, resp, body){
                   if(err) console.error(err);
                   request.post( {url: rurl('/owner/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', pkgname: 'test-private-pkg'}}, function(err, resp, body){
