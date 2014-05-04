@@ -1,4 +1,5 @@
 var isUrl = require('is-url')
+  , request = require('request')
   , once = require('once')
   , url = require('url');
 
@@ -61,7 +62,7 @@ function stream(uri, s3, callback){
 
   } else {
 
-    var req = request(this.rOpts(iri));
+    var req = request(this.rOpts(uri));
     req.on('error', callback);
     req.on('response', function(resp){
       if(resp.headers['content-length']){ s.ContentLength = resp.headers['content-length']; }

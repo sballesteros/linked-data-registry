@@ -172,7 +172,7 @@ function processDataset(conf, pkg, rev, callback){
 
 
 /**
- * might be async one day hence the callback
+ * add preview in SampleType if small script
  */
 function processCode(conf, pkg, rev, callback){
 
@@ -184,7 +184,7 @@ function processCode(conf, pkg, rev, callback){
       if('filePath' in d && '_attachments' in pkg){
         var basename = path.basename(d.filePath);
 
-        //if absolute path || bundlePath: delete (use for codeBundle created by ldc for instance)
+        //if absolute path || bundlePath: delete (use for codeBundle created by ldpm for instance)
         var normal = path.normalize(d.filePath);
         var absolute = path.resolve(d.filePath);
         if ( (normal === absolute) || d.bundlePath ) {
