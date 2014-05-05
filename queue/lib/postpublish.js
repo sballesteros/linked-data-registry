@@ -172,29 +172,66 @@ function processDataset(conf, pkg, rev, callback){
 
 
 /**
- * add preview in SampleType if small script
+ * add preview in SampleType if small script (<2Mo)
  */
 function processCode(conf, pkg, rev, callback){
 
   var code = pkg.code || [];
-  code.forEach(function(r){
-    if(!r.targetProduct) return;
 
-    r.targetProduct.forEach(function(d){
-      if('filePath' in d && '_attachments' in pkg){
-        var basename = path.basename(d.filePath);
-
-        //if absolute path || bundlePath: delete (use for codeBundle created by ldpm for instance)
-        var normal = path.normalize(d.filePath);
-        var absolute = path.resolve(d.filePath);
-        if ( (normal === absolute) || d.bundlePath ) {
-          delete d.filePath;
-        };
-      }
-    });
-
+  async.each(code, function(r, cb){
     r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+
+    if( 'targetProduct' in r ) {
+      async.each(r.targetProduct, function(m, cb2){
+
+        if('filePath' in m && '_attachments' in pkg){
+          var basename = path.basename(m.filePath);
+
+          //if absolute path || bundlePath: delete (use for codeBundle created by ldpm for instance)
+          var normal = path.normalize(m.filePath);
+          var absolute = path.resolve(m.filePath);
+          if ( (normal === absolute) || m.bundlePath ) {
+            delete m.filePath;
+            return cb2(null);
+          };
+        }
+
+        if(m.filePath &&
+           !m.sampleType &&
+           m.downloadUrl &&
+           ( (r.programmingLanguage && r.programmingLanguage.name && (['r', 'python', 'matlab'].indexOf(r.programmingLanguage.name.toLowerCase()) !== -1 )) ||
+             (['.r', '.py', '.m'].indexOf(path.extname(m.filePath).toLowerCase()) !== -1)
+           ) &&
+           m.fileSize &&
+           (m.fileSize < 2097152)
+          ){
+
+          sutil.dereference(m.downloadUrl, conf.s3, function(err, data){
+            if(err) {
+              console.error(err);
+              return cb2(null);
+            }
+
+            m.sampleType = data.Body.toString();
+
+            return cb2(null);
+          });
+
+        } else {
+          return cb2(null);
+        }
+
+      }, cb);
+    } else {
+      cb(null);
+    }
+
+  }, function(err){
+    if(err) console.error(err);
+
+    callback(null, pkg, rev);
   });
+
 
   callback(null, pkg, rev);
 };
