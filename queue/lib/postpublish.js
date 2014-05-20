@@ -199,6 +199,7 @@ function processCode(conf, pkg, rev, callback){
         if(m.filePath &&
            !m.sampleType &&
            m.downloadUrl &&
+           (m.fileFormat === 'text/plain') &&
            ( (r.programmingLanguage && r.programmingLanguage.name && (['r', 'python', 'matlab'].indexOf(r.programmingLanguage.name.toLowerCase()) !== -1 )) ||
              (['.r', '.py', '.m'].indexOf(path.extname(m.filePath).toLowerCase()) !== -1)
            ) &&

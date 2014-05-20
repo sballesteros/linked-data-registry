@@ -69,12 +69,12 @@ var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', co
   , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.username, admin.password, couch.host, couch.port)
   , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.registry);
 
+
 var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use(couch.registry)
   , _users = nano.db.use('_users');
 
 cqs = cqs.defaults({ "couch": rootCouchAdmin, "db": couch.queue });
-
 
 app.set('registry',  registry);
 app.set('_users',  _users);
