@@ -815,17 +815,16 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
     if(!body.rows.length){ //first version ever: add username to maintainers of the pkg
       _users.atomic('maintainers', 'add', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name}, function(err, body, headers){
+        if(err && err.status_code && (err.status_code !== 409)) return next(err); //if 409: can be simultaneous call to the update function we keep going
 
-        if(err) return next(err);
-
-        if(headers['status-code'] >= 400){
+        if(headers && (headers['status-code'] >= 400)){
           return next(errorCode('publish aborted: could not add ' + req.user.name + ' as a maintainer', headers['status-code']));
         } else {
-          reqCouch = request.put({ url: rootCouchRegistry + '/' + id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(err, resCouch, body){
+          reqCouch = request.put({ url: rootCouchRegistry + '/' + id, headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) } }, function(errCouch, resCouch, body){
 
-            if(err) return next(err);
+            if(errCouch) return next(errCouch);
             body = JSON.parse(body);
-            if(resCouch.statusCode >= 400){
+            if(resCouch.statusCode >= 400 && !(err || (err && err.status_code === 409)) ){
               _users.atomic('maintainers', 'rm', 'org.couchdb.user:' + req.user.name, {username: req.user.name, pkgname: req.params.name});
               return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
             }

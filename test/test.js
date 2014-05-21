@@ -31,7 +31,6 @@ var nano = require('nano')('http://seb:seb@127.0.0.1:5984'); //connect as admin
 var registry = nano.db.use('registry')
   , _users = nano.db.use('_users');
 
-
 function rurl(path){
   return 'http://127.0.0.1:3000' + path
 };
