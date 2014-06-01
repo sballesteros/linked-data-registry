@@ -2,8 +2,7 @@ var util = require('util')
   , path = require('path')
   , AWS = require('aws-sdk')
   , postPublish = require('./lib/postpublish')
-  , nano = require('nano')
-  , cqs = require('cqs');
+  , nano = require('nano');
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
@@ -16,9 +15,10 @@ var couch = {
   ssl: process.env['COUCH_SSL'],
   host: process.env['COUCH_HOST'],
   port: process.env['COUCH_PORT'],
-  registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
-  queue: (process.env['QUEUE_DB_NAME'] || 'cqs_queue')
+  registry: (process.env['REGISTRY_DB_NAME'] || 'registry')
 };
+
+var sqsQueueName = process.env['QUEUE_NAME'];
 
 var admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] };
 
@@ -29,46 +29,49 @@ var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', co
 var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use(couch.registry)
 
-cqs = cqs.defaults({ "couch": rootCouchAdmin, "db": couch.queue });
+var sqs = new AWS.SQS();
 
 s3.createBucket(function(err, data) {
   if(err) throw err;
   console.log('S3 bucket (%s) OK', bucket);
 
-  cqs.ListQueues(function(err, queues) {
+  sqs.getQueueUrl({QueueName: sqsQueueName}, function(err, data){
     if(err) throw err;
 
-    if(!queues.length) throw new Error('no queues');
+    var queueUrl = data.QueueUrl;
 
-    var queue = queues[0];
+    if(!queueUrl.length) throw new Error('could not get queue');
 
-    console.log('queue (%s) OK', queues[0].name);
+    console.log('queue "%s" at: %s', sqsQueueName, queueUrl);
 
     function processMsg(){
-      queue.receive(function(err, msgs) {
+      sqs.receiveMessage({QueueUrl: queueUrl}, function(err, data){
 
         if(err){
           console.error(err);
           return setTimeout(processMsg, 10000);
         }
 
-        if(!msgs.length){
+
+        if(!data.Messages || !(data.Messages && data.Messages.length)){
           return setTimeout(processMsg, 10000);
         }
 
-        var msg = msgs[0];
+        var msg = data.Messages[0];
 
-        postPublish({rootCouchRegistry: rootCouchRegistry, admin: admin, s3: s3}, msg.Body, function(err, pkg, rev){
+        postPublish({rootCouchRegistry: rootCouchRegistry, admin: admin, s3: s3}, JSON.parse(msg.Body), function(err, pkg, rev){
           if(err){
             console.error(err);
-            return msg.del(function(err) { processMsg();});
+            return sqs.deleteMessage({QueueUrl: queueUrl, ReceiptHandle: msg.ReceiptHandle}, function(err, data) {
+              processMsg();
+            });
           }
 
           registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
             if(err){
               console.error(err, bodyPost);
             }
-            msg.del(function(err) { processMsg(); });
+            sqs.deleteMessage({QueueUrl: queueUrl, ReceiptHandle: msg.ReceiptHandle}, function(err, data) { processMsg(); });
           });
 
         });

@@ -24,7 +24,6 @@ var http = require('http')
   , sha = require('sha')
   , deleteS3Objects = require('./lib/deleteS3Objects')
   , concat = require('concat-stream')
-  , cqs = require('cqs')
   , bodyParser = require('body-parser')
   , pkgJson = require('../package.json');
 
@@ -56,8 +55,7 @@ var couch = {
   host: process.env['COUCH_HOST'],
   port: process.env['COUCH_PORT'],
   registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
-  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction'),
-  queue: (process.env['QUEUE_DB_NAME'] || 'cqs_queue')
+  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction')
 };
 
 var admin = { username: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
@@ -69,12 +67,14 @@ var rootCouch = util.format('%s://%s:%s', (couch.ssl == 1) ? 'https': 'http', co
   , rootCouchAdmin = util.format('%s://%s:%s@%s:%d', (couch.ssl == 1) ? 'https': 'http', admin.username, admin.password, couch.host, couch.port)
   , rootCouchRegistry = util.format('%s://%s:%s/%s', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.registry);
 
+var sqsQueueName = process.env['QUEUE_NAME'];
 
 var nano = require('nano')(rootCouchAdmin); //connect as admin
 var registry = nano.db.use(couch.registry)
   , _users = nano.db.use('_users');
 
-cqs = cqs.defaults({ "couch": rootCouchAdmin, "db": couch.queue });
+
+var sqs = new AWS.SQS();
 
 app.set('registry',  registry);
 app.set('_users',  _users);
@@ -522,7 +522,7 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 });
 
 
-app.del('/rmuser/:name', forceAuth, function(req, res, next){
+app.delete('/rmuser/:name', forceAuth, function(req, res, next){
 
   if(req.user.name !== req.params.name){
     return next(errorCode('not allowed', 403));
@@ -829,7 +829,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
               return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
             }
 
-            req.app.get('queue').send(body, function(err, msg) {
+            sqs.sendMessage({QueueUrl: req.app.get('queueUrl'), MessageBody: JSON.stringify(body)}, function(err, data){
               if(err) console.error(err);
               return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
             });
@@ -850,7 +850,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
           return next(errorCode('publish aborted ' + body.reason, resCouch.statusCode));
         }
 
-        req.app.get('queue').send(body, function(err, msg) {
+        sqs.sendMessage({QueueUrl: req.app.get('queueUrl'), MessageBody: JSON.stringify(body)}, function(err, data){
           if(err) console.error(err);
           return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
         });
@@ -864,7 +864,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 });
 
 
-app.del('/:name/:version?', forceAuth, function(req, res, next){
+app.delete('/:name/:version?', forceAuth, function(req, res, next){
 
   async.waterfall([
 
@@ -974,12 +974,12 @@ app.use(function(err, req, res, next){
 });
 
 
-cqs.CreateQueue('post_publish', function(err, queue) {
+ sqs.createQueue({QueueName: sqsQueueName, Attributes: {ReceiveMessageWaitTimeSeconds: '20', VisibilityTimeout: '1800'}}, function(err, data){
   if(err) throw err;
 
-  app.set('queue', queue);
+  app.set('queueUrl', data.QueueUrl);
 
-  console.log('queue (%s) OK', queue.name);
+  console.log('queue "%s" at: %s', sqsQueueName, data.QueueUrl);
 
   s3.createBucket(function(err, data) {
     if(err) throw err;
