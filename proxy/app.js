@@ -830,6 +830,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
             }
 
             sqs.sendMessage({QueueUrl: req.app.get('queueUrl'), MessageBody: JSON.stringify(body)}, function(err, data){
+              console.log('send msg');
               if(err) console.error(err);
               return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
             });
@@ -851,6 +852,7 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
         }
 
         sqs.sendMessage({QueueUrl: req.app.get('queueUrl'), MessageBody: JSON.stringify(body)}, function(err, data){
+          console.log('send msg version upd');
           if(err) console.error(err);
           return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
         });

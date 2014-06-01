@@ -45,13 +45,12 @@ s3.createBucket(function(err, data) {
     console.log('queue "%s" at: %s', sqsQueueName, queueUrl);
 
     function processMsg(){
-      sqs.receiveMessage({QueueUrl: queueUrl}, function(err, data){
 
+      sqs.receiveMessage({QueueUrl: queueUrl}, function(err, data){
         if(err){
-          console.error(err);
+          console.error('error receiving message from queue: ', err);
           return setTimeout(processMsg, 10000);
         }
-
 
         if(!data.Messages || !(data.Messages && data.Messages.length)){
           return setTimeout(processMsg, 10000);
@@ -59,9 +58,12 @@ s3.createBucket(function(err, data) {
 
         var msg = data.Messages[0];
 
+
+
         postPublish({rootCouchRegistry: rootCouchRegistry, admin: admin, s3: s3}, JSON.parse(msg.Body), function(err, pkg, rev){
+
           if(err){
-            console.error(err);
+            console.error('error during postpublish processing: ', err);
             return sqs.deleteMessage({QueueUrl: queueUrl, ReceiptHandle: msg.ReceiptHandle}, function(err, data) {
               processMsg();
             });
@@ -69,7 +71,7 @@ s3.createBucket(function(err, data) {
 
           registry.atomic('registry', 'postpublish', pkg._id, pkg, function(err, bodyPost, headersPost){
             if(err){
-              console.error(err, bodyPost);
+              console.error('error during postpublish: ', err, bodyPost, headersPost);
             }
             sqs.deleteMessage({QueueUrl: queueUrl, ReceiptHandle: msg.ReceiptHandle}, function(err, data) { processMsg(); });
           });

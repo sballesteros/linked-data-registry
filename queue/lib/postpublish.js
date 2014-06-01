@@ -232,9 +232,6 @@ function processCode(conf, pkg, rev, callback){
 
     callback(null, pkg, rev);
   });
-
-
-  callback(null, pkg, rev);
 };
 
 /**
