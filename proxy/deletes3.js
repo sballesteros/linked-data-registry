@@ -1,4 +1,5 @@
-var AWS = require('aws-sdk')
+var path = require('path')
+  , AWS = require('aws-sdk')
 
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
