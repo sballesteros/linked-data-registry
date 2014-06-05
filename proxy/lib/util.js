@@ -27,7 +27,7 @@ function dereference(uri, s3, callback){
 
   } else {
 
-    request(uri, function(err, resp, body){
+    request({url:uri, encoding:null}, function(err, resp, body){ //TODO triple  check encoding null...
       if(err) return callback(err);
       if(resp.statusCode >= 400){
         return callback(errCode('could not retrieve body ' + uri, resp.statusCode));

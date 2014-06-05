@@ -213,7 +213,7 @@ function processCode(conf, pkg, rev, callback){
               return cb2(null);
             }
 
-            m.sampleType = data.Body.toString();
+            m.sampleType = Buffer.isBuffer(data.Body)? data.Body.toString(): data.Body;
 
             return cb2(null);
           });
@@ -315,7 +315,7 @@ function _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg
         return _next(rev);
       }
 
-      gm(data.Body, 'article.pdf[0]')
+      gm(Buffer.isBuffer(data.Body)? data.Body : new Buffer(data.Body) , 'article.pdf[0]')
         .resize(400, 400)
         .toBuffer('png', function (err, buffer) {
           if (err) return _next(rev);
