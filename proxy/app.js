@@ -830,7 +830,6 @@ app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
             }
 
             sqs.sendMessage({QueueUrl: req.app.get('queueUrl'), MessageBody: JSON.stringify(body)}, function(err, data){
-              console.log('send msg');
               if(err) console.error(err);
               return res.json((resCouch.statusCode === 200) ? 201: resCouch.statusCode, body);
             });
@@ -976,7 +975,7 @@ app.use(function(err, req, res, next){
 });
 
 
- sqs.createQueue({QueueName: sqsQueueName, Attributes: {ReceiveMessageWaitTimeSeconds: '20', VisibilityTimeout: '1800'}}, function(err, data){
+sqs.createQueue({QueueName: sqsQueueName, Attributes: {ReceiveMessageWaitTimeSeconds: '20', VisibilityTimeout: '1800'}}, function(err, data){
   if(err) throw err;
 
   app.set('queueUrl', data.QueueUrl);
