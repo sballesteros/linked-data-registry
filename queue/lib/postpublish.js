@@ -411,14 +411,14 @@ function _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, 
 
 function _thumbnailImage(figure, cnt, rev, rootCouchRegistry, admin, s3, pkg, next){
 
-  if(!figure.figure){
+  if(!figure.encoding){
     return next(rev);
   }
 
-  var img = figure.figure[cnt];
+  var img = figure.encoding[cnt];
 
   function _next(rev){
-    if(++cnt < figure.figure.length) {
+    if(++cnt < figure.encoding.length) {
       return _thumbnailImage(figure, cnt, rev, rootCouchRegistry, admin, s3, pkg, next);
     } else {
       return next(rev);

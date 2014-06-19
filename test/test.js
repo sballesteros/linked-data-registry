@@ -147,7 +147,7 @@ function rmAll(done){
 
 
 describe('linked data registry', function(){
-  this.timeout(20000);
+  this.timeout(40000);
 
   describe('s3', function(){
 
@@ -811,7 +811,7 @@ describe('linked data registry', function(){
                 figure: [
                   {
                     name: 'fig',
-                    figure:[{
+                    encoding:[{
                       contentPath: 'daftpunk.jpg',
                       contentUrl: 'r/' + digest,
                       contentSize: headers['Content-Length'],
@@ -847,10 +847,10 @@ describe('linked data registry', function(){
     it('should get content', function(done){
       request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
         body = JSON.parse(body);
-        request.get(rurl('/' + body.figure[0].contentUrl), function(err, resp, data){
+        request.get(rurl('/' + body.encoding[0].contentUrl), function(err, resp, data){
           fs.readFile(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, odata){
             assert.equal(data, odata);
-            assert.equal(body.figure[0].hashValue, crypto.createHash('sha1').update(odata).digest('hex'));
+            assert.equal(body.encoding[0].hashValue, crypto.createHash('sha1').update(odata).digest('hex'));
             done();
           });
         });

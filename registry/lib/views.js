@@ -98,10 +98,10 @@ views.bySha1 = {
       }
     });
 
-    ['figure', 'audio', 'video'].forEach(function(mediaType){
+    ['article', 'figure', 'audio', 'video'].forEach(function(mediaType){
       (doc[mediaType] || []).forEach(function(r){
         if(r[mediaType]){
-          r[mediaType].forEach(function(x){
+          r.encoding.forEach(function(x){
             if(x.contentUrl){
               var sha1 = getSha1(r.contentUrl);
               if(sha1){
@@ -111,19 +111,6 @@ views.bySha1 = {
           });
         }
       });
-    });
-
-    (doc.article || []).forEach(function(r){
-      if(r.encoding){
-        r.encoding.forEach(function(x){
-          if(x.contentUrl){
-            var sha1 = getSha1(x.contentUrl);
-            if(sha1){
-              emit(sha1, { _id: doc._id, private: doc.private } );
-            }
-          }
-        });
-      }
     });
 
   },

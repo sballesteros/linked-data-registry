@@ -89,20 +89,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     } 
   }
 
-  //check that figures are figures (MIME type)
-  if('figure' in newDoc){
-    newDoc.figure.forEach(function(f){
-      if(f.contentPath){
-        var attKey = f.contentPath.split('/');
-        attKey = attKey[attKey.length -1];
-        if(newDoc._attachments && newDoc._attachments[attKey]){
-          if(['image/png', 'image/jpeg', 'image/tiff', 'image/gif', 'application/pdf', 'application/postscript'].indexOf(newDoc._attachments[attKey].content_type) === -1){
-            throw { forbidden: 'invalide MIME type for figure (' + newDoc._attachments[attKey].content_type + ')' }; 
-          }
-        }
-      }
-    });
-  }
 
   //stuff that can never be modified
   if(oldDoc){
