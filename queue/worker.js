@@ -58,8 +58,6 @@ s3.createBucket(function(err, data) {
 
         var msg = data.Messages[0];
 
-
-
         postPublish({rootCouchRegistry: rootCouchRegistry, admin: admin, s3: s3}, JSON.parse(msg.Body), function(err, pkg, rev){
 
           if(err){

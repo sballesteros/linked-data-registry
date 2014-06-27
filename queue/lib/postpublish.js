@@ -64,9 +64,9 @@ function processDataset(conf, pkg, rev, callback){
   var dataset = pkg.dataset || [];
   async.eachSeries(dataset, function(r, cb){
 
-    if(!r.distribution) return cb(null);
-
     r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+
+    if(!r.distribution) return cb(null);
 
     async.eachSeries(r.distribution, function(d, cb2){
 
@@ -75,7 +75,7 @@ function processDataset(conf, pkg, rev, callback){
         var s = (typeof d.contentData === 'string') ? d.contentData: JSON.stringify(d.contentData);
 
         var format;
-        if( typeof d.encodingFormat === 'string' ){
+        if(d.encodingFormat){
           format =  d.encodingFormat; //trust user ??? would be good to validate
         } else {
           format = (typeof d.contentData === 'string') ? 'text/plain':
@@ -105,7 +105,6 @@ function processDataset(conf, pkg, rev, callback){
           conf.s3.putObject(opts, function(errS3, resS3){
             if(errS3) {
               console.error(errS3);
-              r.contentRating = ldstars.rateResource(pjsonld.linkDataset(clone(r), r.name, r.version), pkg.license, {string:true});
               return cb2(null);
             }
 
@@ -124,40 +123,6 @@ function processDataset(conf, pkg, rev, callback){
           });
         });
 
-      } else if('contentUrl' in d) {
-
-        //only preview once.
-        if(r.preview){
-          return cb2(null);
-        }
-
-        if(d.encodingFormat && ['application/x-ldjson', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv','text/tab-separated-values'].indexOf(d.encodingFormat) === -1){
-          return cb2(null);
-        }
-
-        sutil.stream(d.contentUrl, conf.s3, function(err, streamContent){
-
-          if(err){
-            console.error(err);
-            return cb2(null);
-          }
-
-          //preview if tabular data
-          previewTabularData(streamContent.readable, {
-            'content-type': streamContent.ContentType || d.encodingFormat || 'application/octet-stream',
-            'content-length': streamContent.ContentLength,
-            'content-encoding':streamContent.ContentEncoding
-          }, {nPreview: 10}, function(err, preview){
-            if(err) return cb2(null);
-
-            if(preview){
-              r.preview = preview
-            }
-            cb2(null);
-          });
-
-        });
-
       } else {
         cb2(null);
       }
@@ -165,73 +130,26 @@ function processDataset(conf, pkg, rev, callback){
     }, cb);
 
   }, function(err){
+
     return callback(err, pkg, rev);
+
   });
 
 };
 
 
 /**
- * add preview in SampleType if small script (<2Mo)
+ * might be async one day hence the callback
  */
 function processCode(conf, pkg, rev, callback){
 
   var code = pkg.code || [];
 
-  async.each(code, function(r, cb){
+  code.forEach(function(r){
     r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
-
-    if( 'targetProduct' in r ) {
-      async.each(r.targetProduct, function(m, cb2){
-
-        if('filePath' in m && '_attachments' in pkg){
-          var basename = path.basename(m.filePath);
-
-          //if absolute path || bundlePath: delete (use for codeBundle created by ldpm for instance)
-          var normal = path.normalize(m.filePath);
-          var absolute = path.resolve(m.filePath);
-          if ( (normal === absolute) || m.bundlePath ) {
-            delete m.filePath;
-            return cb2(null);
-          };
-        }
-
-        if(m.filePath &&
-           !m.sampleType &&
-           m.downloadUrl &&
-           (m.fileFormat === 'text/plain') &&
-           ( (r.programmingLanguage && r.programmingLanguage.name && (['r', 'python', 'matlab'].indexOf(r.programmingLanguage.name.toLowerCase()) !== -1 )) ||
-             (['.r', '.py', '.m'].indexOf(path.extname(m.filePath).toLowerCase()) !== -1)
-           ) &&
-           m.fileSize &&
-           (m.fileSize < 2097152)
-          ){
-
-          sutil.dereference(m.downloadUrl, conf.s3, function(err, data){
-            if(err) {
-              console.error(err);
-              return cb2(null);
-            }
-
-            m.sampleType = Buffer.isBuffer(data.Body)? data.Body.toString(): data.Body;
-
-            return cb2(null);
-          });
-
-        } else {
-          return cb2(null);
-        }
-
-      }, cb);
-    } else {
-      cb(null);
-    }
-
-  }, function(err){
-    if(err) console.error(err);
-
-    callback(null, pkg, rev);
   });
+
+  callback(null, pkg, rev);
 };
 
 /**
@@ -241,8 +159,6 @@ function processAudio(conf, pkg, rev, callback){
 
   var audio = pkg.audio || [];
   audio.forEach(function(r){
-    if(!r.audio) return;
-
     r.contentRating = ldstars.rateResource(pjsonld.linkAudio(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
   });
 
@@ -257,8 +173,6 @@ function processVideo(conf, pkg, rev, callback){
 
   var video = pkg.video || [];
   video.forEach(function(r){
-    if(!r.video) return;
-
     r.contentRating = ldstars.rateResource(pjsonld.linkVideo(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
   });
 
@@ -272,226 +186,136 @@ function processVideo(conf, pkg, rev, callback){
  */
 function processArticle(conf, pkg, rev, callback){
 
-  var article = pkg.article || [];
-  var cnt = 0;
+  var articles = pkg.article || [];
 
-  _thumbnailArticle(article, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
-};
-
-/**
- * recursively thumbnail articles (has to be sequential so that latest _rev is passed to couch)
- */
-function _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
-
-  if(!articles.length){
-    return callback(null, pkg, rev);
-  }
-
-  var r = articles[cnt];
-
-  function _next(rev){
-    if (++cnt < articles.length) {
-      return _thumbnailArticle(articles, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
-    } else {
-      return callback(null, pkg, rev);
-    }
-  }
-
-  if ('encoding' in r) {
+  async.eachSeries(articles, function(r, cb){
     r.contentRating = ldstars.rateResource(pjsonld.linkArticle(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
 
     //find an encoding in PDF AND having a contentUrl
-    var enc = r.encoding.filter(function(x){
+    var enc = (r.encoding || []).filter(function(x){
       return ('contentUrl' in x) && (x.encodingFormat === 'application/pdf' );
     })[0];
 
-    if(!enc){
-      return _next(rev);
-    }
+    //if no thumbnail has been previously assigned and one can be generated
+    if (!r.thumbnailUrl && enc) {
+      sutil.dereference(enc.contentUrl, conf.s3, function(err, data){
+        if(err) {
+          console.error(err);
+          return _next(rev);
+        }
 
-    sutil.dereference(enc.contentUrl, s3, function(err, data){
-      if(err) {
-        console.error(err);
-        return _next(rev);
-      }
-
-      gm(Buffer.isBuffer(data.Body)? data.Body : new Buffer(data.Body) , 'article.pdf[0]')
-        .resize(400, 400)
-        .toBuffer('png', function (err, buffer) {
-          if (err) return _next(rev);
-
-          var contentType = 'image/png';
-          var thumbnailName = 'thumb-' + r.name + '-' + '400' + '.' + mime.extension(contentType);
-
-          var ropts = {
-            url: rootCouchRegistry + '/' + encodeURIComponent(pkg.name + '@' + pkg.version) + '/' + thumbnailName,
-            method: 'PUT',
-            headers:{
-              'Content-Length': buffer.length,
-              'Content-Type': contentType,
-              'If-Match': rev
-            },
-            auth: admin,
-            body: buffer
-          };
-
-          request(ropts, function(err, resp, body){
-            if(err) return _next(rev);
-
-            if (resp.statusCode === 201) {
-              body = JSON.parse(body);
-
-              r.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/' + thumbnailName;
-
-              return _next(body.rev);
-
-            } else {
-
-              return _next(rev);
-
+        gm(Buffer.isBuffer(data.Body)? data.Body : new Buffer(data.Body) , 'article.pdf[0]')
+          .resize(400, 400)
+          .toBuffer('png', function (err, buffer) {
+            if (err) {
+              console.error(err);
+              return cb(null);
             }
-          });
 
-        });
-
-    });
-
-  } else {
-    return _next(rev);
-  }
-
-};
-
-
-
-
-/**
- * create thubnails and store them as attachments
- */
-function processFigure(conf, pkg, rev, callback){
-
-  var figure = pkg.figure || [];
-  var cnt = 0;
-
-  _thumbnailFigure(figure, cnt, rev, conf.rootCouchRegistry, conf.admin, conf.s3, pkg, callback);
-
-};
-
-
-/**
- * recursively thumbnail figures (has to be sequential so that latest _rev is passed to couch)
- */
-function _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback){
-
-  if(!figures.length){
-    return callback(null, pkg, rev);
-  }
-
-  var r = figures[cnt];
-
-  function _next(rev){
-    if (++cnt < figures.length) {
-      return _thumbnailFigure(figures, cnt, rev, rootCouchRegistry, admin, s3, pkg, callback);
-    } else {
-      return callback(null, pkg, rev);
-    }
-  }
-
-  if('figure' in r){
-    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
-
-    _thumbnailImage(r, 0, rev, rootCouchRegistry, admin, s3, pkg, _next);
-
-  } else {
-    return _next(rev);
-  }
-
-};
-
-
-function _thumbnailImage(figure, cnt, rev, rootCouchRegistry, admin, s3, pkg, next){
-
-  if(!figure.encoding){
-    return next(rev);
-  }
-
-  var img = figure.encoding[cnt];
-
-  function _next(rev){
-    if(++cnt < figure.encoding.length) {
-      return _thumbnailImage(figure, cnt, rev, rootCouchRegistry, admin, s3, pkg, next);
-    } else {
-      return next(rev);
-    }
-  }
-
-  if(img.contentUrl){
-
-    sutil.dereference(img.contentUrl, s3, function(err, data){
-      if(err) {
-        console.error(err);
-        return _next(rev);
-      }
-
-      gm(data.Body)
-        .size(function (err, size) {
-
-          if (err) return _next(rev);
-
-          img.width =  { value: size.width,  unitCode: 'E37', description: size.width + 'px'  };
-          img.height = { value: size.height, unitCode: 'E37', description: size.height + 'px' };
-
-          if(figure.thumbnailUrl){
-            return _next(rev);
-          }
-          //if not try to generate a thumbnail
-
-          if(size.width > 400 || size.height > 400){
-            this.resize('400', '400')
-          }
-
-          this.toBuffer('png', function (err, buffer) {
-
-            if (err) return _next(rev);
-
-            var contentType = 'image/png';
-            var thumbnailName = 'thumb-' + figure.name + '-' + '400' + '.' + mime.extension(contentType);
-
-            var ropts = {
-              url: rootCouchRegistry + '/' + encodeURIComponent(pkg.name + '@' + pkg.version) + '/' + thumbnailName,
-              method: 'PUT',
-              headers:{
-                'Content-Length': buffer.length,
-                'Content-Type': contentType,
-                'If-Match': rev
-              },
-              auth: admin,
-              body: buffer
+            var opts = {
+              Key: crypto.createHash('sha1').update(buffer).digest('hex'),
+              Body: buffer,
+              ContentType: 'image/png',
+              ContentLength: buffer.length
             };
 
-            request(ropts, function(err, resp, body){
-              if(err) return _next(rev);
-
-              if (resp.statusCode === 201) {
-                body = JSON.parse(body);
-
-                figure.thumbnailUrl = pkg.name + '/' + pkg.version + '/thumbnail/' + thumbnailName;
-
-                return _next(body.rev);
-
-              } else {
-
-                return _next(rev);
-
+            conf.s3.putObject(opts, function(errS3, resS3){
+              if(errS3) {
+                console.error(errS3);
+                return cb(null);
               }
+
+              r.thumbnailUrl = 'r/' + opts.Key;
+              cb(null);
             });
 
           });
-        });
-    });
+      });
 
-  } else {
-    return _next(rev);
-  }
+    } else {
+      cb(null);
+    }
 
+  }, function(err){
+
+    return callback(err, pkg, rev);
+
+  });
+
+};
+
+
+/**
+ * size images, create thumbnails and store them in S3
+ */
+function processFigure(conf, pkg, rev, callback){
+
+  var figures = pkg.figure || [];
+  async.eachSeries(figures, function(r, cb){
+    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+    
+    if(!r.encoding) return cb(null);
+
+    async.eachSeries(r.encoding, function(img, cb2){
+      if(!img.contentUrl) return cb2(null);
+
+      sutil.dereference(img.contentUrl, conf.s3, function(err, data){
+        if(err) {
+          console.error(err);
+          return cb2(null);
+        }
+
+        //get image size
+        gm(data.Body)
+          .size(function (err, size) {
+
+            if (err) return cb2(null);
+
+            img.width =  { value: size.width,  unitCode: 'E37', description: size.width + 'px'  };
+            img.height = { value: size.height, unitCode: 'E37', description: size.height + 'px' };
+
+            if(r.thumbnailUrl){
+              return cb2(null);
+            }
+
+            //thumbnail
+
+            if(size.width > 400 || size.height > 400){
+              this.resize('400', '400')
+            }
+
+            this.toBuffer('png', function (err, buffer) {
+
+              if (err) return cb2(rev);
+
+              var opts = {
+                Key: crypto.createHash('sha1').update(buffer).digest('hex'),
+                Body: buffer,
+                ContentType: 'image/png',
+                ContentLength: buffer.length
+              };
+
+              conf.s3.putObject(opts, function(errS3, resS3){
+                if(errS3) {
+                  console.error(errS3);
+                  return cb2(null);
+                }
+
+                r.thumbnailUrl = 'r/' + opts.Key;
+                cb2(null);
+              });
+
+            });
+          });
+      });
+
+      
+    }, cb);
+
+  }, function(err){
+
+    return callback(err, pkg, rev);
+
+  });
+  
 };

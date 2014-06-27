@@ -773,28 +773,6 @@ app.get('/:name/:version/article/:article', getStanProxyUrl, maxSatisfyingVersio
   serveJsonld(linkify, req, res, next);
 });
 
-
-/**
- * get readme or thumbnails: do not log
- */
-app.get('/:name/:version/:type/:content', maxSatisfyingVersion, function(req, res, next){
-
-  if(['about', 'thumbnail'].indexOf(req.params.type) === -1){
-    return next(errorCode('not found', 404));
-  }
-
-  if(couch.ssl == 1){
-    req.query.secure = true;
-  }
-
-  var qs = querystring.stringify(req.query);
-  var rurl = '/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/' + req.params.content;
-  rurl += (qs) ? '?' + qs : '';
-
-  res.redirect(rootCouchRegistry + rurl);
-});
-
-
 app.put('/:name/:version', forceAuth, getStanProxyUrl, function(req, res, next){
 
   var id = encodeURIComponent(req.params.name + '@' + req.params.version);

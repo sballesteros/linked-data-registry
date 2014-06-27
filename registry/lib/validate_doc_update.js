@@ -80,15 +80,60 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { forbidden: e.message };    
   }
 
-  if('datePublished' in newDoc){
-    //from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/
-    var iso = /^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$/;
-    
-    if(!iso.test(newDoc.datePublished)){
-      throw { forbidden: 'invalide datePublished' };    
-    } 
-  }
+  //from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/      
+  var isoDateRe = /^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$/;
 
+  var allrtypes = ['dataset', 'code', 'audio', 'video', 'figure', 'article'];
+
+  ['datePublished', 'dateModified', 'dateCreated'].forEach(function(d){
+    if(d in newDoc){
+      if(!isoDateRe.test(newDoc[d])){
+        throw { forbidden: 'invalid date: ' + d };    
+      }
+    }
+
+    allrtypes.forEach(function(t){
+      if(newDoc[t]){
+        newDoc[t].forEach(function(r){
+          if(d in r){
+            if(!isoDateRe.test(r[d])){
+              throw { forbidden: 'invalid date: ' + d };    
+            }
+          }      
+        });
+      }
+    });
+
+  });
+
+  //TODO check for no absolute path
+    
+  //No thumbnailPath
+  if(newDoc.thumbnailPath){
+    throw { forbidden: 'package.jsonld cannot be published with thumbnailPath properties' };        
+  }
+  allrtypes.forEach(function(t){
+    if(newDoc[t]){
+      newDoc[t].forEach(function(r){
+        if(r.thumbnailPath){
+          throw { forbidden: 'package.jsonld cannot be published with thumbnailPath properties' };
+        }      
+      });
+    }
+  });
+
+  //No filePath in case of bundlePath
+  if(newDoc.code){
+    newDoc.code.forEach(function(r){
+      if(r.targetProduct){
+        r.targetProduct.forEach(function(m){
+          if(m.bundlePath && m.filePath){
+            throw { forbidden: 'filePath and bundlePath cannot coexists' };        
+          }
+        });
+      }
+    })
+  }
 
   //stuff that can never be modified
   if(oldDoc){

@@ -20,24 +20,24 @@ updates.postpublish = function(doc, req){
       return [null, resp];
     }
 
-    doc.datePublished = (new Date()).toISOString();
+    doc.dateModified = (new Date()).toISOString();
+    if(!doc.datePublished){
+      doc.datePublished = doc.dateModified;
+    }
 
     if(typeof data.contentRating === 'string'){
       doc.contentRating = data.contentRating;
     }
-
-    if(doc._attachments && doc._attachments['README.md']){
-      doc.about = { name: 'README.md', url: doc.name + '/' + doc.version + '/about/README.md' };
-    }
-
+    
     ['dataset', 'code', 'figure', 'audio', 'video', 'article'].forEach(function(t){
+      //replace resources by postprocessed ones
       if(t in data && data[t].length){
         doc[t] = data[t];
       }
     });
 
     resp.code = 200;
-    resp.body = JSON.stringify({ok: 'distribution added'});
+    resp.body = JSON.stringify({ok: "postpublish ok"});
     return [doc, resp];
 
   } else {

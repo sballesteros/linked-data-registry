@@ -498,63 +498,6 @@ describe('linked data registry', function(){
   });
 
 
-  describe('readme', function(){
-
-    before(function(done){
-      request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
-
-        var mypkg = {
-          name: 'test-readme',
-          version: '0.0.0'
-        };
-
-        fs.stat(path.join(root, 'fixture', 'README.md'), function(err, stat){
-
-          mypkg._attachments = { 'README.md': { follows: true, length: stat.size, 'content_type': 'text/x-markdown', _stream: fs.createReadStream(path.join(root, 'fixture', 'README.md')) } };
-
-          var s = cms(mypkg);
-
-          var options = {
-            port: 3000,
-            hostname: '127.0.0.1',
-            method: 'PUT',
-            path: '/' + mypkg.name + '/' + mypkg.version,
-            auth: userData.name + ':' + pass,
-            headers: s.headers
-          };
-
-          var req = http.request(options, function(res){
-            res.resume();
-            res.on('end', function(){
-              done();
-            });
-          });
-          s.pipe(req);
-        });
-
-      });
-
-    });
-
-    it('serve the README', function(done){
-      request.get(rurl('/test-readme/0.0.0/about/README.md'), function(err, resp, body){
-        fs.readFile(path.join(root, 'fixture', 'README.md'), {encoding: 'utf8'}, function(err, data){
-          assert.deepEqual(body, data);
-          done();
-        });
-      });
-    });
-
-    after(function(done){
-      rm(_users, 'org.couchdb.user:user_a', function(){
-        rm(registry, 'test-readme@0.0.0', function(){
-          done();
-        });
-      });
-    });
-
-  });
-
 
   describe('dataset', function(){
 

@@ -1,5 +1,4 @@
-var fs = require('fs')
-  , path = require('path');
+var fs = require('fs');
 
 //want to use url and datapackage-jsonld in couchdb => install all the deps.
 //TODO find a better way to do this, this is hacky and shitty
