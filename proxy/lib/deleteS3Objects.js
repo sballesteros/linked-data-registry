@@ -17,7 +17,7 @@ module.exports = function(req, pkg, callback){
     }
   });
 
-  (pkg.code || []).forEach(function(r){
+  (pkg.codeSource || []).forEach(function(r){
     if(r.targetProduct && r.targetProduct.downloadUrl){
       var sha1 = sutil.getSha1(r.targetProduct.downloadUrl);
       if(sha1){
@@ -26,7 +26,7 @@ module.exports = function(req, pkg, callback){
     }
   });
 
-  (pkg.figure || []).forEach(function(r){
+  (pkg.image || []).forEach(function(r){
     if(r.contentUrl){
       var sha1 = sutil.getSha1(r.contentUrl);
       if(sha1){

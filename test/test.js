@@ -71,7 +71,6 @@ var pkg = {
   ]
 };
 
-
 var dataString = JSON.stringify(pkg.dataset[0].distribution[0].contentData);
 
 var privatePkg = clone(pkg);
@@ -633,7 +632,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('code', function(){
+  describe('sourceCode', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -653,7 +652,7 @@ describe('linked data registry', function(){
               var mypkg = {
                 name: 'test-pkg',
                 version: '0.0.0',
-                code:[
+                sourceCode:[
                   {
                     name: 'comp',
                     targetProduct: [{
@@ -687,15 +686,15 @@ describe('linked data registry', function(){
 
     });
 
-    it('should get a code entry', function(done){
-      request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
+    it('should get a sourceCode entry', function(done){
+      request.get(rurl('/test-pkg/0.0.0/sourceCode/comp'), function(err, resp, body){
         assert.equal(JSON.parse(body).name, 'comp');
         done();
       });
     });
 
     it('should get content', function(done){
-      request.get(rurl('/test-pkg/0.0.0/code/comp'), function(err, resp, body){
+      request.get(rurl('/test-pkg/0.0.0/sourceCode/comp'), function(err, resp, body){
         body = JSON.parse(body);
         request.get(rurl('/' + body.targetProduct[0].downloadUrl), function(err, resp, data){
           fs.readFile(path.join(root, 'fixture', 'script.r'), {encoding:'utf8'}, function(err, odata){
@@ -708,7 +707,7 @@ describe('linked data registry', function(){
     });
 
     it('should get content from external url', function(done){
-      request.get(rurl('/test-pkg/0.0.0/code/externalurl'), function(err, resp, body){
+      request.get(rurl('/test-pkg/0.0.0/sourceCode/externalurl'), function(err, resp, body){
         body = JSON.parse(body);
         request.get(body.targetProduct[0].downloadUrl, function(err, resp, body){
           assert.equal(body.replace(/\n/g, ''), fs.readFileSync(path.join(root, 'fixture', 'script.r'), {encoding: 'utf8'}).replace(/\n/g, ''));
@@ -730,7 +729,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('figure', function(){
+  describe('image', function(){
 
     before(function(done){
       request.put({url: rurl('/adduser/user_a'), json: userData}, function(err, resp, body){
@@ -751,7 +750,7 @@ describe('linked data registry', function(){
               var mypkg = {
                 name: 'test-pkg',
                 version: '0.0.0',
-                figure: [
+                image: [
                   {
                     name: 'fig',
                     encoding:[{
@@ -779,8 +778,8 @@ describe('linked data registry', function(){
 
     });
 
-    it('should get a figure entry', function(done){
-      request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
+    it('should get a image entry', function(done){
+      request.get(rurl('/test-pkg/0.0.0/image/fig'), function(err, resp, body){
         body = JSON.parse(body);
         assert.equal(body.name, 'fig');
         done();
@@ -788,7 +787,7 @@ describe('linked data registry', function(){
     });
 
     it('should get content', function(done){
-      request.get(rurl('/test-pkg/0.0.0/figure/fig'), function(err, resp, body){
+      request.get(rurl('/test-pkg/0.0.0/image/fig'), function(err, resp, body){
         body = JSON.parse(body);
         request.get(rurl('/' + body.encoding[0].contentUrl), function(err, resp, data){
           fs.readFile(path.join(root, 'fixture', 'daftpunk.jpg'), function(err, odata){

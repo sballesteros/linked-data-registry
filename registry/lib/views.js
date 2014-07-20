@@ -85,7 +85,7 @@ views.bySha1 = {
       }
     });
 
-    (doc.code || []).forEach(function(r){
+    (doc.sourceCode || []).forEach(function(r){
       if(r.targetProduct && r.targetProduct.downloadUrl){
         r.targetProduct.downloadUrl.forEach(function(x){
           if(x.downloadUrl){
@@ -98,7 +98,7 @@ views.bySha1 = {
       }
     });
 
-    ['article', 'figure', 'audio', 'video'].forEach(function(mediaType){
+    ['article', 'image', 'audio', 'video'].forEach(function(mediaType){
       (doc[mediaType] || []).forEach(function(r){
         if(r[mediaType]){
           r.encoding.forEach(function(x){

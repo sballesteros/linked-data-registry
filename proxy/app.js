@@ -50,6 +50,8 @@ var app = express()
   , httpServer = http.createServer(app)
   , httpsServer = https.createServer(credentials, app);
 
+app.enable('case sensitive routing');
+
 var couch = {
   ssl: process.env['COUCH_SSL'],
   host: process.env['COUCH_HOST'],
@@ -181,19 +183,19 @@ function getDatasetUrl(req, res, next){
   next();
 };
 
-function getCodeUrl(req, res, next){
+function getSourceCodeUrl(req, res, next){
   var qs = querystring.stringify(req.query);
-  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/code/' + req.params.code;
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/sourceCode/' + req.params.sourceCode;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
   next();
 };
 
-function getFigureUrl(req, res, next){
+function getImageUrl(req, res, next){
 
   var qs = querystring.stringify(req.query);
-  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/figure/' + req.params.figure;
+  var rurl = '/_design/registry/_rewrite/' + encodeURIComponent(req.params.name + '@' + req.params.version) + '/image/' + req.params.image;
   rurl += (qs) ? '?' + qs : '';
 
   req.couchUrl = rootCouchRegistry + rurl;
@@ -706,28 +708,28 @@ app.get('/:name/:version/dataset/:dataset', getStanProxyUrl, maxSatisfyingVersio
 });
 
 
-app.get('/:name/:version/code/:code', getStanProxyUrl, maxSatisfyingVersion, getCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+app.get('/:name/:version/sourceCode/:sourceCode', getStanProxyUrl, maxSatisfyingVersion, getSourceCodeUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
-  function linkify(code, options){
-    return pjsonld.linkCode(code, req.params.name, req.params.version);
+  function linkify(sourceCode, options){
+    return pjsonld.linkSourceCode(sourceCode, req.params.name, req.params.version);
   };
 
   serveJsonld(linkify, req, res, next);
 });
 
 
-app.get('/:name/:version/figure/:figure', getStanProxyUrl, maxSatisfyingVersion, getFigureUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
+app.get('/:name/:version/image/:image', getStanProxyUrl, maxSatisfyingVersion, getImageUrl, getCouchDocument, checkAuth, logDownload, function(req, res, next){
 
   if(couch.ssl == 1){
     req.query.secure = true;
   }
 
-  function linkify(figure, options){
-    return pjsonld.linkFigure(figure, req.params.name, req.params.version);
+  function linkify(image, options){
+    return pjsonld.linkImage(image, req.params.name, req.params.version);
   };
 
   serveJsonld(linkify, req, res, next);
@@ -943,8 +945,6 @@ function errorCode(msg, code){
   err.code = code;
   return err;
 };
-
-
 
 
 app.use(function(err, req, res, next){

@@ -19,7 +19,7 @@ indexes.fullpackage = {
 
     index("pkg", terms.join(' '), {store: "no"});
     
-    ['dataset', 'code', 'figure', 'article'].forEach(function(t){
+    ['dataset', 'sourceCode', 'image', 'article'].forEach(function(t){
       if (t in doc) {
         var rterms = [];
         doc[t].forEach(function(r){

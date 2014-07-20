@@ -13,8 +13,8 @@ module.exports = [
   { from: '/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
   { from: '/first/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
   { from: '/:pkg_id/dataset/:dataset', to: '/_show/dataset/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/code/:code', to: '/_show/code/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/figure/:figure', to: '/_show/figure/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/sourceCode/:sourceCode', to: '/_show/sourceCode/:pkg_id', method: 'GET' },
+  { from: '/:pkg_id/image/:image', to: '/_show/image/:pkg_id', method: 'GET' },
   { from: '/:pkg_id/audio/:audio', to: '/_show/audio/:pkg_id', method: 'GET' },
   { from: '/:pkg_id/video/:video', to: '/_show/video/:pkg_id', method: 'GET' },
   { from: '/:pkg_id/article/:article', to: '/_show/article/:pkg_id', method: 'GET' }

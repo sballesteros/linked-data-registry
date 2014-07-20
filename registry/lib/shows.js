@@ -43,9 +43,9 @@ shows.dataset = function(doc, req){
 };
 
 
-shows.code = function(doc, req){
+shows.sourceCode = function(doc, req){
 
-  var r = doc.code.filter(function(x){ return x.name === req.query.code; })[0];
+  var r = doc.sourceCode.filter(function(x){ return x.name === req.query.sourceCode; })[0];
   if(r){
 
     if(doc.private){
@@ -66,9 +66,9 @@ shows.code = function(doc, req){
 };
 
 
-shows.figure = function(doc, req){
+shows.image = function(doc, req){
 
-  var r = doc.figure.filter(function(x){ return x.name === req.query.figure; })[0];
+  var r = doc.image.filter(function(x){ return x.name === req.query.image; })[0];
   if(r){
 
     if(doc.private){
@@ -81,7 +81,7 @@ shows.figure = function(doc, req){
     };
 
   } else {
-    throw ['error', 'not_found', 'invalid figure name'];
+    throw ['error', 'not_found', 'invalid image name'];
   }
 
 };

@@ -32,11 +32,11 @@ module.exports = function(conf, msg, callback){
 
     processDataset(conf, pkg, msg.rev, function(err, pkg, rev){
       if(err) console.error(err);
-      processCode(conf, pkg, rev, function(err, pkg, rev){
+      processSourceCode(conf, pkg, rev, function(err, pkg, rev){
         if(err) console.error(err);
         processArticle(conf, pkg, rev, function(err, pkg, rev){
           if(err) console.error(err);
-          processFigure(conf, pkg, rev, function(err, pkg, rev){
+          processImage(conf, pkg, rev, function(err, pkg, rev){
             if(err) console.error(err);
             processAudio(conf, pkg, rev, function(err, pkg, rev){
               if(err) console.error(err);
@@ -141,12 +141,12 @@ function processDataset(conf, pkg, rev, callback){
 /**
  * might be async one day hence the callback
  */
-function processCode(conf, pkg, rev, callback){
+function processSourceCode(conf, pkg, rev, callback){
 
-  var code = pkg.code || [];
+  var sourceCode = pkg.sourceCode || [];
 
-  code.forEach(function(r){
-    r.contentRating = ldstars.rateResource(pjsonld.linkCode(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  sourceCode.forEach(function(r){
+    r.contentRating = ldstars.rateResource(pjsonld.linkSourceCode(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
   });
 
   callback(null, pkg, rev);
@@ -248,11 +248,11 @@ function processArticle(conf, pkg, rev, callback){
 /**
  * size images, create thumbnails and store them in S3
  */
-function processFigure(conf, pkg, rev, callback){
+function processImage(conf, pkg, rev, callback){
 
-  var figures = pkg.figure || [];
-  async.eachSeries(figures, function(r, cb){
-    r.contentRating = ldstars.rateResource(pjsonld.linkFigure(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
+  var images = pkg.image || [];
+  async.eachSeries(images, function(r, cb){
+    r.contentRating = ldstars.rateResource(pjsonld.linkImage(clone(r), pkg.name, pkg.version), pkg.license, {string:true});
     
     if(!r.encoding) return cb(null);
 

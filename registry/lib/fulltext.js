@@ -16,7 +16,7 @@ fulltext.fullpackage = {
       });
     }
 
-    ['dataset', 'code', 'figure', 'article'].forEach(function(t){
+    ['dataset', 'sourceCode', 'image', 'article'].forEach(function(t){
       if (t in doc) {
         doc[t].forEach(function(r){
           if (r.description) {
