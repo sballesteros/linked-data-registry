@@ -41,4 +41,4 @@ You need couchdb running with an admin with username:seb, password:seb
 License
 =======
 
-GPL version 3 or any later version.
+Apache 2.0.
