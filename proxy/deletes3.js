@@ -7,7 +7,6 @@ AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
 var bucket = 'standardanalytics';
 var s3 = new AWS.S3({params: {Bucket: bucket}});
 
-
 var deletor = {
   deleteObject: function (client, deleteParams) {
     client.deleteObject(deleteParams, function (err, data) {

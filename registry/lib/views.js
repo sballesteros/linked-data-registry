@@ -1,7 +1,6 @@
 var views = exports;
 var modules = require("./modules.js");
 
-//discusting hack...
 views.lib = {
   semver: modules.semver,
   paddedSemver: modules['padded-semver'].replace("require('semver')", "require('views/lib/semver')", 'g'),  //discusting hack...
@@ -14,105 +13,103 @@ views.lib = {
 };
 
 
-views.byName = {
+views.byId = {
   map: function(doc){
-    emit(doc.name, { _id: doc._id, name: doc.name, version: doc.version, private: doc.private, description: (('description' in doc) ? doc.description : '') } );
+    var edoc = {
+      _id: doc._id,
+      '@id': doc['@id']
+    };
+    if (doc['@type']) edoc['@type'] = doc['@type'];
+    if (doc.version) edoc.version = doc.version;
+
+    emit(doc['@id'].split(':')[1], edoc);
   },
   reduce: '_count'
 };
 
-
-views.byNameAndVersion = {
+views.byIdAndVersion = {
   map: function(doc){
-    emit([doc.name, require('views/lib/paddedSemver').pad(doc.version)], {_id: doc._id, name: doc.name, version: doc.version, private: doc.private, description: (('description' in doc) ? doc.description : '') } );
-  },
-  reduce: '_count'
-};
+    var version;
+    if ('version' in doc) {
+      var semver = require('views/lib/semver');
+      if (semver.valid(doc.version) ) {
+        var paddedSemver = require('views/lib/paddedSemver');
+        version = paddedSemver.pad(doc.version);
+      } else {
+        version = doc.version;
+      }
 
-
-views.byKeyword = {
-  map: function (doc) {
-
-    var objTop = { _id: doc._id, name: doc.name, private: doc.private, description: doc.description || '' };
-
-    doc.name.trim().toLowerCase().split('-').forEach(function(n){
-      emit(n, objTop);
-    });
-
-    if('keywords' in doc){
-      doc.keywords.forEach(function(kw) {
-        emit(kw.trim().toLowerCase(), objTop);
+      emit([doc['@id'].split(':')[1], version], {
+        _id: doc._id,
+        '@id': doc['@id'],
+        version: doc.version
       });
     }
-
   },
-
-  reduce: "_count"
+  reduce: '_count'
 };
 
 
 /**
- * useful to know if we can delete the resource
+ * used to know if we can delete the resource with sha-1
  */
 views.bySha1 = {
   map: function(doc){
     var isUrl = require('views/lib/is-url');
     var url = require('views/lib/url');
 
-    function getSha1(uri){
-      if(!isUrl(uri)){
-        return uri.replace(/^\/|\/$/g, '').split('/')[1];
-      } else {
+    function _getSha1(uri){
+      var pathName;
+      var splt = uri.split(':');
+
+      if (splt.length === 2 && splt[0] === 'sa') {
+        pathName = splt[1];
+      } else if (isUrl(uri)) {
         purl = url.parse(uri);
-        if(purl.hostname === 'registry.standardanalytics.io'){
-          return purl.pathname.replace(/^\/|\/$/g, '').split('/')[1];
+        if (purl.hostname === 'registry.standardanalytics.io') {
+          pathname =  purl.pathname;
         }
       }
-      return undefined;
+
+      if (pathName) {
+        var spn = pathName.replace(/^\/|\/$/g, '').split('/');
+        if (spn.length === 2 && spn[0] === 'r') {
+          return spn[1];
+        }
+      }
     };
 
+    function _forEachNode(doc, callback){
+      for (var prop in doc) {
+        if (prop === '@context' || !doc.hasOwnProperty(prop)) continue;
 
-    (doc.dataset || []).forEach(function(r){
-      if(r.distribution){
-        r.distribution.forEach(function(x){
-          if(x.contentUrl){
-            var sha1 = getSha1(x.contentUrl);
-            if(sha1){
-              emit(sha1, { _id: doc._id, private: doc.private } );
+        if (Array.isArray(doc[prop])) {
+          for (var i=0; i<doc[prop].length; i++) {
+            if (typeof doc[prop][i] === 'object') {
+              callback(prop, doc[prop][i]);
+              _forEachNode(doc[prop][i], callback, _this);
             }
           }
-        });
+        } else if (typeof doc[prop] === 'object') {
+          callback(prop, doc[prop]);
+          _forEachNode(doc[prop], callback, _this);
+        }
       }
-    });
+    };
 
-    (doc.sourceCode || []).forEach(function(r){
-      if(r.targetProduct && r.targetProduct.downloadUrl){
-        r.targetProduct.downloadUrl.forEach(function(x){
-          if(x.downloadUrl){
-            var sha1 = getSha1(x.downloadUrl);
-            if(sha1){
-              emit(sha1, { _id: doc._id, private: doc.private } );
-            }
+    function _emit(prop, node){
+      ['downloadUrl', 'installUrl', 'contentUrl', 'embedUrl'].forEach(function(x){
+        if (node[x]) {
+          var sha1 = _getSha1(node[x]);
+          if (sha1) {
+            emit(sha1, { _id: doc._id, '@id': doc['@id'] } );
           }
-        });
-      }
-    });
-
-    ['article', 'image', 'audio', 'video'].forEach(function(mediaType){
-      (doc[mediaType] || []).forEach(function(r){
-        if(r[mediaType]){
-          r.encoding.forEach(function(x){
-            if(x.contentUrl){
-              var sha1 = getSha1(r.contentUrl);
-              if(sha1){
-                emit(sha1, { _id: doc._id, private: doc.private } );
-              }
-            }
-          });
         }
       });
-    });
+    };
 
+    _emit(null, doc);
+    _forEachNode(doc, _emit);
   },
   reduce: '_count'
 };

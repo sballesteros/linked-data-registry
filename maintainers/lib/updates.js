@@ -35,7 +35,7 @@ updates.create = function(userDoc, req){
     if ( errs.length || (req.id !== ('org.couchdb.user:' +data.name)) ){
       resp.body = JSON.stringify({error: errs.map(function(e){return e.message;}).join(' ; ') || 'conficting username' });
       resp.code = 400;
-      return [null, resp];      
+      return [null, resp];
     }
 
     userDoc = {
@@ -53,23 +53,23 @@ updates.create = function(userDoc, req){
       userDoc.salt = data.salt;
       userDoc.password_sha = data.password_sha;
     }
-    
+
     resp.code = 201;
-    resp.body = JSON.stringify({ok: 'created'});      
-    return [userDoc, resp];    
+    resp.body = JSON.stringify({ok: 'created'});
+    return [userDoc, resp];
   }
-    
+
 };
 
 
 /**
- * add req.body.pkgname to the roles list of userDoc. Can only be
+ * add req.body.namespace to the roles list of userDoc. Can only be
  * done by admins.
- */ 
+ */
 updates.add = function (userDoc, req) {
 
   var resp = {headers : {"Content-Type" : "application/json"}};
-  
+
   if(!userDoc){
     resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
     return [null, resp];
@@ -81,18 +81,18 @@ updates.add = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.pkgname === 'string') ) || (data.pkgname.charAt(0) === '_') ) {
+    if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ) {
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
-      return [null, resp];      
-    }    
-
-    if(userDoc.roles.indexOf(data.pkgname) === -1 ){
-      userDoc.roles.push(data.pkgname);   
+      return [null, resp];
     }
-    
+
+    if(userDoc.roles.indexOf(data.namespace) === -1 ){
+      userDoc.roles.push(data.namespace);
+    }
+
     resp.code = 200;
-    resp.body = JSON.stringify(userDoc.roles);      
+    resp.body = JSON.stringify(userDoc.roles);
     return [userDoc, resp];
 
   } else {
@@ -107,7 +107,7 @@ updates.add = function (userDoc, req) {
 updates.rm = function (userDoc, req) {
 
   var resp = {headers : {"Content-Type" : "application/json"}};
-  
+
   if(!userDoc){
     resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
     return [null, resp];
@@ -119,19 +119,19 @@ updates.rm = function (userDoc, req) {
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.pkgname === 'string') ) || (data.pkgname.charAt(0) === '_') ){
+    if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ){
       resp.body = JSON.stringify({error: "invalid data" });
       resp.code = 400;
-      return [null, resp];      
-    }    
-
-    var pos = userDoc.roles.indexOf(data.pkgname);
-    if(pos !== -1 ){
-      userDoc.roles.splice(pos, 1);   
+      return [null, resp];
     }
-    
+
+    var pos = userDoc.roles.indexOf(data.namespace);
+    if(pos !== -1 ){
+      userDoc.roles.splice(pos, 1);
+    }
+
     resp.code = 200;
-    resp.body = JSON.stringify(userDoc.roles);      
+    resp.body = JSON.stringify(userDoc.roles);
     return [userDoc, resp];
 
   } else {

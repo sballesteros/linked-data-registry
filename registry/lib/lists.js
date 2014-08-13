@@ -13,37 +13,6 @@ lists.latest = function(head, req){
 
   start({ "headers": { "Content-Type": "application/json" } });
   send(JSON.stringify(util.clean(doc, req), null, 2));
-
-};
-
-
-lists.versions = function(head, req){
-  var row;
-  var packages = [];
-  while(row = getRow()){
-    packages.push({
-      '@type': 'Package',
-      name: row.value.name,
-      version: row.value.version,
-      description: row.value.description,
-      private: row.value.private,
-      url: row.value.name + '/' + row.value.version,
-    });
-  }
-
-  if(!packages.length){
-    start({
-      code: 404,
-      headers: {"Content-Type": "application/json"}
-    });
-    return send(JSON.stringify({error: "no results"}));
-  } else {
-    start({"headers": {"Content-Type": "application/json"}});
-    send(JSON.stringify({
-      '@id': req.query.name,
-      package: packages
-    }, null, 2));
-  }
 };
 
 

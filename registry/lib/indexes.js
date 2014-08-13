@@ -1,11 +1,11 @@
 var indexes = exports;
 
 indexes.fullpackage = {
-  index: function(doc) { 
+  index: function(doc) {
 
     var terms = [];
 
-    terms.push(doc.name); 
+    terms.push(doc.name);
 
     if(doc.description){
       terms.push(doc.description);
@@ -17,8 +17,8 @@ indexes.fullpackage = {
       });
     }
 
-    index("pkg", terms.join(' '), {store: "no"});
-    
+    index('pkg', terms.join(' '), {store: 'no'});
+
     ['dataset', 'sourceCode', 'image', 'article'].forEach(function(t){
       if (t in doc) {
         var rterms = [];
@@ -29,12 +29,12 @@ indexes.fullpackage = {
           }
         });
         if(rterms.length){
-          index(t, rterms.join(' '), {store: "no"});          
+          index(t, rterms.join(' '), {store: 'no'});
         }
       }
     });
 
-    index("default", terms.join(' '), {store: "no"});
-    
+    index('default', terms.join(' '), {store: 'no'});
+
   }
 };

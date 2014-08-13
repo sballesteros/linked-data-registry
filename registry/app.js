@@ -6,9 +6,8 @@ var ddoc = module.exports = {
   shows: require("./lib/shows"),
   lists: require("./lib/lists"),
   views: require("./lib/views"),
-  fulltext: require("./lib/fulltext"), //vanilla couchdb
-  updates: require("./lib/updates"),
-  indexes: require("./lib/indexes"), //cloudant
+  //  fulltext: require("./lib/fulltext"), //vanilla couchdb
+  //  indexes: require("./lib/indexes"), //cloudant
   validate_doc_update: require("./lib/validate_doc_update"),
   language: "javascript"
 };

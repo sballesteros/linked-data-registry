@@ -1,6 +1,6 @@
 var shows = exports;
 
-shows.package = function(doc,req){
+shows.doc = function(doc,req){
 
   var util = require('pkg-util');
 
@@ -12,7 +12,8 @@ shows.package = function(doc,req){
 };
 
 
-shows.dataset = function(doc, req){
+//TOOO update
+shows.part = function(doc, req){
 
   var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
   if(r){
@@ -38,111 +39,6 @@ shows.dataset = function(doc, req){
 
     throw ['error', 'not_found', 'invalid dataset name'];
 
-  }
-
-};
-
-
-shows.sourceCode = function(doc, req){
-
-  var r = doc.sourceCode.filter(function(x){ return x.name === req.query.sourceCode; })[0];
-  if(r){
-
-    if(doc.private){
-      r.private = doc.private;
-    }
-
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else {
-
-    throw ['error', 'not_found', 'invalid code entry name'];
-
-  }
-
-};
-
-
-shows.image = function(doc, req){
-
-  var r = doc.image.filter(function(x){ return x.name === req.query.image; })[0];
-  if(r){
-
-    if(doc.private){
-      r.private = doc.private;
-    }
-
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else {
-    throw ['error', 'not_found', 'invalid image name'];
-  }
-
-};
-
-shows.audio = function(doc, req){
-
-  var r = doc.audio.filter(function(x){ return x.name === req.query.audio; })[0];
-  if(r){
-
-    if(doc.private){
-      r.private = doc.private;
-    }
-
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else {
-    throw ['error', 'not_found', 'invalid audio name'];
-  }
-
-};
-
-shows.video = function(doc, req){
-
-  var r = doc.video.filter(function(x){ return x.name === req.query.video; })[0];
-  if(r){
-
-    if(doc.private){
-      r.private = doc.private;
-    }
-
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else {
-    throw ['error', 'not_found', 'invalid video name'];
-  }
-
-};
-
-
-shows.article = function(doc, req){
-
-  var r = doc.article.filter(function(x){ return x.name === req.query.article; })[0];
-  if(r){
-
-    if(doc.private){
-      r.private = doc.private;
-    }
-
-    return {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
-    };
-
-  } else {
-    throw ['error', 'not_found', 'invalid article name'];
   }
 
 };

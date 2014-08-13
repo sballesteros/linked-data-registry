@@ -1,21 +1,19 @@
 module.exports = [
-  { from: '/all', to: '/_view/byNameAndVersion', method: 'GET', query: {descending: 'true', reduce: 'false'}},
+  { from: '/all', to: '/_view/byId', method: 'GET',
+    query: {descending: 'true', reduce: 'true', group: 'true'} },
 
-  { from: '/versions/:name', to: '/_list/versions/byNameAndVersion', method: 'GET',
-    query: {reduce: 'false', startkey: [':name'], endkey: [':name', '\ufff0'], include_docs:'false'} },
+  { from: '/all/:id', to: '/_view/byId', method: 'GET',
+    query: {reduce: 'false', key: ':id', include_docs: 'false'} },
 
-  { from: '/:name/latest', to: '/_list/latest/byNameAndVersion', method: 'GET',
-    query: {reduce: 'false', descending: 'true', startkey: [':name', '\ufff0'], endkey: [':name'], limit: '1', include_docs:'true'} },
+  { from: '/versions/:id', to: '/_list/versions/byIdAndVersion', method: 'GET',
+    query: {reduce: 'false', startkey: [':id'], endkey: [':id', '\ufff0'], include_docs: 'false'} },
 
-  {from: '/search', to: '/_list/search/byKeyword', method: 'GET', query: {reduce: 'false'}},
-  //{ from: '/search', to: '/_view/byKeyword', method: 'GET', query: {reduce: 'false'}},
+  { from: '/latest/:id', to: '/_list/latest/byIdAndVersion', method: 'GET',
+    query: {reduce: 'false', descending: 'true', startkey: [':id', '\ufff0'], endkey: [':id'], limit: '1', include_docs:'true'} },
 
-  { from: '/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
-  { from: '/first/:pkg_id', to: '/_show/package/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/dataset/:dataset', to: '/_show/dataset/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/sourceCode/:sourceCode', to: '/_show/sourceCode/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/image/:image', to: '/_show/image/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/audio/:audio', to: '/_show/audio/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/video/:video', to: '/_show/video/:pkg_id', method: 'GET' },
-  { from: '/:pkg_id/article/:article', to: '/_show/article/:pkg_id', method: 'GET' }
+  { from: '/sha1/:sha1', to: '/_view/bySha1', method: 'GET',
+    query: {reduce: 'true', key: ':id', group: 'true'} },
+
+  { from: '/show/:id', to: '/_show/doc/:id', method: 'GET' },
+  { from: '/show/:id/:part_id', to: '/_show/part/:id/:part_id', method: 'GET' }
 ];
