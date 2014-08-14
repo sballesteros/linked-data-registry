@@ -6,38 +6,48 @@ shows.doc = function(doc,req){
 
   return {
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(util.clean(doc, req), null, 2)
+    body: JSON.stringify(util.clean(doc), null, 2)
   };
 
 };
 
 
-//TOOO update
 shows.part = function(doc, req){
 
-  var r = doc.dataset.filter(function(x){ return x.name === req.query.dataset; })[0];
-  if(r){
+  var isUrl = require('is-url');
+  var util = require('pkg-util');
 
-    if(doc.private){
-      r.private = doc.private;
-    }
+  var id = req.query.id;
+  var partId = decodeURIComponent(req.query.part_id);
 
-    if(r.distribution){
-      r.distribution.forEach(function(x){
-        if(x.contentData){
-          delete x.contentData;
-        }
-      });
+  var part;
+  _forEachNode(doc, function(prop, node){
+    if (node['@id']) {
+      var nodePartId;
+      if (isUrl(node['@id'])) {
+        nodePartId = node['@id'];
+      } else if (partId === node['@id']) { // non SA CURIE e.g github:partId
+        nodePartId = node['@id'];
+      } else {
+        nodePartId = node['@id'].split('sa:' + id)[1];
+      }
+
+      if (nodePartId && nodePartId === partId) {
+        part = node;
+      }
     }
+  });
+
+  if(part){
 
     return {
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(r, null, 2)
+      body: JSON.stringify(util.clean(part), null, 2)
     };
 
   } else { //inline data or invalid URL
 
-    throw ['error', 'not_found', 'invalid dataset name'];
+    throw ['error', 'not_found', 'invalid part id'];
 
   }
 

@@ -12,7 +12,6 @@ views.lib = {
     .replace("require('querystring')", "require('views/lib/querystring')", 'g')
 };
 
-
 views.byId = {
   map: function(doc){
     var edoc = {
@@ -29,6 +28,8 @@ views.byId = {
 
 views.byIdAndVersion = {
   map: function(doc){
+    var id = doc['@id'].split(':')[1];
+
     var version;
     if ('version' in doc) {
       var semver = require('views/lib/semver');
@@ -38,13 +39,16 @@ views.byIdAndVersion = {
       } else {
         version = doc.version;
       }
-
-      emit([doc['@id'].split(':')[1], version], {
-        _id: doc._id,
-        '@id': doc['@id'],
-        version: doc.version
-      });
+    } else {
+      version = id;
     }
+
+    emit([id, version], {
+      _id: doc._id,
+      '@id': doc['@id'],
+      version: doc.version
+    });
+
   },
   reduce: '_count'
 };

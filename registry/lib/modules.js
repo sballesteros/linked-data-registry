@@ -19,7 +19,6 @@ exports['proxy'] = [
 
 exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['REGISTRY_DB_NAME'] || 'registry'),
 
-
 exports['pkg-util'] =
   [ 'exports.root = root',
     'var couch = require("couch")',
@@ -51,7 +50,7 @@ exports['pkg-util'] =
     },
 
     'exports.clean = clean',
-    function clean(pkg, req){
+    function clean(pkg){
       delete pkg._id;
       delete pkg._rev;
       delete pkg._revisions;
@@ -64,5 +63,24 @@ exports['pkg-util'] =
     function extname(filename) {
       var i = filename.lastIndexOf('.');
       return (i < 0) ? '' : filename.substr(i);
+    },
+
+    'exports.forEachNode = forEachNode',
+    function forEachNode(doc, callback){
+      for (var prop in doc) {
+        if (prop === '@context' || !doc.hasOwnProperty(prop)) continue;
+
+        if (Array.isArray(doc[prop])) {
+          for (var i=0; i<doc[prop].length; i++) {
+            if (typeof doc[prop][i] === 'object') {
+              callback(prop, doc[prop][i]);
+              _forEachNode(doc[prop][i], callback, _this);
+            }
+          }
+        } else if (typeof doc[prop] === 'object') {
+          callback(prop, doc[prop]);
+          _forEachNode(doc[prop], callback, _this);
+        }
+      }
     }
   ].map(function (s) { return s.toString() + ';' }).join('\n');

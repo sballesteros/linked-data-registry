@@ -12,8 +12,56 @@ lists.latest = function(head, req){
   var util = require('pkg-util');
 
   start({ "headers": { "Content-Type": "application/json" } });
-  send(JSON.stringify(util.clean(doc, req), null, 2));
+  send(JSON.stringify(util.clean(doc), null, 2));
 };
+
+lists.latestPart = function(head, req){
+  var row = getRow();
+
+  if(!row){
+    throw ['error', 'not_found', 'no results'];
+  }
+
+  var doc = row.doc;
+
+  var isUrl = require('is-url');
+  var util = require('pkg-util');
+
+  var id = req.query.id;
+  var partId = decodeURIComponent(req.query.part_id);
+
+  var part;
+  _forEachNode(doc, function(prop, node){
+    if (node['@id']) {
+      var nodePartId;
+      if (isUrl(node['@id'])) {
+        nodePartId = node['@id'];
+      } else if (partId === node['@id']) { // non SA CURIE e.g github:partId
+        nodePartId = node['@id'];
+      } else {
+        nodePartId = node['@id'].split('sa:' + id)[1];
+      }
+
+      if (nodePartId && nodePartId === partId) {
+        part = node;
+      }
+    }
+  });
+
+  if(part){
+
+    start({ "headers": { "Content-Type": "application/json" } });
+    send(JSON.stringify(util.clean(part), null, 2));
+
+  } else { //inline data or invalid URL
+
+    throw ['error', 'not_found', 'invalid part id'];
+
+  }
+
+};
+
+
 
 
 lists.search = function(head, req){

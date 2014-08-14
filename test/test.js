@@ -246,4 +246,58 @@ describe('linked data registry', function(){
 
   });
 
+
+  describe('versions', function(){
+    var auth = { user: 'user_a', pass: pass };
+
+    var id = 'doc-version';
+    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '0.0.0' };
+    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '0.1.0' };
+    var doc2 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '1.0.0' };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+        async.each([doc0, doc1, doc2], function(doc, cb){
+          request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
+        }, done);
+      })
+    });
+
+    it('should retrieve a specific version', function(done){
+      request.get(rurl(encodeURIComponent(doc1['@id'] + '@' + doc1.version)), function(err, resp, doc){
+        assert.equal(doc.version, doc1.version);
+        done();
+      });
+    });
+
+    it('should retrieve the latest version', function(done){
+      request.get(rurl(id), function(err, resp, doc){
+        assert.equal(doc.version, doc2.version);
+        done();
+      });
+    });
+
+    it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
+      request(rurl(id + '?' + querystring.stringify({range: '<1.0.0'})), function(err, resp, doc){
+        assert.equal(doc.version, '0.1.0');
+        done();
+      });
+    });
+
+    it('should 404 on range that cannot be statisfied', function(done){
+      request(rurl(id + '?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, doc){
+        assert.equal(resp.statusCode, 404);
+        done();
+      });
+    });
+
+    after(function(done){
+      request.del({ url: rurl(doc0['@id']), auth: auth }, function(){
+        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      });
+    });
+  });
+
+  //TODO test JSON-LD conversions
+
 });

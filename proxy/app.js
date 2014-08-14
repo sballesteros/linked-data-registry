@@ -20,6 +20,7 @@ var http = require('http')
   , sha = require('sha')
   , s3util = require('./lib/s3util')
   , bodyParser = require('body-parser')
+  , concat = require('concat-stream')
   , pkgJson = require('../package.json');
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
@@ -96,7 +97,7 @@ function forceAuth(req, res, next){
 
   var user = auth(req);
   if (!user) {
-    return res.json(401 , {'error': 'Unauthorized'});
+    return res.status(401).json({'error': 'Unauthorized'});
   }
 
   request.post({url: rootCouch + '_session', json: {name: user.name, password: user.pass} }, function(err, resp, body){
@@ -111,7 +112,7 @@ function forceAuth(req, res, next){
       req.user = { name: user.name, token: token };
       next();
     } else {
-      res.json(403 , {'error': 'Forbidden'});
+      res.status(403).json({'error': 'Forbidden'});
     }
   });
 
@@ -156,7 +157,7 @@ function serveJsonld(req, res, next){
     break;
 
   default:
-    res.json(406, {'error': 'Not Acceptable'});
+    res.status(406).json({'error': 'Not Acceptable'});
     break;
   };
 
@@ -180,6 +181,64 @@ function compactAndValidate(req, res, next){
   });
 };
 
+function maxSatisfyingVersion(req, res, next){
+
+  var q = req.query || {};
+
+  if (! ('range' in q)) {
+    return next();
+  }
+
+  //handle range query
+
+  var idsplt = req.params.id.split(encodeURIComponent('@'));
+  var id = idsplt[0];
+  var versionInId = idsplt[1]; //if not undefined the user specified a version and a range if the result of the range is not the version specified we will error
+
+  //get all the versions of the pkg
+  request.get({url: rootCouchRegistryRw + 'all/' + id, json: true}, function(err, resp, body){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errCode(body, resp.statusCode));
+
+    if (!body.rows.length) { //<- no versions
+      next();
+    }
+
+    var versions = body.rows
+      .filter(function(row){
+        return ('version' in row.value);
+      })
+      .map(function(row){
+        return row.value.version;
+      });
+
+    if (!versions.length){
+      return next(errorCode('no version could be find for the document', 404));
+    }
+
+    var version;
+    var isSemver = versions.every(function(v){ return semver.valid(v); });
+    if (isSemver) {
+      version = semver.maxSatisfying(versions, q.range);
+    } else { //sort lexicographicaly
+      version = versions.sort().reverse()[0];
+    }
+
+    if (!version) {
+      return next(errorCode('no version could satisfy the range ' + q.range, 404));
+    }
+
+    if (versionInId !== undefined && version !== versionInId) {
+      return next(errorCode('incompatible version and range were specified' + q.range, 400));
+    }
+    req.version = version;
+
+    next();
+  });
+
+};
+
+
 app.get('/context.jsonld', function(req, res, next){
   res.set('Content-Type', 'application/ld+json');
   res.send(JSON.stringify(Packager.context(), null, 2));
@@ -194,7 +253,7 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 
   request.put({url: rootCouchAdminUsersRw +  'create/org.couchdb.user:' + req.params.name, json: doc}, function(err, resp, body){
     if (err) return next(err);
-    res.json(resp.statusCode, body);
+    res.status(resp.statusCode).json(body);
   });
 });
 
@@ -209,12 +268,12 @@ app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
   request.head(iri, function(err, resp) {
     if (err) return next(err);
     if (resp.statusCode >= 400) {
-      return res.json(resp.statusCode, {error: (resp.statusCode === 404)? 'user not found' : ('could not DELETE ' + req.user.name)});
+      return res.status(resp.statusCode).json({error: (resp.statusCode === 404)? 'user not found' : ('could not DELETE ' + req.user.name)});
     };
     var etag = resp.headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
     request.del({url: iri, headers: {'If-Match': etag}, json:true}, function(err, resp, body){
       if (err) return next(err);
-      res.json(resp.statusCode, body);
+      res.status(resp.statusCode).json(body);
     });
   });
 
@@ -223,10 +282,10 @@ app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
 app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, next){
 
   if (!('content-length' in req.headers)) {
-    return res.json(411, {error: 'Length Required'});
+    return res.status(411).json({error: 'Length Required'});
   }
   if (parseInt(req.headers['content-length'], 10) > 16777216) {
-    return res.json(413, {error: 'Request Entity Too Large, currently accept only package < 16Mo'});
+    return res.status(413).json({error: 'Request Entity Too Large, currently accept only package < 16Mo'});
   }
 
   var cdoc = req.cdoc;
@@ -254,7 +313,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
       request.put({url: rootCouchAdminUsersRw +  'add/org.couchdb.user:' + req.user.name, json: udoc}, function(err, respAdd, bodyAdd){
         if(err) return next(err);
 
-        if (respAdd.statusCode >= 400) {
+        if (respAdd.statusCode >= 400 && respAdd.statusCode != 409) { //if 409: can be simultaneous call to the update function we keep going
           return next(errorCode('PUT /:id aborted: could not add ' + req.user.name + ' as a maintainer ' + bodyAdd.error, respAdd.statusCode));
         }
 
@@ -273,7 +332,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
             }
           }
 
-          return res.json((respCouch.statusCode === 200) ? 201: respCouch.statusCode, bodyCouch);
+          return res.status((respCouch.statusCode === 200) ? 201: respCouch.statusCode).json(bodyCouch);
         });
 
       });
@@ -287,7 +346,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
       if (isVersioned !== wasVersioned) {
         var errMsg = (isVersioned) ? 'Before this update the document was not versioned. Delete the document to be able to PUT a versioned one' :
           'Before this update the document was versioned. Delete all previous version of the document to be able to PUT a non versioned one';
-        return res.json(400, { error: errMsg});
+        return res.status(400).json({ error: errMsg});
       }
 
       request.put(ropts, function(errCouch, respCouch, bodyCouch){
@@ -295,7 +354,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
         if (respCouch.statusCode >= 400) {
           return next(errorCode('PUT /:id aborted ' + bodyCouch.reason, respCouch.statusCode));
         }
-        return res.json( (respCouch.statusCode === 200) ? 201 : respCouch.statusCode, bodyCouch);
+        return res.status((respCouch.statusCode === 200) ? 201 : respCouch.statusCode).json(bodyCouch);
       });
 
     }
@@ -403,7 +462,7 @@ app.get('/maintainer/ls/:id', function(req, res, next){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
 
-    res.json(resp.statusCode, body);
+    res.status(resp.statusCode).json(body);
   });
 
 });
@@ -432,7 +491,7 @@ app.post('/maintainer/add', jsonParser, forceAuth, function(req, res, next){
 
       request.put({url: rootCouchAdminUsersRw + 'add/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
         if (err) return next(err);
-        res.json(resp.statusCode, body);
+        res.status(resp.statusCode).json(body);
       });
     });
   });
@@ -461,17 +520,53 @@ app.post('/maintainer/rm', jsonParser, forceAuth, function(req, res, next){
 
     request.put({url: rootCouchAdminUsersRw + 'rm/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
       if (err) return next(err);
-      res.json(resp.statusCode, body);
+      res.status(resp.statusCode).json(body);
     });
   });
 
 });
 
+/**
+ * range can be specified with query string parameter range
+ */
+app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
+
+  var partId;
+  if (req.params.part) {
+    partId = req.url.replace(/^\/|\/$/g, '').split('/').slice(1).join('/');
+    if (partId === decodeURIComponent(partId)) {
+      partId = encodeURIComponent(partId);
+    }
+  }
+
+  var uri;
+  if (~req.params.id.indexOf('@')) { //express decodes the URI component
+    uri = rootCouchRegistryRw + 'show/' + encodeURIComponent(req.params.id);
+  } else if (req.version) {
+    uri = rootCouchRegistryRw + 'show/' + encodeURIComponent(req.params.id + '@' + req.version);
+  } else { // <- we want the latest version
+    uri = rootCouchRegistryRw + 'latest/' + req.params.id;
+  }
+
+  if (partId) {
+    uri += '/' + partId;
+  }
+
+  request.get({url: uri, json: true}, function(err, resp, cdoc){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errorCode(cdoc, resp.statusCode));
+    req.cdoc = cdoc;
+    next();
+  });
+
+}, serveJsonld);
+
+
 
 
 //generic error handling
 app.use(function(err, req, res, next){
-  res.json(err.code || 400, {'error': err.message || ''});
+  res.status(err.code || 400).json({'error': err.message || ''});
 });
 
 
