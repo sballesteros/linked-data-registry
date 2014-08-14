@@ -129,30 +129,27 @@ function serveJsonld(req, res, next){
 
   case 'application/json':
     res.set('Link', Packager.contextLink);
-    delete req.doc['@context'];
-    res.json(req.doc);
+    delete req.cdoc['@context'];
+    res.json(req.cdoc);
     break;
 
   case 'application/ld+json':
-    res.json(req.doc);
+    res.json(req.cdoc);
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"':
-    jsonld.compact(req.doc, context, function(err, cdoc){
-      if (err) return next(err);
-      res.json(cdoc);
-    });
+    res.json(req.cdoc);
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"':
-    jsonld.expand(req.doc, {expandContext: context}, function(err, edoc){
+    jsonld.expand(req.cdoc, {expandContext: context}, function(err, edoc){
       if (err) return next(err);
       res.json(edoc);
     });
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"':
-    jsonld.flatten(req.doc, context, function(err, fdoc){
+    jsonld.flatten(req.cdoc, context, function(err, fdoc){
       if (err) return next(err);
       res.json(fdoc);
     });
@@ -241,7 +238,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
     _id = encodeURIComponent(_id + '@' + cdoc.version);
   }
 
-  request.get({url: rootCouchRegistry + '_design/registry/_rewrite/all/' + req.params.id, json: true}, function(err, resp, bodyPrevious){
+  request.get({url: rootCouchRegistryRw + 'all/' + req.params.id, json: true}, function(err, resp, bodyPrevious){
     if (err) return next(err);
 
     var ropts = {
@@ -335,7 +332,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
     function(_idList, cb){ //delete (all) the versions and the associated resources on S3
       async.each(_idList, function(_id, cb2){
         //get the doc so that we have it to get the resource to remove from S3 (by the time we delete S3 objects, the doc will have been deleted)
-        request.get({ url: rootCouchRegistry + '_design/registry/_rewrite/show/' + _id, json:true }, function(err, resp, cdoc){
+        request.get({ url: rootCouchRegistryRw + 'show/' + _id, json:true }, function(err, resp, cdoc){
           if (err) return cb2(err);
           if (resp.statusCode >= 400) return cb2(errorCode('could not GET ' + _id, resp.statusCode));
           //delete the doc on the registry
@@ -371,6 +368,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
     request.get({url: rootCouchRegistryRw + 'all?key="' + id + '"', json:true}, function(err, resp, body){
       if (err) return next(err);
       if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
+
       if (body.rows.length) { //still versions of :id to maintains, we are done
         res.json({ok: true});
       } else { //no more version of :id remove all the maintainers
@@ -397,6 +395,78 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
   });
 
 });
+
+
+app.get('/maintainer/ls/:id', function(req, res, next){
+
+  request.get({url: rootCouchAdminUsersRw + 'doc/' + req.params.id, json:true}, function(err, resp, body){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
+
+    res.json(resp.statusCode, body);
+  });
+
+});
+
+app.post('/maintainer/add', jsonParser, forceAuth, function(req, res, next){
+
+  var data = req.body;
+
+  if (!(('username' in data) && ('namespace' in data))) {
+    return next(new Error('invalid POST data'));
+  }
+
+  //check if data.username (the user granted) is an existing user
+  request.head(rootCouchAdminUsers + 'org.couchdb.user:' + data.username, function(err, resp){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errorCode('granted user does not exists', resp.statusCode));
+
+    //check if req.user.name (the granter) is a maintainer of data.namespace
+    request.get({url: rootCouchAdminUsersRw + 'maintains/org.couchdb.user:' + req.user.name, json:true}, function(err, resp, maintains){
+      if (err) return next(err);
+      if (resp.statusCode >= 400) return next(errorCode(maintains, resp.statusCode));
+
+      if(maintains.indexOf(data.namespace) === -1){
+        return next(errorCode('not allowed', 403));
+      }
+
+      request.put({url: rootCouchAdminUsersRw + 'add/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
+        if (err) return next(err);
+        res.json(resp.statusCode, body);
+      });
+    });
+  });
+
+});
+
+/**
+ * TODO do something (or not?) if a package has no maintainers ??
+ */
+app.post('/maintainer/rm', jsonParser, forceAuth, function(req, res, next){
+
+  var data = req.body;
+
+  if(!(('username' in data) && ('namespace' in data))){
+    return next(new Error('invalid POST data'));
+  }
+
+  //check if req.user.name (the granter) is a maintainer of data.namespace
+  request.get({url: rootCouchAdminUsersRw + 'maintains/org.couchdb.user:' + req.user.name, json:true}, function(err, resp, maintains){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errorCode(maintains, resp.statusCode));
+
+    if(maintains.indexOf(data.namespace) === -1){
+      return next(errorCode('not allowed', 403));
+    }
+
+    request.put({url: rootCouchAdminUsersRw + 'rm/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
+      if (err) return next(err);
+      res.json(resp.statusCode, body);
+    });
+  });
+
+});
+
 
 
 //generic error handling

@@ -82,7 +82,7 @@ updates.add = function (userDoc, req) {
     }
 
     if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ) {
-      resp.body = JSON.stringify({error: "invalid data" });
+      resp.body = JSON.stringify({error: "db update add: invalid data" });
       resp.code = 400;
       return [null, resp];
     }
@@ -120,7 +120,7 @@ updates.rm = function (userDoc, req) {
     }
 
     if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ){
-      resp.body = JSON.stringify({error: "invalid data" });
+      resp.body = JSON.stringify({error: "db update rm: invalid data" });
       resp.code = 400;
       return [null, resp];
     }

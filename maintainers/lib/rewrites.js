@@ -1,8 +1,10 @@
 module.exports = [
   { from: 'doc/:namespace', to: '/_list/maintainers/maintainers', method: 'GET',
-    query: {reduce: 'false', key: ':namespace', limit: '1'} },
+    query: {reduce: 'false', key: ':namespace', include_docs: 'false'} },
 
-  { from: "/create/:id", to: "/_update/create/:id", method: "PUT" },
-  { from: "/add/:id", to: "/_update/add/:id", method: "PUT" },
-  { from: "/rm/:id", to: "/_update/rm/:id", method: "PUT" }
+  { from: "/maintains/:_id", to: "/_show/maintains/:_id", method: "GET" },
+
+  { from: "/create/:_id", to: "/_update/create/:_id", method: "PUT" },
+  { from: "/add/:_id", to: "/_update/add/:_id", method: "PUT" },
+  { from: "/rm/:_id", to: "/_update/rm/:_id", method: "PUT" }
 ];
