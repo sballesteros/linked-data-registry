@@ -15,6 +15,7 @@ lists.latest = function(head, req){
   send(JSON.stringify(util.clean(doc), null, 2));
 };
 
+
 lists.latestPart = function(head, req){
   var row = getRow();
 
@@ -26,12 +27,14 @@ lists.latestPart = function(head, req){
 
   var isUrl = require('is-url');
   var util = require('pkg-util');
+  var forEachNode = require('for-each-node');
 
   var id = req.query.id;
   var partId = decodeURIComponent(req.query.part_id);
 
+  //TODO handle the fact that there can be multiple parts
   var part;
-  _forEachNode(doc, function(prop, node){
+  forEachNode(doc, function(prop, node){
     if (node['@id']) {
       var nodePartId;
       if (isUrl(node['@id'])) {
@@ -39,16 +42,16 @@ lists.latestPart = function(head, req){
       } else if (partId === node['@id']) { // non SA CURIE e.g github:partId
         nodePartId = node['@id'];
       } else {
-        nodePartId = node['@id'].split('sa:' + id)[1];
+        nodePartId = node['@id'].split('sa:' + id + '/')[1];
       }
 
-      if (nodePartId && nodePartId === partId) {
+      if (nodePartId && nodePartId.replace(/^\/|\/$/g, '') === partId.replace(/^\/|\/$/g, '')) {
         part = node;
       }
     }
   });
 
-  if(part){
+  if (part) {
 
     start({ "headers": { "Content-Type": "application/json" } });
     send(JSON.stringify(util.clean(part), null, 2));

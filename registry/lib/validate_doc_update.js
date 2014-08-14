@@ -4,7 +4,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     throw { unauthorized: 'Please log in before writing to the db' };
   }
 
-  //taken from https://github.com/isaacs/npmjs.org/blob/master/registry/validate_doc_update.js
   function _isAdmin () {
     if (secObj &&
         secObj.admins) {
@@ -33,10 +32,13 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
 
   if (newDoc._deleted) return;
 
-  //stuff that can never be modified
-  if(oldDoc){
+  if (oldDoc && newDoc) {
     if(oldDoc['@id'] !== newDoc['@id']) {
       throw { forbidden: '@id should not be modified' };
+    }
+
+    if ('version' in oldDoc) {
+      throw { forbidden: 'versionned doc cannot be updated' };
     }
   }
 

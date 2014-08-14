@@ -32,7 +32,7 @@ updates.create = function(userDoc, req){
       errs.push(err);
     }
 
-    if ( errs.length || (req.id !== ('org.couchdb.user:' +data.name)) ){
+    if ( errs.length || (req.id !== ('org.couchdb.user:' + data.name)) ){
       resp.body = JSON.stringify({error: errs.map(function(e){return e.message;}).join(' ; ') || 'conficting username' });
       resp.code = 400;
       return [null, resp];

@@ -18,5 +18,7 @@ module.exports = [
     query: {reduce: 'true', key: ':id', group: 'true'} },
 
   { from: '/show/:id', to: '/_show/doc/:id', method: 'GET' },
-  { from: '/show/:id/:part_id', to: '/_show/part/:id/:part_id', method: 'GET' }
+  { from: '/show/:id/:part_id', to: '/_show/part/:id/:part_id', method: 'GET' },
+
+  { from: "/update/:_id", to: "/_update/body/:_id", method: "PUT" }
 ];

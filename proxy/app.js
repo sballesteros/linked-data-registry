@@ -297,7 +297,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
     _id = encodeURIComponent(_id + '@' + cdoc.version);
   }
 
-  request.get({url: rootCouchRegistryRw + 'all/' + req.params.id, json: true}, function(err, resp, bodyPrevious){
+  request.get({url: rootCouchRegistryRw + 'all/' + req.params.id, json: true}, function(err, resp, bodyView){
     if (err) return next(err);
 
     var ropts = {
@@ -306,7 +306,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
       json: cdoc
     };
 
-    if (!bodyPrevious.rows.length) { //first time ever we publish the document: add username to maintainers of the pkg
+    if (!bodyView.rows.length) { //first time ever we publish the document: add username to maintainers of the pkg
 
       //add username to maintainers of the doc first (if not validate_doc_update will prevent the submission)
       var udoc = { username: req.user.name, namespace: req.params.id };
@@ -319,8 +319,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
 
         //store the doc
         request.put(ropts, function(errCouch, respCouch, bodyCouch){
-          if (errCouch || respCouch.statusCode >= 400) {
-            //remove user from maintainers
+          if (errCouch || (respCouch.statusCode >= 400 && respCouch.statusCode !== 409)) { //if 409 we still need a maintainer
             request.put({url: rootCouchAdminUsersRw +  'rm/org.couchdb.user:' + req.user.name, json: udoc}, function(err, respRm, bodRm){
               if (err) console.error(err);
             });
@@ -339,7 +338,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
 
     } else { //version or document update
 
-      var wasVersioned = !! ('version' in bodyPrevious.rows[0].value);
+      var wasVersioned = !! ('version' in bodyView.rows[0].value);
       var isVersioned = !! ('version' in cdoc);
 
       //TODO do we really want to do that ?
@@ -349,12 +348,16 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
         return res.status(400).json({ error: errMsg});
       }
 
-      request.put(ropts, function(errCouch, respCouch, bodyCouch){
-        if (errCouch) return next(errCouch);
-        if (respCouch.statusCode >= 400) {
-          return next(errorCode('PUT /:id aborted ' + bodyCouch.reason, respCouch.statusCode));
+      if (!isVersioned) { //<-call update handler to save a HEAD to get the _rev
+        ropts.url = rootCouchRegistryRw + 'update/' + _id;
+      }
+
+      request.put(ropts, function(err, resp, body){
+        if (err) return next(err);
+        if (resp.statusCode >= 400) {
+          return next(errorCode(body, resp.statusCode));
         }
-        return res.status((respCouch.statusCode === 200) ? 201 : respCouch.statusCode).json(bodyCouch);
+        return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
       });
 
     }

@@ -16,12 +16,15 @@ shows.part = function(doc, req){
 
   var isUrl = require('is-url');
   var util = require('pkg-util');
+  var forEachNode = require('for-each-node');
 
   var id = req.query.id;
   var partId = decodeURIComponent(req.query.part_id);
 
+  //TODO handle the fact that there can be multiple parts
+
   var part;
-  _forEachNode(doc, function(prop, node){
+  forEachNode(doc, function(prop, node){
     if (node['@id']) {
       var nodePartId;
       if (isUrl(node['@id'])) {
@@ -29,10 +32,10 @@ shows.part = function(doc, req){
       } else if (partId === node['@id']) { // non SA CURIE e.g github:partId
         nodePartId = node['@id'];
       } else {
-        nodePartId = node['@id'].split('sa:' + id)[1];
+        nodePartId = node['@id'].split('sa:' + id + '/')[1];
       }
 
-      if (nodePartId && nodePartId === partId) {
+      if (nodePartId && nodePartId.replace(/^\/|\/$/g, '') === partId.replace(/^\/|\/$/g, '')) {
         part = node;
       }
     }

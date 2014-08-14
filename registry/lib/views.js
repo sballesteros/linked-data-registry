@@ -9,7 +9,8 @@ views.lib = {
   'is-url': modules['is-url'],
   url: modules['url']
     .replace("require('punycode')", "require('views/lib/punycode')", 'g')
-    .replace("require('querystring')", "require('views/lib/querystring')", 'g')
+    .replace("require('querystring')", "require('views/lib/querystring')", 'g'),
+  'for-each-node': modules['for-each-node']
 };
 
 views.byId = {
@@ -46,7 +47,7 @@ views.byIdAndVersion = {
     emit([id, version], {
       _id: doc._id,
       '@id': doc['@id'],
-      version: doc.version
+      version: version
     });
 
   },
@@ -61,6 +62,7 @@ views.bySha1 = {
   map: function(doc){
     var isUrl = require('views/lib/is-url');
     var url = require('views/lib/url');
+    var forEachNode = require('for-each-node');
 
     function _getSha1(uri){
       var pathName;
@@ -83,24 +85,6 @@ views.bySha1 = {
       }
     };
 
-    function _forEachNode(doc, callback){
-      for (var prop in doc) {
-        if (prop === '@context' || !doc.hasOwnProperty(prop)) continue;
-
-        if (Array.isArray(doc[prop])) {
-          for (var i=0; i<doc[prop].length; i++) {
-            if (typeof doc[prop][i] === 'object') {
-              callback(prop, doc[prop][i]);
-              _forEachNode(doc[prop][i], callback, _this);
-            }
-          }
-        } else if (typeof doc[prop] === 'object') {
-          callback(prop, doc[prop]);
-          _forEachNode(doc[prop], callback, _this);
-        }
-      }
-    };
-
     function _emit(prop, node){
       ['downloadUrl', 'installUrl', 'contentUrl', 'embedUrl'].forEach(function(x){
         if (node[x]) {
@@ -113,7 +97,7 @@ views.bySha1 = {
     };
 
     _emit(null, doc);
-    _forEachNode(doc, _emit);
+    forEachNode(doc, _emit);
   },
   reduce: '_count'
 };

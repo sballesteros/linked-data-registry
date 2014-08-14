@@ -247,7 +247,7 @@ describe('linked data registry', function(){
   });
 
 
-  describe('versions', function(){
+  describe('versions for versioned docs', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-version';
@@ -292,12 +292,156 @@ describe('linked data registry', function(){
     });
 
     after(function(done){
-      request.del({ url: rurl(doc0['@id']), auth: auth }, function(){
+      request.del({ url: rurl(id), auth: auth }, function(){
         request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
       });
     });
   });
 
-  //TODO test JSON-LD conversions
+  describe('versions for unversioned docs', function(){
+    var auth = { user: 'user_a', pass: pass };
+
+    var id = 'doc-unversioned';
+    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test unversion' };
+    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test unversion changed' };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+        async.eachSeries([doc0, doc1], function(doc, cb){
+          request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
+        }, done);
+      })
+    });
+
+    it('should retrieve the "latest" version', function(done){
+      request.get(rurl(id), function(err, resp, doc){
+        assert.equal(doc.name, doc1.name);
+        done();
+      });
+    });
+
+    it('should 404 if a version is asked', function(done){
+      request(rurl(encodeURIComponent(id + '@0.1.2')), function(err, resp, doc){
+        assert.equal(resp.statusCode, 404);
+        done();
+      });
+    });
+
+    after(function(done){
+      request.del({ url: rurl(id), auth: auth }, function(){
+        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      });
+    });
+
+  });
+
+  describe('parts', function(){
+    var auth = { user: 'user_a', pass: pass };
+    var id = 'test-part';
+    var doc = {
+      '@context': rurl('context.jsonld'),
+      '@id': id,
+      hasPart: [
+        { '@id': id + '/part', about: [{'@id': 'http://example.com/subject', name: 'subject'}] },
+        { '@id': id + '/part/long/path', name: 'long path' },
+        { '@id': 'github:repo', name: 'repo' },
+      ]
+    };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+        request.put({ url: rurl(id), auth: auth, json: doc }, done);
+      })
+    });
+
+    it('should retrieve an internal part with a short path', function(done){
+      request.get(rurl(doc.hasPart[0]['@id']), function(err, resp, part){
+        assert.equal(part.name, doc.hasPart[0].name);
+        done();
+      });
+    });
+
+    it('should retrieve an internal part with a short path when part has a trailing slash', function(done){
+      request.get(rurl(doc.hasPart[0]['@id'] + '/'), function(err, resp, part){
+        assert.equal(part.name, doc.hasPart[0].name);
+        done();
+      });
+    });
+
+    it('should retrieve an internal part with a long path', function(done){
+      request.get(rurl(doc.hasPart[1]['@id']), function(err, resp, part){
+        assert.equal(part.name, doc.hasPart[1].name);
+        done();
+      });
+    });
+
+    it('should retrieve a part with an URL', function(done){
+      request.get(rurl(id + '/' + encodeURIComponent(doc.hasPart[0]['about'][0]['@id'])), function(err, resp, part){
+        assert.equal(part.name, doc.hasPart[0]['about'][0].name);
+        done();
+      });
+    });
+
+    it('should retrieve a part with an CURIE', function(done){
+      request.get(rurl(id + '/' + encodeURIComponent(doc.hasPart[2]['@id'])), function(err, resp, part){
+        assert.equal(part.name, doc.hasPart[2].name);
+        done();
+      });
+    });
+
+    after(function(done){
+      request.del({ url: rurl(id), auth: auth }, function(){
+        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      });
+    });
+  });
+
+  describe('JSON-LD profiles', function(){
+    var auth = { user: 'user_a', pass: pass };
+    var id = 'test-profiles';
+    var doc = { '@context': rurl('context.jsonld'), '@id': id, about: [{name: 'about profile'}] };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+        request.put({ url: rurl(id), auth: auth, json: doc }, done);
+      })
+    });
+
+    it('should get the doc as compacted JSON-LD', function(done){
+      request.get({url: rurl(id), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"'}}, function(err, resp, body){
+        assert.deepEqual(body.about, doc.about);
+        done();
+      });
+    });
+
+    it('should get the doc as expanded JSON-LD', function(done){
+      request.get({url: rurl(id), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"'}}, function(err, resp, body){
+        assert(Array.isArray(body));
+        done();
+      });
+    });
+
+    it('should get the doc as flattened JSON-LD', function(done){
+      request.get({url: rurl(id), headers: {'Accept': 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"'}}, function(err, resp, body){
+        assert('@graph' in body);
+        done();
+      });
+    });
+
+    it('should get the doc as JSON interpreted as JSON-LD', function(done){
+      request.get(rurl(id), function(err, resp, body){
+        assert.equal(resp.headers.link, Packager.contextLink);
+        assert.deepEqual(body.about, doc.about);
+        done();
+      });
+    });
+
+    after(function(done){
+      request.del({ url: rurl(id), auth: auth }, function(){
+        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      });
+    });
+
+  });
 
 });
