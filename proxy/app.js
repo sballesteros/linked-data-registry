@@ -102,6 +102,9 @@ function forceAuth(req, res, next){
 
   request.post({url: rootCouch + '_session', json: {name: user.name, password: user.pass} }, function(err, resp, body){
     if (err) return next(err);
+    if (resp.statusCode >= 400) {
+      return next(errorCode(body, resp.statusCode))
+    }
 
     if (resp.headers && resp.headers['set-cookie']) {
       try {
@@ -243,6 +246,18 @@ app.get('/context.jsonld', function(req, res, next){
   res.set('Content-Type', 'application/ld+json');
   res.send(JSON.stringify(Packager.context(), null, 2));
 });
+
+
+app.get('/auth', forceAuth, function(req, res, next){
+  console.log('aa', req.user);
+
+  if (req.user) {
+    res.json(req.user);
+  } else {
+    return next(errorCode('auth', 500));
+  }
+});
+
 
 app.put('/adduser/:name', jsonParser, function(req, res, next){
   var doc = req.body;

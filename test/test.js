@@ -139,6 +139,29 @@ describe('linked data registry', function(){
         createFixture(done);
       });
 
+
+      it('should error with code 401 if user try to auth with wrong password', function(done){
+        request.get( { url: rurl('auth'), auth: {user:'user_a', pass: 'wrong'} }, function(err, resp, body){
+          assert.equal(resp.statusCode, 401);
+          done();
+        });
+      });
+
+      it('should error with code 401 if user try to auth with non existent name', function(done){
+        request.get( { url: rurl('auth'), auth: {user:'user_wrong', pass: pass} }, function(err, resp, body){
+          assert.equal(resp.statusCode, 401);
+          done();
+        });
+      });
+
+      it('should return a token and 200 on successful auth', function(done){
+        request.get( { url: rurl('auth'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+          assert.equal(resp.statusCode, 200);
+          assert.equal(body.name, 'user_a');
+          done();
+        });
+      });
+
       it('user_a and user_b should be maintainers of the doc', function(done){
         request.get(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
           assert.deepEqual(body, maintainers);
