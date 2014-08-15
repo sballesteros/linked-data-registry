@@ -16,6 +16,7 @@ var util = require('util')
   , async = require('async')
   , crypto = require('crypto');
 
+var root = path.dirname(__filename);
 var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
 AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
@@ -298,12 +299,12 @@ describe('linked data registry', function(){
     });
   });
 
-  describe('versions for unversioned docs', function(){
+  describe('revision for unversioned docs', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-unversioned';
-    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test unversion' };
-    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test unversion changed' };
+    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test revision' };
+    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test revision changed' };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -313,7 +314,7 @@ describe('linked data registry', function(){
       })
     });
 
-    it('should retrieve the "latest" version', function(done){
+    it('should retrieve the latest revision', function(done){
       request.get(rurl(id), function(err, resp, doc){
         assert.equal(doc.name, doc1.name);
         done();
@@ -444,4 +445,73 @@ describe('linked data registry', function(){
 
   });
 
+  describe('attachments (S3)', function(){
+    var auth = { user: 'user_a', pass: pass };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, done);
+    });
+
+    it('should PUT a compressible attachments and have it deleted when the parent document is deleted', function(done){
+      var digestSha1, digestMd5;
+      var contentLength = 0;
+      var s = fs.createReadStream(path.join(root, 'fixture', 'data.csv')).pipe(zlib.createGzip());
+      var sha1 = crypto.createHash('sha1'); var md5 = crypto.createHash('md5');
+      s.on('data', function(d) { contentLength += d.length; sha1.update(d); md5.update(d); });
+      s.on('end', function() {
+        digestSha1 = sha1.digest('hex');
+        digestMd5 = md5.digest('base64');
+
+        var ropts = {
+          url: rurl('r/' + digestSha1),
+          auth: auth,
+          headers: {
+            'Content-Length': contentLength,
+            'Content-Type': 'text/csv',
+            'Content-Encoding': 'gzip',
+            'Content-MD5': digestMd5
+          }
+        };
+
+        var r = request.put(ropts, function(err, resp, body){
+          assert('ETag' in body);
+          //put a document referencing the attachment
+          var doc = { '@context': rurl('context.jsonld'), '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
+          request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, function(err, resp, body){
+            assert(resp.statusCode, 201);
+
+            //get the attachment back
+            request.get({url: rurl(doc.contentUrl), encoding:null, json:false}, function(err, resp, gzdata){
+              assert(resp.headers['content-type'].split(';')[0] == ropts.headers['Content-Type']);
+              assert(resp.headers['content-encoding'] == ropts.headers['Content-Encoding']);
+              assert(resp.headers['content-length'] == ropts.headers['Content-Length']);
+              assert.equal(resp.statusCode, 200);
+              zlib.gunzip(gzdata, function(err, data){
+                fs.readFile(path.join(root, 'fixture', 'data.csv'), function(err, odata){
+                  assert.equal(data.toString(), odata.toString());
+
+                  //delete the document -> will delete the s3 object
+                  request.del({ url: rurl(doc['@id']), auth: auth }, function(err, resp, body){
+                    assert(resp.statusCode, 200);
+
+                    //check that the object have been deleted on s3
+                    s3.headObject({Key: digestSha1}, function(err, s3Headers) {
+                      assert.equal(err.statusCode, 404);
+                      done();
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+        fs.createReadStream(path.join(root, 'fixture', 'data.csv')).pipe(zlib.createGzip()).pipe(r);
+      });
+    });
+
+    after(function(done){
+      request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+    });
+
+  });
 });

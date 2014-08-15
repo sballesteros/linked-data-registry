@@ -257,6 +257,71 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
   });
 });
 
+
+app.put('/r/:sha1', forceAuth, function(req, res, next){
+
+  if (!req.headers['content-md5']) {
+    return res.status(400).json({error: 'a Content-MD5 header must be provided'});
+  }
+
+  var checkStream = req.pipe(sha.stream(req.params.sha1));
+  var checkErr = null;
+
+  checkStream.on('error', function(err){
+    checkErr = err;
+  });
+
+  var opts = {
+    Key: req.params.sha1,
+    Body: checkStream,
+    ContentType: req.headers['content-type'],
+    ContentLength: parseInt(req.headers['content-length'], 10),
+    ContentMD5: req.headers['content-md5']
+  };
+
+  if (req.headers['content-encoding']) {
+    opts['ContentEncoding'] = req.headers['content-encoding']
+  }
+
+  s3.putObject(opts, function(err, data){
+    if (err) return next(err);
+    if (checkErr) {
+      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
+        if (err) console.error(err);
+        return next(checkErr);
+      });
+    } else {
+      res.set('ETag', data.ETag);
+      res.json(data);
+    }
+  });
+
+});
+
+
+/**
+ * TODO: redirect instead ?
+ */
+app.get('/r/:sha1', function(req, res, next){
+
+  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
+    if (err) return next(errorCode(err.code, err.statusCode));
+
+    if (s3Headers.ContentLength) { res.set('Content-Length', s3Headers.ContentLength); }
+    if (s3Headers.ContentType) { res.set('Content-Type', s3Headers.ContentType); }
+    if (s3Headers.ContentEncoding) { res.set('Content-Encoding', s3Headers.ContentEncoding); }
+    if (s3Headers.ETag) { res.set('ETag', s3Headers.ETag); }
+    if (s3Headers.LastModified) { res.set('Last-Modified', s3Headers.LastModified); }
+
+    var s = s3.getObject({Key:req.params.sha1}).createReadStream();
+    s.on('error', function(err){ console.error(err); });
+    s.pipe(res);
+  });
+
+});
+
+
+
 app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
 
   if (req.user.name !== req.params.name) {
@@ -378,7 +443,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
         }
 
         var _idList = body.rows.map(function(row){
-          if('version' in row.value){
+          if ('version' in row.value){
             return encodeURIComponent(row.value['@id'].split(':')[1] + '@' + row.value.version);
           } else {
             return row.value['@id'].split(':')[1];
@@ -412,7 +477,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
             }, function(err, resp, body){
               if (err) return cb2(err);
               if (resp.statusCode >= 400) return cb2(errorCode(body, resp.statusCode));
-              s3util.deleteObjects(app.get('s3'), cdoc, rootCouchRegistry, function(err){
+              s3util.deleteObjects(app.get('s3'), cdoc, rootCouchRegistryRw, function(err){
                 if (err) console.error(err);
                 cb2(null);
               });

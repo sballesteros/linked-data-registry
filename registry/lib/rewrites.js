@@ -15,7 +15,7 @@ module.exports = [
     query: {reduce: 'false', descending: 'true', startkey: [':id', '\ufff0'], endkey: [':id'], limit: '1', include_docs:'true'} },
 
   { from: '/sha1/:sha1', to: '/_view/bySha1', method: 'GET',
-    query: {reduce: 'true', key: ':id', group: 'true'} },
+    query: {reduce: 'true', key: ':sha1', group: 'true'} },
 
   { from: '/show/:id', to: '/_show/doc/:id', method: 'GET' },
   { from: '/show/:id/:part_id', to: '/_show/part/:id/:part_id', method: 'GET' },

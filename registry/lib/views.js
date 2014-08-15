@@ -62,19 +62,19 @@ views.bySha1 = {
   map: function(doc){
     var isUrl = require('views/lib/is-url');
     var url = require('views/lib/url');
-    var forEachNode = require('for-each-node');
+    var forEachNode = require('views/lib/for-each-node');
 
     function _getSha1(uri){
       var pathName;
       var splt = uri.split(':');
 
-      if (splt.length === 2 && splt[0] === 'sa') {
-        pathName = splt[1];
-      } else if (isUrl(uri)) {
+      if (isUrl(uri)) {
         purl = url.parse(uri);
         if (purl.hostname === 'registry.standardanalytics.io') {
-          pathname =  purl.pathname;
+          pathname = purl.pathname;
         }
+      } else if (splt.length === 2 && splt[0] === 'sa') {
+        pathName = splt[1];
       }
 
       if (pathName) {
