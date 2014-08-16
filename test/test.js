@@ -139,7 +139,6 @@ describe('linked data registry', function(){
         createFixture(done);
       });
 
-
       it('should error with code 401 if user try to auth with wrong password', function(done){
         request.get( { url: rurl('auth'), auth: {user:'user_a', pass: 'wrong'} }, function(err, resp, body){
           assert.equal(resp.statusCode, 401);
@@ -288,7 +287,7 @@ describe('linked data registry', function(){
     });
 
     it('should retrieve a specific version', function(done){
-      request.get(rurl(encodeURIComponent(doc1['@id'] + '@' + doc1.version)), function(err, resp, doc){
+      request.get(rurl(doc1['@id'] + '?' + querystring.stringify({version: doc1.version})), function(err, resp, doc){
         assert.equal(doc.version, doc1.version);
         done();
       });
@@ -302,14 +301,14 @@ describe('linked data registry', function(){
     });
 
     it('should retrieve the latest version satisfying the range passed as query string parameter', function(done){
-      request(rurl(id + '?' + querystring.stringify({range: '<1.0.0'})), function(err, resp, doc){
+      request(rurl(id + '?' + querystring.stringify({version: '<1.0.0'})), function(err, resp, doc){
         assert.equal(doc.version, '0.1.0');
         done();
       });
     });
 
     it('should 404 on range that cannot be statisfied', function(done){
-      request(rurl(id + '?' + querystring.stringify({range: '>2.0.0'})), function(err, resp, doc){
+      request(rurl(id + '?' + querystring.stringify({version: '>2.0.0'})), function(err, resp, doc){
         assert.equal(resp.statusCode, 404);
         done();
       });

@@ -188,15 +188,12 @@ function maxSatisfyingVersion(req, res, next){
 
   var q = req.query || {};
 
-  if (! ('range' in q)) {
+  if (! ('version' in q)) {
     return next();
   }
 
   //handle range query
-
-  var idsplt = req.params.id.split(encodeURIComponent('@'));
-  var id = idsplt[0];
-  var versionInId = idsplt[1]; //if not undefined the user specified a version and a range if the result of the range is not the version specified we will error
+  var id = req.params.id.split('@')[0];
 
   //get all the versions of the pkg
   request.get({url: rootCouchRegistryRw + 'all/' + id, json: true}, function(err, resp, body){
@@ -222,18 +219,15 @@ function maxSatisfyingVersion(req, res, next){
     var version;
     var isSemver = versions.every(function(v){ return semver.valid(v); });
     if (isSemver) {
-      version = semver.maxSatisfying(versions, q.range);
+      version = semver.maxSatisfying(versions, q.version);
     } else { //sort lexicographicaly
       version = versions.sort().reverse()[0];
     }
 
     if (!version) {
-      return next(errorCode('no version could satisfy the range ' + q.range, 404));
+      return next(errorCode('no version could satisfy the range ' + q.version, 404));
     }
 
-    if (versionInId !== undefined && version !== versionInId) {
-      return next(errorCode('incompatible version and range were specified' + q.range, 400));
-    }
     req.version = version;
 
     next();
@@ -249,8 +243,6 @@ app.get('/context.jsonld', function(req, res, next){
 
 
 app.get('/auth', forceAuth, function(req, res, next){
-  console.log('aa', req.user);
-
   if (req.user) {
     res.json(req.user);
   } else {
@@ -610,7 +602,7 @@ app.post('/maintainer/rm', jsonParser, forceAuth, function(req, res, next){
 });
 
 /**
- * range can be specified with query string parameter range
+ * range can be specified with query string parameter `version`
  */
 app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
 
@@ -623,9 +615,7 @@ app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
   }
 
   var uri;
-  if (~req.params.id.indexOf('@')) { //express decodes the URI component
-    uri = rootCouchRegistryRw + 'show/' + encodeURIComponent(req.params.id);
-  } else if (req.version) {
+  if (req.version) { //<-thanks to maxSatisfyingVersion middleware
     uri = rootCouchRegistryRw + 'show/' + encodeURIComponent(req.params.id + '@' + req.version);
   } else { // <- we want the latest version
     uri = rootCouchRegistryRw + 'latest/' + req.params.id;
@@ -639,11 +629,14 @@ app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(cdoc, resp.statusCode));
     req.cdoc = cdoc;
+
+    //TODO add schema:Action
+
+
     next();
   });
 
 }, serveJsonld);
-
 
 
 
