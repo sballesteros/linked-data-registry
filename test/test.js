@@ -21,7 +21,7 @@ var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
 AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
 
-var bucket = 'standardanalytics';
+var bucket = 'standard-analytics';
 var s3 = new AWS.S3({params: {Bucket: bucket}});
 
 request = request.defaults({headers: {'Accept': 'application/json'}, json:true});
@@ -246,7 +246,7 @@ describe('linked data registry', function(){
             var mydoc = clone(doc); mydoc.version = '0.0.2';
             request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: pass}, json: mydoc }, function(err, resp, body){
               assert.equal(resp.statusCode, 201);
-              request.del({url: rurl(mydoc['@id'] + '/' + mydoc.version), auth: auth}, done); //clean up extra doc
+              request.del({url: rurl(mydoc['@id'] + '?version=' + mydoc.version), auth: auth}, done); //clean up extra doc
             });
           });
         });

@@ -35,7 +35,7 @@ var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
 AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
 
-var bucket = 'standardanalytics';
+var bucket = 'standard-analytics';
 var s3 = new AWS.S3({params: {Bucket: bucket}});
 
 var credentials = {
@@ -126,37 +126,49 @@ function forceAuth(req, res, next){
  * see http://json-ld.org/spec/latest/json-ld/#iana-considerations
  */
 function serveJsonld(req, res, next){
+  var cdoc = req.cdoc;
 
-  var context = Packager.context();
+  var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost !!TODO find a better way...: might have side effect
+  var ctx;
+  if (cdoc['@context'] === Packager.contextUrl) {//context transfo to help for testing
+    ctx = cdoc['@context'];
+    cdoc['@context'] = ctxUrl;
+  }
+
+  function _next(err, pdoc) {
+    if (err) return next(err);
+
+    //reverse @context transfo
+    if (ctx && pdoc['@context'] === ctxUrl) {
+      pdoc['@context'] = ctx;
+    }
+
+    res.json(pdoc);
+  };
+
 
   switch(req.accepts('application/json', 'application/ld+json', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"')){
 
   case 'application/json':
     res.set('Link', Packager.contextLink);
-    delete req.cdoc['@context'];
-    res.json(req.cdoc);
+    delete cdoc['@context'];
+    res.json(cdoc);
     break;
 
   case 'application/ld+json':
-    res.json(req.cdoc);
+    _next(null, cdoc);
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"':
-    res.json(req.cdoc);
+    _next(null, cdoc);
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"':
-    jsonld.expand(req.cdoc, {expandContext: context}, function(err, edoc){
-      if (err) return next(err);
-      res.json(edoc);
-    });
+    jsonld.expand(cdoc, {expandContext: ctxUrl}, _next);
     break;
 
   case 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"':
-    jsonld.flatten(req.cdoc, context, function(err, fdoc){
-      if (err) return next(err);
-      res.json(fdoc);
-    });
+    jsonld.flatten(cdoc, ctxUrl, _next);
     break;
 
   default:
@@ -170,6 +182,12 @@ function compactAndValidate(req, res, next){
   var doc = req.body;
   var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
 
+  var ctx;
+  if (doc['@context'] === Packager.contextUrl) {
+    ctx = doc['@context'];
+    doc['@context'] = ctxUrl;
+  }
+
   jsonld.compact(doc, ctxUrl, function(err, cdoc){
     if(err) return next(err);
 
@@ -177,6 +195,10 @@ function compactAndValidate(req, res, next){
       packager.validate(cdoc, ctxUrl);
     } catch (e) {
       return next(e);
+    }
+
+    if (ctx && cdoc['@context'] === ctxUrl) {
+      cdoc['@context'] = ctx;
     }
 
     req.cdoc = cdoc;
@@ -267,40 +289,55 @@ app.put('/adduser/:name', jsonParser, function(req, res, next){
 
 app.put('/r/:sha1', forceAuth, function(req, res, next){
 
-  if (!req.headers['content-md5']) {
-    return res.status(400).json({error: 'a Content-MD5 header must be provided'});
-  }
+  //check if the resource exists already
+  s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
+    if (!err) {
+      if (s3Headers.ContentLength) { res.set('Content-Length', s3Headers.ContentLength); }
+      if (s3Headers.ContentType) { res.set('Content-Type', s3Headers.ContentType); }
+      if (s3Headers.ContentEncoding) { res.set('Content-Encoding', s3Headers.ContentEncoding); }
+      if (s3Headers.ETag) { res.set('ETag', s3Headers.ETag); }
+      if (s3Headers.LastModified) { res.set('Last-Modified', s3Headers.LastModified); }
 
-  var checkStream = req.pipe(sha.stream(req.params.sha1));
-  var checkErr = null;
-
-  checkStream.on('error', function(err){
-    checkErr = err;
-  });
-
-  var opts = {
-    Key: req.params.sha1,
-    Body: checkStream,
-    ContentType: req.headers['content-type'],
-    ContentLength: parseInt(req.headers['content-length'], 10),
-    ContentMD5: req.headers['content-md5']
-  };
-
-  if (req.headers['content-encoding']) {
-    opts['ContentEncoding'] = req.headers['content-encoding']
-  }
-
-  s3.putObject(opts, function(err, data){
-    if (err) return next(err);
-    if (checkErr) {
-      s3.deleteObject({Key: req.params.sha1}, function(err, data) {
-        if (err) console.error(err);
-        return next(checkErr);
-      });
-    } else {
-      res.set('ETag', data.ETag);
-      res.json(data);
+      return res.status(200).json({ok:true});
     }
+
+    //resource is not on S3, we PUT it
+    if (!req.headers['content-md5']) {
+      return res.status(400).json({error: 'a Content-MD5 header must be provided'});
+    }
+
+    var checkStream = req.pipe(sha.stream(req.params.sha1));
+    var checkErr = null;
+
+    checkStream.on('error', function(err){
+      checkErr = err;
+    });
+
+    var opts = {
+      Key: req.params.sha1,
+      Body: checkStream,
+      ContentType: req.headers['content-type'],
+      ContentLength: parseInt(req.headers['content-length'], 10),
+      ContentMD5: req.headers['content-md5']
+    };
+
+    if (req.headers['content-encoding']) {
+      opts['ContentEncoding'] = req.headers['content-encoding']
+    }
+
+    s3.putObject(opts, function(err, data){
+      if (err) return next(err);
+      if (checkErr) {
+        s3.deleteObject({Key: req.params.sha1}, function(err, data) {
+          if (err) console.error(err);
+          return next(checkErr);
+        });
+      } else {
+        res.set('ETag', data.ETag);
+        res.json(data);
+      }
+    });
+
   });
 
 });
@@ -308,6 +345,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
 
 /**
  * TODO: redirect instead ?
+ * TODO: find a way to use Content-Disposition: attachment; filename=FILENAME to indicate filename...
  */
 app.get('/r/:sha1', function(req, res, next){
 
@@ -351,6 +389,7 @@ app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
 
 });
 
+//TODO validate that all the non namespaced parts exists in the registry (if so => links) if not => invalid part @id (should be namespace/partId)
 app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, next){
 
   if (!('content-length' in req.headers)) {
@@ -440,9 +479,11 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
 
 app['delete']('/:id/:version?', forceAuth, function(req, res, next){
 
+  var version = req.params.version || req.query.version;
+
   async.waterfall([
     function(cb){ //get (all) the versions
-      if (req.params.version) return cb(null, [encodeURIComponent(req.params.id + '@' +req.params.version)]);
+      if (version) return cb(null, [encodeURIComponent(req.params.id + '@' + version)]);
       request.get({url: rootCouchRegistryRw + 'all/' + req.params.id, json:true}, function(err, resp, body){
         if (err) return cb(err);
         if (resp.statusCode >= 400) {
