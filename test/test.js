@@ -80,13 +80,13 @@ describe('linked data registry', function(){
     });
 
     it('should create and remove unversioned documents', function(done){
-      var doc = { '@context': rurl('context.jsonld'), '@id': 'doc', name: 'test doc' };
+      var doc = { '@context': Packager.contextUrl, '@id': 'doc', name: 'test doc' };
       var auth = { user: 'user_a', pass: pass };
       _test(doc, auth, doc['@id'], done);
     });
 
     it('should create and remove versioned documents', function(done){
-      var doc = { '@context': rurl('context.jsonld'), '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
+      var doc = { '@context': Packager.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
       var auth = { user: 'user_a', pass: pass };
       _test(doc, auth, encodeURIComponent(doc['@id']+ '@' + doc.version), done);
     });
@@ -100,7 +100,7 @@ describe('linked data registry', function(){
   describe('auth and maintainers', function(){
 
     var auth = {user:'user_a', pass: pass};
-    var doc = { '@context': rurl('context.jsonld'), '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
+    var doc = { '@context': Packager.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
     var userB = clone(userData); userB.name = 'user_b';
     var userC = clone(userData); userC.name = 'user_c';
     var maintainers = [
@@ -274,16 +274,16 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-version';
-    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '0.0.0' };
-    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '0.1.0' };
-    var doc2 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test doc version', version: '1.0.0' };
+    var doc0 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
+    var doc1 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '0.1.0' };
+    var doc2 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
-        async.each([doc0, doc1, doc2], function(doc, cb){
+        async.eachSeries([doc0, doc1, doc2], function(doc, cb){
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
         }, done);
-      })
+      });
     });
 
     it('should retrieve a specific version', function(done){
@@ -296,6 +296,17 @@ describe('linked data registry', function(){
     it('should retrieve the latest version', function(done){
       request.get(rurl(id), function(err, resp, doc){
         assert.equal(doc.version, doc2.version);
+        done();
+      });
+    });
+
+    it('should have set the latest tag only to the latest version', function(done){
+      async.map([doc0, doc1, doc2].map(function(d){return curl('registry/' + encodeURIComponent(id + '@' + d.version));}), function(uri, cb){
+        request.get(uri, function(err, resp, body){ cb(err, body); });
+      }, function(err, docs){
+        assert(!('latest' in docs[0]));
+        assert(!('latest' in docs[1]));
+        assert(docs[2].latest);
         done();
       });
     });
@@ -325,8 +336,8 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-unversioned';
-    var doc0 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test revision' };
-    var doc1 = { '@context': rurl('context.jsonld'), '@id': id, name: 'test revision changed' };
+    var doc0 = { '@context': Packager.contextUrl, '@id': id, name: 'test revision' };
+    var doc1 = { '@context': Packager.contextUrl, '@id': id, name: 'test revision changed' };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -362,7 +373,7 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
     var id = 'test-part';
     var doc = {
-      '@context': rurl('context.jsonld'),
+      '@context': Packager.contextUrl,
       '@id': id,
       hasPart: [
         { '@id': id + '/part', about: [{'@id': 'http://example.com/subject', name: 'subject'}] },
@@ -422,7 +433,7 @@ describe('linked data registry', function(){
   describe('JSON-LD profiles', function(){
     var auth = { user: 'user_a', pass: pass };
     var id = 'test-profiles';
-    var doc = { '@context': rurl('context.jsonld'), '@id': id, about: [{name: 'about profile'}] };
+    var doc = { '@context': Packager.contextUrl, '@id': id, about: [{name: 'about profile'}] };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -498,7 +509,7 @@ describe('linked data registry', function(){
         var r = request.put(ropts, function(err, resp, body){
           assert('ETag' in body);
           //put a document referencing the attachment
-          var doc = { '@context': rurl('context.jsonld'), '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
+          var doc = { '@context': Packager.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, function(err, resp, body){
             assert(resp.statusCode, 201);
 

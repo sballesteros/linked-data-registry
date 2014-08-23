@@ -26,3 +26,17 @@ updates.body = function(doc, req){
   resp.body = JSON.stringify({ok: "updated"});
   return [data, resp];
 };
+
+
+updates.vtag = function(doc, req){
+  var resp = {headers : {"Content-Type" : "application/json"}};
+
+  if(!doc){
+    resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
+    return [null, resp];
+  }
+
+  delete doc.latest;
+  resp.body = JSON.stringify({ok: "updated"});
+  return [doc, resp];
+};

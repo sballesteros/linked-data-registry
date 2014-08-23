@@ -68,7 +68,9 @@ var rootCouch = util.format('%s://%s:%s/', (couch.ssl == 1) ? 'https': 'http', c
   , rootCouchAdminUsers = rootCouchAdmin + '_users/'
   , rootCouchAdminUsersRw = rootCouchAdminUsers + '_design/maintainers/_rewrite/'
   , rootCouchRegistry = util.format('%s://%s:%s/%s/', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.registry)
-  , rootCouchRegistryRw = rootCouchRegistry + '_design/registry/_rewrite/';
+  , rootCouchAdminRegistry = rootCouchAdmin + couch.registry + '/'
+  , rootCouchRegistryRw = rootCouchRegistry + '_design/registry/_rewrite/'
+  , rootCouchAdminRegistryRw = rootCouchAdminRegistry + '_design/registry/_rewrite/';
 
 var packager = new Packager();
 
@@ -79,7 +81,9 @@ app.set('rootCouchAdmin', rootCouchAdmin);
 app.set('rootCouchAdminUsers', rootCouchAdminUsers);
 app.set('rootCouchAdminUsersRw', rootCouchAdminUsersRw);
 app.set('rootCouchRegistry', rootCouchRegistry);
+app.set('rootCouchAdminRegistry', rootCouchAdminRegistry);
 app.set('rootCouchRegistryRw', rootCouchRegistryRw);
+app.set('rootCouchAdminRegistryRw', rootCouchAdminRegistryRw);
 
 app.use(function(req, res, next){
   if(req.secure){
@@ -389,7 +393,9 @@ app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
 
 });
 
-//TODO validate that all the non namespaced parts exists in the registry (if so => links) if not => invalid part @id (should be namespace/partId)
+//TODO use REDIS and create a lock to validate that all the non
+//namespaced parts exists in the registry (if so => links) if not =>
+//invalid part @id (should be namespace/partId)
 app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, next){
 
   if (!('content-length' in req.headers)) {
@@ -408,9 +414,9 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
     _id = encodeURIComponent(_id + '@' + cdoc.version);
   }
 
-  request.get({url: rootCouchRegistryRw + 'all/' + req.params.id, json: true}, function(err, resp, bodyView){
+  //is there previous version/revision
+  request.get({url: rootCouchRegistryRw + 'latestview/' + req.params.id, json: true}, function(err, resp, bodyView){
     if (err) return next(err);
-
     var ropts = {
       url: rootCouchRegistry +  _id,
       headers: { 'X-CouchDB-WWW-Authenticate': 'Cookie', 'Cookie': cookie.serialize('AuthSession', req.user.token) },
@@ -418,7 +424,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
     };
 
     if (!bodyView.rows.length) { //first time ever we publish the document: add username to maintainers of the pkg
-
+      cdoc.latest = true; //add latest tag Note: **never** rely on the `latest` tag to retrieve latest version, use views instead. the `latest` tag is used to simplify search indexes
       //add username to maintainers of the doc first (if not validate_doc_update will prevent the submission)
       var udoc = { username: req.user.name, namespace: req.params.id };
       request.put({url: rootCouchAdminUsersRw +  'add/org.couchdb.user:' + req.user.name, json: udoc}, function(err, respAdd, bodyAdd){
@@ -459,8 +465,20 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
         return res.status(400).json({ error: errMsg});
       }
 
-      if (!isVersioned) { //<-call update handler to save a HEAD to get the _rev
-        ropts.url = rootCouchRegistryRw + 'update/' + _id;
+      if (isVersioned) {
+        var latestVersion = bodyView.rows[0].value.version;
+        if (semver.valid(cdoc.version) && semver.valid(latestVersion)) {
+          if (semver.gt(cdoc.version, latestVersion)) {
+            cdoc.latest = true;
+          }
+        } else {
+          if (cdoc.version > latestVersion) {
+            cdoc.latest = true;
+          }
+        }
+      } else {
+        ropts.url = rootCouchRegistryRw + 'update/' + _id; //<-call update handler to save a HEAD to get the _rev
+        cdoc.latest = true;
       }
 
       request.put(ropts, function(err, resp, body){
@@ -468,7 +486,29 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
         if (resp.statusCode >= 400) {
           return next(errorCode(body, resp.statusCode));
         }
-        return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
+
+        if (isVersioned && cdoc.latest) { //remove previous latest tag (or tags if something went wrong at some point before...)
+          request.get({url: rootCouchAdminRegistryRw + 'vtag/' + req.params.id, json:true}, function(errTagged, respTagged, bodyTagged){
+            // if error we keep going, will be fixed at the next update..
+            if (errTagged) { console.error(errTagged) };
+            if (respTagged.statusCode >= 400) { console.error(errorCode(bodyTagged, respTagged.statusCode)) };
+
+            var previousTags = bodyTagged.rows.filter(function(x){return x.value.version !== cdoc.version;});
+            async.each(previousTags, function(tag, cb){
+              request.put({url: rootCouchAdminRegistryRw + 'rmvtag/' + encodeURIComponent(tag.value._id), json:true}, function(err, resp, body){
+                if (err) { console.error(err) };
+                if (resp.statusCode >= 400) { console.error(errorCode(body, resp.statusCode)) };
+                cb(null);
+              });
+            }, function(err){
+              if (err) console.error(err);
+              return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
+            });
+
+          });
+        } else {
+          return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
+        }
       });
 
     }

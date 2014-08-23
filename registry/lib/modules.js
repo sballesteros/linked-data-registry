@@ -72,13 +72,14 @@ exports['pkg-util'] =
     },
 
     'exports.clean = clean',
-    function clean(pkg){
-      delete pkg._id;
-      delete pkg._rev;
-      delete pkg._revisions;
-      delete pkg._attachments;
+    function clean(doc){
+      delete doc._id;
+      delete doc._rev;
+      delete doc._revisions;
+      delete doc._attachments;
+      delete doc.latest;
 
-      return pkg;
+      return doc;
     },
 
     'exports.extname = extname',

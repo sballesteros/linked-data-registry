@@ -20,7 +20,7 @@ views.byId = {
       '@id': doc['@id']
     };
     if (doc['@type']) edoc['@type'] = doc['@type'];
-    if (doc.version) edoc.version = doc.version;
+    if ('version' in doc) edoc.version = doc.version;
 
     emit(doc['@id'].split(':')[1], edoc);
   },
@@ -44,12 +44,20 @@ views.byIdAndVersion = {
       version = id;
     }
 
-    emit([id, version], {
-      _id: doc._id,
-      '@id': doc['@id'],
-      version: version
-    });
+    var edoc = { _id: doc._id, '@id': doc['@id'] };
+    if ('version' in doc){ edoc.version = doc.version; }
+    if (doc['@type']) { edoc['@type'] = doc['@type']; }
+    emit([id, version], edoc);
 
+  },
+  reduce: '_count'
+};
+
+views.vtag = {
+  map: function(doc){
+    if (doc.latest && ('version' in doc)) {
+      emit(doc['@id'].split(':')[1], {_id: doc._id, version: doc.version});
+    }
   },
   reduce: '_count'
 };

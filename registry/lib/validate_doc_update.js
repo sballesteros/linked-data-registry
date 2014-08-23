@@ -37,9 +37,14 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
       throw { forbidden: '@id should not be modified' };
     }
 
-    if ('version' in oldDoc) {
+    if (!_isAdmin() && ('version' in oldDoc)) {
       throw { forbidden: 'versionned doc cannot be updated' };
     }
+
+    if (!_isAdmin() && (oldDoc.latest !== newDoc.latest)) {
+      throw { forbidden: 'only admin can change tags' };
+    }
+
   }
 
 };
