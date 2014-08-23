@@ -1,8 +1,7 @@
 linked package registry
 =======================
 
-A [CouchDB](http://couchdb.apache.org/) powered data registry for
-semantic linked data packages.
+A [CouchDB](http://couchdb.apache.org/) powered data registry for linked data packages.
 
 Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
 but different because:
@@ -13,27 +12,13 @@ but different because:
 
 A client is in development [here](https://github.com/standard-analytics/ldpm).
 
-Installation
-============
-
-This module uses [gm](https://github.com/aheckmann/gm) so first you
-need to download and install
-[GraphicsMagick](http://www.graphicsmagick.org/) or
-[ImageMagick](http://www.imagemagick.org/).
-
-
-API
-===
-
-The full API is documented here: https://standardanalytics.io/rest
-
 Tests
 =====
 
 You need couchdb running with an admin with username:seb, password:seb
 
     couchdb
-    npm init
+    npm run init
     npm run push
     npm start
     npm test
