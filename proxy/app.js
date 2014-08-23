@@ -264,11 +264,11 @@ app.get('/context.jsonld', function(req, res, next){
 });
 
 
-app.get('/auth', forceAuth, function(req, res, next){
+app.get('/session', forceAuth, function(req, res, next){
   if (req.user) {
     res.json(req.user);
   } else {
-    return next(errorCode('auth', 500));
+    return next(errorCode('/session', 500));
   }
 });
 
@@ -572,7 +572,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
 });
 
 
-app.get('/maintainer/ls/:id', function(req, res, next){
+app.get('/maintainers/ls/:id', function(req, res, next){
 
   request.get({url: rootCouchAdminUsersRw + 'doc/' + req.params.id, json:true}, function(err, resp, body){
     if (err) return next(err);
@@ -583,7 +583,7 @@ app.get('/maintainer/ls/:id', function(req, res, next){
 
 });
 
-app.post('/maintainer/add', jsonParser, forceAuth, function(req, res, next){
+app.post('/maintainers/add', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
 
@@ -617,7 +617,7 @@ app.post('/maintainer/add', jsonParser, forceAuth, function(req, res, next){
 /**
  * TODO do something (or not?) if a package has no maintainers ??
  */
-app.post('/maintainer/rm', jsonParser, forceAuth, function(req, res, next){
+app.post('/maintainers/rm', jsonParser, forceAuth, function(req, res, next){
 
   var data = req.body;
 

@@ -113,7 +113,7 @@ describe('linked data registry', function(){
         request.put({url: rurl('adduser/user_b'), json: userB}, function(){
           request.put({url: rurl('adduser/user_c'), json: userC}, function(){
             request.put( { url: rurl(doc['@id']), auth: auth, json: doc }, function(){
-              request.post( {url: rurl('maintainer/add'), auth: auth,  json: {username: 'user_b', namespace: doc['@id']}}, done);
+              request.post( {url: rurl('maintainers/add'), auth: auth,  json: {username: 'user_b', namespace: doc['@id']}}, done);
             });
           });
         });
@@ -140,21 +140,21 @@ describe('linked data registry', function(){
       });
 
       it('should error with code 401 if user try to auth with wrong password', function(done){
-        request.get( { url: rurl('auth'), auth: {user:'user_a', pass: 'wrong'} }, function(err, resp, body){
+        request.get( { url: rurl('session'), auth: {user:'user_a', pass: 'wrong'} }, function(err, resp, body){
           assert.equal(resp.statusCode, 401);
           done();
         });
       });
 
       it('should error with code 401 if user try to auth with non existent name', function(done){
-        request.get( { url: rurl('auth'), auth: {user:'user_wrong', pass: pass} }, function(err, resp, body){
+        request.get( { url: rurl('session'), auth: {user:'user_wrong', pass: pass} }, function(err, resp, body){
           assert.equal(resp.statusCode, 401);
           done();
         });
       });
 
       it('should return a token and 200 on successful auth', function(done){
-        request.get( { url: rurl('auth'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        request.get( { url: rurl('session'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           assert.equal(body.name, 'user_a');
           done();
@@ -162,7 +162,7 @@ describe('linked data registry', function(){
       });
 
       it('user_a and user_b should be maintainers of the doc', function(done){
-        request.get(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
+        request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
           assert.deepEqual(body, maintainers);
           done();
         });
@@ -187,7 +187,7 @@ describe('linked data registry', function(){
       it('should not let user_c delete the doc and remove it from the roles of user_a and user_b', function(done){
         request.del( { url: rurl(doc['@id']), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
-          request.get(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
+          request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.deepEqual(body, maintainers);
             done();
           });
@@ -195,14 +195,14 @@ describe('linked data registry', function(){
       });
 
       it('should not let user_c add itself to the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainer/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
       });
 
       it('should not let user_c rm user_a from the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainer/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
@@ -228,7 +228,7 @@ describe('linked data registry', function(){
       it('should let user_a delete the doc and remove it from the roles of user_a and user_b', function(done){
         request.del({ url: rurl(doc['@id']), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
-          request(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
+          request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.equal(resp.statusCode, 404);
             done();
           });
@@ -236,9 +236,9 @@ describe('linked data registry', function(){
       });
 
       it('should let user_a add user_c as a maintainers of the doc and then let user_c upgrade it (version bump)', function(done){
-        request.post({url: rurl('maintainer/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
-          request(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
+          request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             var expected = clone(maintainers);
             expected.push({_id: 'org.couchdb.user:user_c', name:'user_c', email:'user@domain.io'});
             assert.deepEqual(body, expected);
@@ -253,9 +253,9 @@ describe('linked data registry', function(){
       });
 
       it('should let user_a rm user_b from the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainer/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
-          request.get(rurl('maintainer/ls/' + doc['@id']), function(err, resp, body){
+          request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.deepEqual(body, maintainers.slice(0,-1));
             done();
           });
