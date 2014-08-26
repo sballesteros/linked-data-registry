@@ -7,7 +7,7 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for linked data.
 
 - build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
 - documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
-- semantic search is supported
+- compatible with [linked data fragments](http://linkeddatafragments.org/) [triple pattern fragment](http://linkeddatafragments.org/concept/#tpf)
 
 A client is available [here](https://github.com/standard-analytics/ldpm).
 
@@ -43,8 +43,12 @@ response body:
       "@type": "RegisterAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{username}",
-      "object": "https://registry.standardanalytics.io"
+      "object": ""
     }
+
+Note: relative URLs are relative to a ```@base``` of
+```https://registry.standardanalytics.io``` specified in the
+[context](https://registry.standardanalytics.io/context.jsonld).
 
 ### DELETE /users/{username}
 
@@ -60,7 +64,7 @@ response body:
       "@type": "UnRegisterAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{username}",
-      "object": "https://registry.standardanalytics.io"
+      "object": ""
     }
 
 
@@ -174,10 +178,11 @@ response body:
 
     {
       "@context": "https://registry.standardanalytics.io/context.jsonld",
-      "@type": "RegisterAction",
+      "@type": "GiveAction",
       "actionStatus": "CompletedActionStatus",
-      "agent": "users/{username}",
-      "object": "{namespace}"
+      "agent": "users/{me}",
+      "object": "{namespace}",
+      "recipient": "users/{username}"
     }
 
 
@@ -190,10 +195,11 @@ response body:
 
     {
       "@context": "https://registry.standardanalytics.io/context.jsonld",
-      "@type": "UnRegisterAction",
+      "@type": "TakeAction",
       "actionStatus": "CompletedActionStatus",
-      "agent": "users/{username}",
-      "object": "{namespace}"
+      "agent": "users/{me}",
+      "object": "{namespace}",
+      "recipient": "users/{username}"
     }
 
 
@@ -214,7 +220,6 @@ required headers:
 ### GET /r/{sha1}
 
 Retrieve raw data.
-
 
 Tests
 =====
