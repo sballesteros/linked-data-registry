@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/standard-analytics/linked-data-registry",
   "dependencies": {
-    "package-jsonld": "*",
+    "sa-schema-org": "0.0.0",
     "mime": "~1.2.11",
     "url": "~0.7.9",
     "sha": "^1.2.3",
@@ -50,7 +50,8 @@
     "npm-user-validate": "~0.1.0",
     "padded-semver": "~2.0.5",
     "request": "~2.40.0",
-    "body-parser": "~1.6.5"
+    "body-parser": "~1.6.5",
+    "oboe": "~1.15.1"
   },
   "devDependencies": {
     "mocha": "~1.15.1",

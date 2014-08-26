@@ -8,7 +8,7 @@ var util = require('util')
   , Readable = require('stream').Readable
   , crypto = require('crypto')
   , querystring = require('querystring')
-  , Packager = require('package-jsonld')
+  , SaSchemaOrg = require('sa-schema-org')
   , cms = require('couch-multipart-stream')
   , AWS = require('aws-sdk')
   , zlib = require('zlib')
@@ -33,7 +33,6 @@ function rurl(path){
 function curl(path){
   return 'http://seb:seb@127.0.0.1:5984/' + path
 };
-
 
 var pass = 'seb';
 var userData = {
@@ -80,13 +79,13 @@ describe('linked data registry', function(){
     });
 
     it('should create and remove unversioned documents', function(done){
-      var doc = { '@context': Packager.contextUrl, '@id': 'doc', name: 'test doc' };
+      var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc', name: 'test doc' };
       var auth = { user: 'user_a', pass: pass };
       _test(doc, auth, doc['@id'], done);
     });
 
     it('should create and remove versioned documents', function(done){
-      var doc = { '@context': Packager.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
+      var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
       var auth = { user: 'user_a', pass: pass };
       _test(doc, auth, encodeURIComponent(doc['@id']+ '@' + doc.version), done);
     });
@@ -100,7 +99,7 @@ describe('linked data registry', function(){
   describe('auth and maintainers', function(){
 
     var auth = {user:'user_a', pass: pass};
-    var doc = { '@context': Packager.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
+    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
     var userB = clone(userData); userB.name = 'user_b';
     var userC = clone(userData); userC.name = 'user_c';
     var maintainers = [
@@ -274,9 +273,9 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-version';
-    var doc0 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
-    var doc1 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '0.1.0' };
-    var doc2 = { '@context': Packager.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
+    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
+    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '0.1.0' };
+    var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -336,8 +335,8 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
 
     var id = 'doc-unversioned';
-    var doc0 = { '@context': Packager.contextUrl, '@id': id, name: 'test revision' };
-    var doc1 = { '@context': Packager.contextUrl, '@id': id, name: 'test revision changed' };
+    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision' };
+    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision changed' };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -373,7 +372,7 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: pass };
     var id = 'test-part';
     var doc = {
-      '@context': Packager.contextUrl,
+      '@context': SaSchemaOrg.contextUrl,
       '@id': id,
       hasPart: [
         { '@id': id + '/part', about: [{'@id': 'http://example.com/subject', name: 'subject'}] },
@@ -433,7 +432,7 @@ describe('linked data registry', function(){
   describe('JSON-LD profiles', function(){
     var auth = { user: 'user_a', pass: pass };
     var id = 'test-profiles';
-    var doc = { '@context': Packager.contextUrl, '@id': id, about: [{name: 'about profile'}] };
+    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': id, about: [{name: 'about profile'}] };
 
     before(function(done){
       request.put({url: rurl('adduser/user_a'), json: userData}, function(){
@@ -464,7 +463,7 @@ describe('linked data registry', function(){
 
     it('should get the doc as JSON interpreted as JSON-LD', function(done){
       request.get(rurl(id), function(err, resp, body){
-        assert.equal(resp.headers.link, Packager.contextLink);
+        assert.equal(resp.headers.link, SaSchemaOrg.contextLink);
         assert.deepEqual(body.about, doc.about);
         done();
       });
@@ -509,7 +508,7 @@ describe('linked data registry', function(){
         var r = request.put(ropts, function(err, resp, body){
           assert('ETag' in body);
           //put a document referencing the attachment
-          var doc = { '@context': Packager.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
+          var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, function(err, resp, body){
             assert(resp.statusCode, 201);
 
@@ -547,4 +546,42 @@ describe('linked data registry', function(){
     });
 
   });
+
+  describe('search', function(){
+    var auth = { user: 'user_a', pass: pass };
+    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw0', name: 'a', keywords: 'a' };
+    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw1', name: 'a, b, c', keywords: ['a', 'b', 'c'] };
+    var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw2', name: 'a, b', keywords: ['a', 'b'] };
+
+    before(function(done){
+      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+        async.eachSeries([doc0, doc1, doc2], function(doc, cb){
+          request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
+        }, done);
+      })
+    });
+
+    it('should search by keywords and get 3 results', function(done){
+      request.get(rurl('search?keywords=a'), function(err, resp, body){
+        assert.equal(body.itemListElement.length, 3);
+        done();
+      });
+    });
+
+    it('should search by keywords and get 1 results', function(done){
+      request.get(rurl('search?keywords=a&keywords=c'), function(err, resp, body){
+        assert.equal(body.itemListElement.length, 1);
+        done();
+      });
+    });
+
+    after(function(done){
+      async.eachSeries([doc0, doc1, doc2], function(doc, cb){
+        request.del({ url: rurl(doc['@id']), auth: auth }, cb);
+      }, function(){
+        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      });
+    });
+  });
+
 });

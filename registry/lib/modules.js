@@ -5,7 +5,6 @@ exports.punycode = fs.readFileSync(require.resolve('../../node_modules/url/node_
 exports.querystring = fs.readFileSync(require.resolve('../../node_modules/url/node_modules/querystring'), 'utf8');
 exports.url = fs.readFileSync(require.resolve('../../node_modules/url'), 'utf8');
 exports['is-url'] = fs.readFileSync(require.resolve('is-url'), 'utf8');
-
 exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 
 //exports['package-jsonld'] = fs.readFileSync(require.resolve('package-jsonld'), 'utf8');
@@ -39,7 +38,6 @@ exports['for-each-node'] = [
     }
   }
 ].map(function (s) { return s.toString() + ';' }).join('\n');
-
 
 exports['pkg-util'] =
   [ 'exports.root = root',

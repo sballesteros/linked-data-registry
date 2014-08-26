@@ -14,13 +14,14 @@ var http = require('http')
   , mime = require('mime')
   , url = require('url')
   , jsonld = require('jsonld')
-  , Packager = require('package-jsonld')
+  , SaSchemaOrg = require('sa-schema-org')
   , clone = require('clone')
   , AWS = require('aws-sdk')
   , sha = require('sha')
   , s3util = require('./lib/s3util')
   , bodyParser = require('body-parser')
   , concat = require('concat-stream')
+  , oboe = require('oboe')
   , pkgJson = require('../package.json');
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
@@ -72,7 +73,7 @@ var rootCouch = util.format('%s://%s:%s/', (couch.ssl == 1) ? 'https': 'http', c
   , rootCouchRegistryRw = rootCouchRegistry + '_design/registry/_rewrite/'
   , rootCouchAdminRegistryRw = rootCouchAdminRegistry + '_design/registry/_rewrite/';
 
-var packager = new Packager();
+var packager = new SaSchemaOrg();
 
 app.set('packager', packager);
 app.set('admin', admin);
@@ -134,7 +135,7 @@ function serveJsonld(req, res, next){
 
   var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost !!TODO find a better way...: might have side effect
   var ctx;
-  if (cdoc['@context'] === Packager.contextUrl) {//context transfo to help for testing
+  if (cdoc['@context'] === SaSchemaOrg.contextUrl) {//context transfo to help for testing
     ctx = cdoc['@context'];
     cdoc['@context'] = ctxUrl;
   }
@@ -154,7 +155,7 @@ function serveJsonld(req, res, next){
   switch(req.accepts('application/json', 'application/ld+json', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"')){
 
   case 'application/json':
-    res.set('Link', Packager.contextLink);
+    res.set('Link', SaSchemaOrg.contextLink);
     delete cdoc['@context'];
     res.json(cdoc);
     break;
@@ -187,7 +188,7 @@ function compactAndValidate(req, res, next){
   var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
 
   var ctx;
-  if (doc['@context'] === Packager.contextUrl) {
+  if (doc['@context'] === SaSchemaOrg.contextUrl) {
     ctx = doc['@context'];
     doc['@context'] = ctxUrl;
   }
@@ -264,7 +265,7 @@ function maxSatisfyingVersion(req, res, next){
 
 app.get('/context.jsonld', function(req, res, next){
   res.set('Content-Type', 'application/ld+json');
-  res.send(JSON.stringify(Packager.context(), null, 2));
+  res.send(JSON.stringify(SaSchemaOrg.context(), null, 2));
 });
 
 
@@ -274,6 +275,67 @@ app.get('/session', forceAuth, function(req, res, next){
   } else {
     return next(errorCode('/session', 500));
   }
+});
+
+
+
+app.get('/search', function(req, res, next){
+  var keywords = req.query.keywords || [];
+  keywords = (Array.isArray(keywords)? keywords : [keywords])
+    .map(function(x){return x.trim().toLowerCase()})
+    .filter(function(x){return x;});
+
+  if (!keywords.length) {
+    return next(errorCode('please provide keywords querystring parameter(s)', 400));
+  }
+
+  //take the request with the smallest number of results
+  async.sortBy(keywords, function(kw, cb){
+    request.get({url: rootCouchRegistryRw + 'search?reduce=true&group=true&key="' + kw +'"', json:true}, function(err, resp, body){
+      if (err) return cb (err);
+      if (resp.statusCode >= 400) return cb(errorCode(body, resp.statusCode));
+      if (!body.rows.length) return cb(errorCode('no results', 404));
+      return cb(null, body.rows[0].value);
+    });
+
+  }, function(err, sortedKw){
+    if (err) return next(err);
+
+    //filter results that match all the other kw and stream a JSON-LD response
+    var isFirst = true;
+    oboe(rootCouchRegistryRw + 'search?reduce=false&key="' + sortedKw[0] +'"')
+      .start(function(status, headers){
+        res.set('Content-Type', 'application/ld+json');
+      })
+      .node('rows.*', function(row){
+        if (isFirst) {
+          res.write(['{',
+                     '"@context": "' + SaSchemaOrg.contextUrl + '",',
+                     '"@type": "ItemList",',
+                     '"itemListOrder": "Unordered",',
+                     '"itemListElement": ['
+                    ].join(''));
+          isFirst = false;
+        } else {
+          res.write(',');
+        };
+        delete row.value._id;
+        res.write(JSON.stringify(row.value));
+      })
+      .done(function() {
+        res.write(']}');
+        res.end();
+      })
+      .fail(function(errorReport) {
+        if (errorReport.thrown) {
+          next(errorReport.thrown);
+        } else {
+          next(errorCode(errorReport.jsonBody, errorReport.statusCode));
+        }
+      });
+
+  });
+
 });
 
 
@@ -718,7 +780,6 @@ app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
   });
 
 }, serveJsonld);
-
 
 
 //generic error handling

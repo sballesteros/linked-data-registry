@@ -25,5 +25,6 @@ module.exports = [
   { from: '/show/:id', to: '/_show/doc/:id', method: 'GET' },
   { from: '/show/:id/:part_id', to: '/_show/part/:id/:part_id', method: 'GET' },
 
-  { from: "/update/:_id", to: "/_update/body/:_id", method: "PUT" }
+  { from: "/update/:_id", to: "/_update/body/:_id", method: "PUT" },
+  { from: '/search', to: '/_view/byKeyword', method: 'GET'},
 ];
