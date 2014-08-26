@@ -76,12 +76,12 @@ Get a user public profile.
 Create a new [JSON-LD](http://www.w3.org/TR/json-ld) document of
 ```@id``` ```{namespace}```.
 
-If a ```[version](http://schema.org)``` property is specified in the
+If a [```version```](http://schema.org/version) property is specified in the
 document, the document will be versionned that is each update will
 require a new version value to be published. When appropriate version
 number SHOULD follow [semantic versionning](http://semver.org/).
 
-If a ```[version](http://schema.org)``` property is not specified, the
+If a [```version```](http://schema.org/version) property is not specified, the
 new document will replace the previous version irreversibly.
 
 required header:
@@ -134,7 +134,7 @@ response body:
 
 Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id```
 ```{namespace}``` or a node of this document of ```@id```
-{namespace}/{pathorurl} or {pathorurl}.
+```{namespace}/{pathorurl}``` or ```{pathorurl}```.
 
 A specific version can be specified using a query string parameter
 ```version``` whose value is properly encoded as a Uniform Resource
