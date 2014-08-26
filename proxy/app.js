@@ -277,7 +277,6 @@ app.get('/session', forceAuth, function(req, res, next){
 });
 
 
-
 app.get('/search', function(req, res, next){
   var keywords = req.query.keywords || [];
   keywords = (Array.isArray(keywords)? keywords : [keywords])
