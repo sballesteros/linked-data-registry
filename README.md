@@ -20,10 +20,10 @@ Registry API
 ### GET /
 
 Return a [JSON-LD](http://www.w3.org/TR/json-ld) document describing
-the registry and the potential action using
+the registry and its potential action using
 [schema.org](http://schema.org).
 
-### PUT /adduser/{username}
+### PUT /users/{username}
 
 Register an user.
 
@@ -49,7 +49,7 @@ response body:
       "object": "https://registry.standardanalytics.io"
     }
 
-### DELETE /rmuser/{username}
+### DELETE /users/{username}
 
 Unregister an user.
 
@@ -66,6 +66,10 @@ response body:
       "object": "https://registry.standardanalytics.io"
     }
 
+
+### GET /users/{username}
+
+Get a user public profile.
 
 ### PUT /{namespace}
 
