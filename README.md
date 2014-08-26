@@ -5,9 +5,6 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for linked data.
 
 [![NPM](https://nodei.co/npm/linked-data-registry.png)](https://nodei.co/npm/linked-data-registry/)
 
-Inspired by the [npm registry](https://github.com/isaacs/npmjs.org)
-but different because:
-
 - build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
 - documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
 - semantic search is supported
@@ -155,7 +152,7 @@ registry can be served as
 
 ### GET /maintainers/ls/{namespace}
 
-List the maintainers of package of [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id``` {namespace}.
+List the maintainers of package of [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id``` ```{namespace}```.
 
 response body:
 
@@ -205,7 +202,7 @@ Raw data storage API
 
 ### PUT /r/{sha1}
 
-Publish a resource whose SHA-1 message digest (encoded in hex) is {sha1}.
+Publish a resource whose SHA-1 message digest (encoded in hex) is ```{sha1}```.
 
 required headers:
 - Authorization
