@@ -102,9 +102,9 @@ describe('linked data registry', function(){
     var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
     var userB = clone(userData); userB.name = 'user_b';
     var userC = clone(userData); userC.name = 'user_c';
-    var maintainers = [
-      {'_id': 'org.couchdb.user:user_a', 'name': 'user_a', 'email': 'user@domain.io'},
-      {'_id': 'org.couchdb.user:user_b','name': 'user_b','email': 'user@domain.io'}
+    var accountablePersons =  [
+      { '@type': 'Person', name: 'user_a', email: 'mailto:user@domain.io' },
+      { '@type': 'Person', name: 'user_b', email: 'mailto:user@domain.io' }
     ];
 
     function createFixture(done){
@@ -162,7 +162,7 @@ describe('linked data registry', function(){
 
       it('user_a and user_b should be maintainers of the doc', function(done){
         request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
-          assert.deepEqual(body, maintainers);
+          assert.deepEqual(body.accountablePerson, accountablePersons);
           done();
         });
       });
@@ -187,7 +187,7 @@ describe('linked data registry', function(){
         request.del( { url: rurl(doc['@id']), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
-            assert.deepEqual(body, maintainers);
+            assert.deepEqual(body.accountablePerson, accountablePersons);
             done();
           });
         });
@@ -238,9 +238,9 @@ describe('linked data registry', function(){
         request.post({url: rurl('maintainers/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
-            var expected = clone(maintainers);
-            expected.push({_id: 'org.couchdb.user:user_c', name:'user_c', email:'user@domain.io'});
-            assert.deepEqual(body, expected);
+            var expected = clone(accountablePersons);
+            expected.push({'@type': 'Person', name:'user_c', email:'mailto:user@domain.io'});
+            assert.deepEqual(body.accountablePerson, expected);
 
             var mydoc = clone(doc); mydoc.version = '0.0.2';
             request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: pass}, json: mydoc }, function(err, resp, body){
@@ -255,7 +255,7 @@ describe('linked data registry', function(){
         request.post({url: rurl('maintainers/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', namespace: doc['@id']}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
-            assert.deepEqual(body, maintainers.slice(0,-1));
+            assert.deepEqual(body.accountablePerson, accountablePersons.slice(0,-1));
             done();
           });
         });

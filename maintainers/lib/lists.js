@@ -8,7 +8,7 @@ lists.maintainers = function(head, req){
     maintainers.push(row.value);
   }
 
-  if(!maintainers.length){
+  if (!maintainers.length) {
     throw ['error', 'not_found', 'no results'];
   }
 

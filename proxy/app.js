@@ -680,7 +680,19 @@ app.get('/maintainers/ls/:id', function(req, res, next){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
 
-    res.status(resp.statusCode).json(body);
+    var doc = {
+      '@context': SaSchemaOrg.contextUrl,
+      "@id": req.params.id,
+      "accountablePerson": body.map(function(x){
+        return {
+          '@type': 'Person',
+          name: x.name,
+          email: 'mailto:' + x.email
+        }
+      })
+    };
+    res.set('Content-Type', 'application/ld+json');
+    res.status(resp.statusCode).send(JSON.stringify(doc));
   });
 
 });

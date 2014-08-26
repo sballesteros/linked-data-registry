@@ -112,26 +112,28 @@ views.bySha1 = {
 
 views.byKeyword = {
   map: function(doc){
-    var forEachNode = require('views/lib/for-each-node');
+    if (doc.latest) {
+      var forEachNode = require('views/lib/for-each-node');
 
-    var edoc = { _id: doc._id, '@id': doc['@id'] };
-    if (doc['@type']) { edoc['@type'] = doc['@type'] }
-    if (doc.version) { edoc.version = doc.version; }
-    if (doc.name) { edoc.name = doc.name; }
-    if (doc.description) { edoc.description = doc.description; }
-    //TODO ?? also emit node props (name, type version...) ???
+      var edoc = { _id: doc._id, '@id': doc['@id'] };
+      if (doc['@type']) { edoc['@type'] = doc['@type'] }
+      if (doc.version) { edoc.version = doc.version; }
+      if (doc.name) { edoc.name = doc.name; }
+      if (doc.description) { edoc.description = doc.description; }
+      //TODO ?? also emit node props (name, type version...) ???
 
-    function _emit(prop, node){
-      if (node.keywords) {
-        var keywords = (Array.isArray(node.keywords)) ? node.keywords : [node.keywords];
-        keywords.forEach(function(kw){
-          emit(kw.trim().toLowerCase(), edoc);
-        });
-      }
-    };
+      function _emit(prop, node){
+        if (node.keywords) {
+          var keywords = (Array.isArray(node.keywords)) ? node.keywords : [node.keywords];
+          keywords.forEach(function(kw){
+            emit(kw.trim().toLowerCase(), edoc);
+          });
+        }
+      };
 
-    _emit(null, doc);
-    forEachNode(doc, _emit);
+      _emit(null, doc);
+      forEachNode(doc, _emit);
+    }
   },
   reduce: '_count'
 };
