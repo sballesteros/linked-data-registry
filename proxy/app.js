@@ -32,17 +32,17 @@ mime.define({
   'application/x-gzip': ['gz', 'gzip'] //tar.gz won't work
 });
 
-var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
+var root = path.dirname(path.dirname(__filename));
 
-AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
+AWS.config.loadFromPath(path.join(root, process.env['CREDENTIAL_AWS']));
 
-var bucket = 'standard-analytics';
+var bucket = process.env['S3_BUCKET'];
 var s3 = new AWS.S3({params: {Bucket: bucket}});
 
 var credentials = {
-  key: fs.readFileSync(path.join($HOME, 'certificate', 'standardanalytics.key')),
-  cert: fs.readFileSync(path.join($HOME, 'certificate', 'certificate-47444.crt')),
-  ca: fs.readFileSync(path.join($HOME, 'certificate', 'GandiStandardSSLCA.pem'))
+  key: fs.readFileSync(path.join(root, process.env['CREDENTIAL_KEY'])),
+  cert: fs.readFileSync(path.join(root, process.env['CREDENTIAL_CERT'])),
+  ca: fs.readFileSync(path.join(root, process.env['CREDENTIAL_CA']))
 };
 
 var app = express()
@@ -52,23 +52,22 @@ var app = express()
 app.enable('case sensitive routing');
 
 var couch = {
-  ssl: process.env['COUCH_SSL'],
+  protocol: process.env['COUCH_PROTOCOL'],
   host: process.env['COUCH_HOST'],
   port: process.env['COUCH_PORT'],
-  registry: (process.env['REGISTRY_DB_NAME'] || 'registry'),
-  interaction: (process.env['INTERACTION_DB_NAME'] || 'interaction')
+  registry: (process.env['COUCH_DB_NAME'] || 'registry')
 };
 
-var admin = { name: process.env['COUCH_USER'], password: process.env['COUCH_PASS'] }
+var admin = { name: process.env['COUCH_ADMIN_USER'], password: process.env['COUCH_ADMIN_PASS'] }
   , host = process.env['NODE_HOST']
   , port = process.env['NODE_PORT'] || 80
   , portHttps = process.env['NODE_PORT_HTTPS'] || 443;
 
-var rootCouch = util.format('%s://%s:%s/', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port)
-  , rootCouchAdmin = util.format('%s://%s:%s@%s:%d/', (couch.ssl == 1) ? 'https': 'http', admin.name, admin.password, couch.host, couch.port)
+var rootCouch = util.format('%s//%s:%s/', couch.protocol, couch.host, couch.port)
+  , rootCouchAdmin = util.format('%s//%s:%s@%s:%d/', couch.protocol, admin.name, admin.password, couch.host, couch.port)
   , rootCouchAdminUsers = rootCouchAdmin + '_users/'
   , rootCouchAdminUsersRw = rootCouchAdminUsers + '_design/maintainers/_rewrite/'
-  , rootCouchRegistry = util.format('%s://%s:%s/%s/', (couch.ssl == 1) ? 'https': 'http', couch.host, couch.port, couch.registry)
+  , rootCouchRegistry = util.format('%s//%s:%s/%s/', couch.protocol, couch.host, couch.port, couch.registry)
   , rootCouchAdminRegistry = rootCouchAdmin + couch.registry + '/'
   , rootCouchRegistryRw = rootCouchRegistry + '_design/registry/_rewrite/'
   , rootCouchAdminRegistryRw = rootCouchAdminRegistry + '_design/registry/_rewrite/';

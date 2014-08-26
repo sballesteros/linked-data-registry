@@ -15,9 +15,10 @@ A client is in development [here](https://github.com/standard-analytics/ldpm).
 Tests
 =====
 
-You need couchdb running with an admin with username:seb, password:seb
+You need couchdb running with an admin defined in ```env.sh``` (```COUCH_ADMIN_USER``` and ```COUCH_ADMIN_PASS```) (see ```env.sh```)
 
     couchdb
+    source env.sh
     npm run init
     npm run push
     npm start

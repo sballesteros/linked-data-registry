@@ -17,21 +17,29 @@ var util = require('util')
   , crypto = require('crypto');
 
 var root = path.dirname(__filename);
-var $HOME = process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE;
 
-AWS.config.loadFromPath(path.join($HOME, 'certificate', 'aws.json'));
+AWS.config.loadFromPath(path.join(path.dirname(root), process.env['CREDENTIAL_AWS']));
 
-var bucket = 'standard-analytics';
+var bucket = process.env['S3_BUCKET'];
 var s3 = new AWS.S3({params: {Bucket: bucket}});
 
 request = request.defaults({headers: {'Accept': 'application/json'}, json:true});
 
 function rurl(path){
-  return 'http://localhost:3000/' + path
+  return util.format('http://%s:%s/%s',
+                     process.env['NODE_HOST'],
+                     process.env['NODE_PORT'],
+                     path);
 };
 
 function curl(path){
-  return 'http://seb:seb@127.0.0.1:5984/' + path
+  return util.format('%s//%s:%s@%s:%s/%s',
+                     process.env['COUCH_PROTOCOL'],
+                     process.env['COUCH_ADMIN_USER'],
+                     process.env['COUCH_ADMIN_PASS'],
+                     process.env['COUCH_HOST'],
+                     process.env['COUCH_PORT'],
+                     path);
 };
 
 var pass = 'seb';

@@ -1,13 +1,12 @@
 var fs = require('fs');
 
-//want to use url and package-jsonld in couchdb => install all the deps.
+//want to use url in couchdb => install all the deps.
 exports.punycode = fs.readFileSync(require.resolve('../../node_modules/url/node_modules/punycode'), 'utf8');
 exports.querystring = fs.readFileSync(require.resolve('../../node_modules/url/node_modules/querystring'), 'utf8');
 exports.url = fs.readFileSync(require.resolve('../../node_modules/url'), 'utf8');
 exports['is-url'] = fs.readFileSync(require.resolve('is-url'), 'utf8');
 exports.semver = fs.readFileSync(require.resolve('semver'), 'utf8');
 
-//exports['package-jsonld'] = fs.readFileSync(require.resolve('package-jsonld'), 'utf8');
 exports['padded-semver'] = fs.readFileSync(require.resolve('padded-semver'), 'utf8');
 
 exports['proxy'] = [
@@ -16,7 +15,7 @@ exports['proxy'] = [
   'exports.portHttps = "PORT_HTTPS";'.replace('PORT_HTTPS', process.env['NODE_PORT_HTTPS']),
 ].join('\n');
 
-exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['REGISTRY_DB_NAME'] || 'registry'),
+exports['couch'] = 'exports.name = "NAME";'.replace('NAME', process.env['COUCH_DB_NAME'] || 'registry'),
 
 exports['for-each-node'] = [
   'module.exports = _forEachNode',
