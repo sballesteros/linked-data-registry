@@ -22,6 +22,7 @@ var http = require('http')
   , bodyParser = require('body-parser')
   , concat = require('concat-stream')
   , oboe = require('oboe')
+  , me = require('./lib/me')
   , pkgJson = require('../package.json');
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
@@ -150,7 +151,6 @@ function serveJsonld(req, res, next){
     res.json(pdoc);
   };
 
-
   switch(req.accepts('application/json', 'application/ld+json', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"')){
 
   case 'application/json':
@@ -261,6 +261,11 @@ function maxSatisfyingVersion(req, res, next){
 
 };
 
+
+app.get('/', function(req, res, next){
+  req.cdoc = me;
+  next();
+}, serveJsonld);
 
 app.get('/context.jsonld', function(req, res, next){
   res.set('Content-Type', 'application/ld+json');

@@ -1,7 +1,7 @@
 {
   "name": "linked-data-registry",
   "version": "0.9.0",
-  "description": "Standard Analytics IO registry for linked data packages",
+  "description": "A CouchDB powered registry for linked data",
   "main": "index.js",
   "scripts": {
     "init": "curl -XPUT $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME",

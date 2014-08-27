@@ -1,0 +1,127 @@
+{
+  "@context": "https://registry.standardanalytics.io/context.jsonld",
+  "@id": "https://registry.standardanalytics.io/",
+  "@type": "DataCatalog",
+  "name": "linked data registry",
+  "description": "A CouchDB powered registry for linked data.",
+  "provider": {
+    "@id": "https://standardanalytics.io",
+    "@type": "Organization",
+    "legalName": "Standard Analytics IO"
+  },
+  "potentialAction": [
+    {
+      "@type": "RegisterAction",
+      "description": "Register an user.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "PUT",
+        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+      }
+    },
+    {
+      "@type": "UnRegisterAction",
+      "description": "Unregister an user.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "DELETE",
+        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+      }
+    },
+    {
+      "@type": "ViewAction",
+      "description": "View a user public profile.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "GET",
+        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+      }
+    },
+
+    {
+      "@type": "CreateAction",
+      "description": "Create a new JSON-LD document of `@id` `{namespace}`.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "PUT",
+        "urlTemplate": "https://registry.standardanalytics.io/{namespace}"
+      }
+    },
+    {
+      "@type": "DeleteAction",
+      "description": "Delete a document of `@id` `{namespace}` and version `{version}`. If version is omitted all the versions will be deleted.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "DELETE",
+        "urlTemplate": "https://registry.standardanalytics.io/{namespace}{?version}"
+      }
+    },
+    {
+      "@type": "ViewAction",
+      "description": "Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of `@id` `{namespace}` or a node of this document of `@id` `{namespace}/{pathorurl}` or `{pathorurl}`. In the later case, `{pathorurl}` has to be an absolute URL encoded as an Uniform Resource Identifier (URI) component. A specific version can be specified using a query string parameter `version` whose value is properly encoded as a Uniform Resource Identifier (URI) component. In case the document is versionned following Semantic Versioning (http://semver.org/), a range (e.g `<0.0.1`) can be specified as `version`. If `{?version}` is omitted, the latest version of the document is returned.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "GET",
+        "urlTemplate": "https://registry.standardanalytics.io/{namespace}/{+pathorurl}{?version}"
+      }
+    },
+
+
+    {
+      "@type": "ViewAction",
+      "description": "List the maintainers of package of a JSON-LD document with `@id` `{namespace}`.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "GET",
+        "urlTemplate": "https://registry.standardanalytics.io/maintainers/ls/{namespace}"
+      }
+    },
+    {
+      "@type": "GiveAction",
+      "description": "Add a maintainer of `@id`  `users/{username}` to the document of `@id` `{namespace}`.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "POST",
+        "urlTemplate": "https://registry.standardanalytics.io/maintainers/add/{username}/{namespace}"
+      }
+    },
+    {
+      "@type": "TakeAction",
+      "description": "Remove a maintainer of `@id` `users/{username}` to the document of `@id` `{namespace}`.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "POST",
+        "urlTemplate": "https://registry.standardanalytics.io/maintainers/rm/{username}/{namespace}"
+      }
+    },
+
+    {
+      "@type": "CreateAction",
+      "description": "Publish a resource whose SHA-1 message digest (encoded in hex) is `{sha1}`.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "PUT",
+        "urlTemplate": "https://registry.standardanalytics.io/r/{sha1}"
+      }
+    },
+    {
+      "@type": "DownloadAction",
+      "description": "Download raw data.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "GET",
+        "urlTemplate": "https://registry.standardanalytics.io/r/{sha1}"
+      }
+    },
+
+    {
+      "@type": "SearchAction",
+      "description": "Search a JSON-LD document by keywords.",
+      "target": {
+        "@type": "EntryPoint",
+        "httpMethod": "GET",
+        "urlTemplate": "https://registry.standardanalytics.io/search/{?keywords}"
+      }
+    }
+  ]
+}

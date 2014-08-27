@@ -22,8 +22,7 @@ the registry and its potential action using
 
 ### PUT /users/{username}
 
-Register an user. A user can be a [Person](http://schema.org/Person)
-or an [Organization](http://schema.org/Organization).
+Register an user. A user has to be a [Person](http://schema.org/Person).
 
 request body:
 
@@ -139,14 +138,14 @@ response body:
 Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id```
 ```{namespace}``` or a node of this document of ```@id```
 ```{namespace}/{pathorurl}``` or ```{pathorurl}```. In the later case,
-```{pathorurl}``` has to be an absolute URL encode as an Uniform
+```{pathorurl}``` has to be an absolute URL encoded as an Uniform
 Resource Identifier (URI) component.
 
 A specific version can be specified using a query string parameter
 ```version``` whose value is properly encoded as a Uniform Resource
 Identifier (URI) component. In case the document is versionned
-following [Semantic Versioning](http://semver.org/), a range (e.g)
-```<0.0.1``` can be specified as ```version```.
+following [Semantic Versioning](http://semver.org/), a range (e.g
+```<0.0.1```) can be specified as ```version```.
 
 If ```{?version}``` is omitted, the latest version of the document is
 returned.
@@ -160,7 +159,7 @@ registry can be served as
 
 ### GET /maintainers/ls/{namespace}
 
-List the maintainers of package of [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id``` ```{namespace}```.
+List the maintainers of package of a [JSON-LD](http://www.w3.org/TR/json-ld) document with ```@id``` ```{namespace}```.
 
 response body:
 
@@ -174,6 +173,8 @@ response body:
     }
 
 ### POST /maintainers/add/{username}/{namespace}
+
+Add a maintainer of ```@id```  ```users/{username}``` to the document of ```@id``` ```{namespace}```.
 
 required header:
 - Authorization
@@ -191,6 +192,8 @@ response body:
 
 
 ### POST /maintainers/rm/{username}/{namespace}
+
+Remove a maintainer of ```@id``` ```users/{username}``` to the document of ```@id``` ```{namespace}```.
 
 required header:
 - Authorization
@@ -234,7 +237,7 @@ response body:
 
 ### GET /r/{sha1}
 
-Retrieve raw data.
+Download raw data.
 
 Search API
 ==========
