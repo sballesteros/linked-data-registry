@@ -104,7 +104,11 @@ function forceAuth(req, res, next){
     return res.status(401).json({'error': 'Unauthorized'});
   }
 
-  request.post({url: rootCouch + '_session', json: {name: user.name, password: user.pass} }, function(err, resp, body){
+  request.post({
+    url: rootCouch + '_session',
+    form: {name: user.name, password: user.pass},
+    header: {'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8'}
+  }, function(err, resp, body){
     if (err) return next(err);
     if (resp.statusCode >= 400) {
       return next(errorCode(body, resp.statusCode))
