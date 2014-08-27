@@ -12,18 +12,17 @@ shows.maintains = function(doc,req){
 
 shows.user = function(doc,req){
 
-  var body = {
-    '@context': 'https://registry.standardanalytics.io/context.jsonld',
-    '@id': doc['@id']
-  }
-
-  if (doc['@type']) {
-    body['@type'] = doc['@type'];
-  }
+  var body = {};
+  //nice order
+  ['@context', '@id', '@type'].forEach(function(x){
+    if (doc[x]) {
+      body[x] = doc[x];
+    }
+  });
 
   for (var key in doc) {
     if (key.charAt(0) !== '_' &&
-        !(key in body) &&
+        ! (key in body) &&
         key !== 'roles' &&
         key !== 'password' &&
         key !== 'password_sha' &&
@@ -37,13 +36,19 @@ shows.user = function(doc,req){
     }
   }
 
+  if (body.email) { //mailto: was rm for couch
+    if (!(/^mailto:/.test(body.email))) {
+      body.email = 'mailto:' + body.email;
+    }
+  }
+
   if (doc.roles) {
     var owns = doc.roles
       .filter(function(x) {return x.charAt(0) !== '_';})
       .map(function(x) {return {name: x};});
 
     if (owns.length) {
-      doc.owns = owns;
+      body.owns = owns;
     }
   }
 

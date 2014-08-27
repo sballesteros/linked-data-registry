@@ -5,7 +5,7 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for [linked data](http:
 
 [![NPM](https://nodei.co/npm/linked-data-registry.png)](https://nodei.co/npm/linked-data-registry/)
 
-- documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
+- documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org) and [hydra](http://www.hydra-cg.com/) (but favoring [schema.org/Action](http://schema.org/Action) over hydra when possible)
 - compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
 
 A client is available [here](https://github.com/standard-analytics/ldpm).

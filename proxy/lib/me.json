@@ -58,7 +58,7 @@
     },
     {
       "@type": "ViewAction",
-      "description": "Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of `@id` `{namespace}` or a node of this document of `@id` `{namespace}/{pathorurl}` or `{pathorurl}`. In the later case, `{pathorurl}` has to be an absolute URL encoded as an Uniform Resource Identifier (URI) component. A specific version can be specified using a query string parameter `version` whose value is properly encoded as a Uniform Resource Identifier (URI) component. In case the document is versionned following Semantic Versioning (http://semver.org/), a range (e.g `<0.0.1`) can be specified as `version`. If `{?version}` is omitted, the latest version of the document is returned.",
+      "description": "Get a JSON-LD document of `@id` `{namespace}` or a node of this document of `@id` `{namespace}/{pathorurl}` or `{pathorurl}`. In the later case, `{pathorurl}` has to be an absolute URL encoded as an Uniform Resource Identifier (URI) component. A specific version can be specified using a query string parameter `version` whose value is properly encoded as a Uniform Resource Identifier (URI) component. In case the document is versionned following Semantic Versioning (http://semver.org/), a range (e.g `<0.0.1`) can be specified as `version`. If `{?version}` is omitted, the latest version of the document is returned.",
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",

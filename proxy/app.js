@@ -99,7 +99,6 @@ app.use(function(req, res, next){
 var jsonParser = bodyParser.json();
 
 function forceAuth(req, res, next){
-
   var user = auth(req);
   if (!user) {
     return res.status(401).json({'error': 'Unauthorized'});
@@ -182,7 +181,7 @@ function serveJsonld(req, res, next){
 
 };
 
-function compactAndValidate(req, res, next){
+function compact(req, res, next){
   var doc = req.body;
   var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
 
@@ -195,12 +194,6 @@ function compactAndValidate(req, res, next){
   jsonld.compact(doc, ctxUrl, function(err, cdoc){
     if(err) return next(err);
 
-    try {
-      packager.validate(cdoc, ctxUrl);
-    } catch (e) {
-      return next(e);
-    }
-
     if (ctx && cdoc['@context'] === ctxUrl) {
       cdoc['@context'] = ctx;
     }
@@ -208,6 +201,18 @@ function compactAndValidate(req, res, next){
     req.cdoc = cdoc;
     next();
   });
+};
+
+function validate(req, res, next){
+  var cdoc = req.cdoc;
+
+  try {
+    packager.validate(cdoc);
+  } catch (e) {
+    return next(e);
+  }
+
+  next();
 };
 
 function maxSatisfyingVersion(req, res, next){
@@ -275,7 +280,11 @@ app.get('/context.jsonld', function(req, res, next){
 
 app.get('/session', forceAuth, function(req, res, next){
   if (req.user) {
-    res.json(req.user);
+    res.type('application/ld+json').json({
+      '@context': SaSchemaOrg.contextUrl,
+      '@id': 'sa:users/' + req.user.name,
+      'token': req.user.token
+    });
   } else {
     return next(errorCode('/session', 500));
   }
@@ -341,26 +350,26 @@ app.get('/search', function(req, res, next){
 });
 
 
-app.put('/users/:name', jsonParser, function(req, res, next){
-  var doc = req.body;
+app.put('/users/:name', jsonParser, compact, function(req, res, next){
+  var cdoc = req.cdoc;
 
-  var name = doc['@id'] && doc['@id'].split('users/')[1];
+  var name = cdoc['@id'] && cdoc['@id'].split('sa:users/')[1];
 
   if (name !== req.params.name) {
     return next(errorCode('not allowed', 403));
   }
 
-  var email = doc.email && doc.email.split('mailto:')[1];
+  var email = cdoc.email && cdoc.email.split('mailto:')[1];
   if (!email) {
     return next(errorCode('invalid mailto: URL', 422));
   }
 
-  if (!doc.password) {
+  if (!cdoc.password) {
     return next(errorCode('password is missing', 422));
   }
 
-  var userdata = { '@id':  'users/' + req.params.name };
-  if (doc['@type']) userdata['@type'] = doc['@type'];
+  var userdata = { '@id':  'sa:users/' + req.params.name };
+  if (cdoc['@type']) userdata['@type'] = cdoc['@type'];
 
   userdata.name = req.params.name;
   userdata.email = email;
@@ -368,15 +377,15 @@ app.put('/users/:name', jsonParser, function(req, res, next){
   if (~couch.host.indexOf('cloudant')) {
     var salt = crypto.randomBytes(30).toString('hex');
     userdata.salt = salt;
-    userdata.password_sha = crypto.createHash("sha1").update(doc.password + salt).digest('hex');
+    userdata.password_sha = crypto.createHash("sha1").update(cdoc.password + salt).digest('hex');
   } else {
-    userdata.password = doc.password;
+    userdata.password = cdoc.password;
   }
 
   //add other properties
-  for (var key in doc) {
+  for (var key in cdoc) {
     if (!(key in userdata) && key.charAt(0)!== '_' && key !== 'date' && key !== 'startDate' && key !== 'roles') {
-      userdata[key] = doc[key];
+      userdata[key] = cdoc[key];
     }
   }
   userdata.startDate = (new Date()).toISOString();
@@ -386,11 +395,11 @@ app.put('/users/:name', jsonParser, function(req, res, next){
 
     if (resp.statusCode === 201) {
       body = {
-        '@contextUrl': SaSchemaOrg.contextUrl,
+        '@context': SaSchemaOrg.contextUrl,
         "@type": "RegisterAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'users/' + req.params.name,
-        "object": ''
+        "agent": 'sa:users/' + req.params.name,
+        "object": 'sa:'
       };
       return res.type('application/ld+json').status(resp.statusCode).json(body);
     } else {
@@ -430,11 +439,11 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
       if (err) return next(err);
       if (resp.statusCode === 200) {
         body = {
-          '@contextUrl': SaSchemaOrg.contextUrl,
+          '@context': SaSchemaOrg.contextUrl,
           "@type": "UnRegisterAction",
           "actionStatus": "CompletedActionStatus",
           "agent": { "name": req.user.name },
-          "object": ""
+          "object": "sa:"
         };
         return res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {
@@ -449,11 +458,11 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
 app.put('/r/:sha1', forceAuth, function(req, res, next){
 
   var action = {
-    '@contextUrl': SaSchemaOrg.contextUrl,
+    '@context': SaSchemaOrg.contextUrl,
     "@type": "CreateAction",
     "actionStatus": "CompletedActionStatus",
-    "agent": 'users/' + req.user.name,
-    "object": 'r/' + req.params.sha1
+    "agent": 'sa:users/' + req.user.name,
+    "object": 'sa:r/' + req.params.sha1
   };
 
   //check if the resource exists already
@@ -537,7 +546,7 @@ app.get('/r/:sha1', function(req, res, next){
 //TODO use REDIS and create a lock to validate that all the non
 //namespaced parts exists in the registry (if so => links) if not =>
 //invalid part @id (should be namespace/partId)
-app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, next){
+app.put('/:id', forceAuth, jsonParser, compact, validate, function(req, res, next){
 
   if (!('content-length' in req.headers)) {
     return next(errorCode('Length Required', 411));
@@ -661,8 +670,8 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
         "@context": SaSchemaOrg.contextUrl,
         "@type": (isNew)? "CreateAction": "UpdateAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'users/' + req.user.name,
-        "result": req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
+        "agent": 'sa:users/' + req.user.name,
+        "result": 'sa:' + req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
       };
       res.type('application/ld+json').status(201).json(action);
     } else {
@@ -763,8 +772,8 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
                 "@context": SaSchemaOrg.contextUrl,
                 "@type": "DeleteAction",
                 "actionStatus": "CompletedActionStatus",
-                "agent": "users/" + req.user.name,
-                "object": req.params.id + '/' + ((version) ? ('?version=' + version) : '')
+                "agent": "sa:users/" + req.user.name,
+                "object": 'sa:' + req.params.id + '/' + ((version) ? ('?version=' + version) : '')
               });
           });
         });
@@ -786,7 +795,7 @@ app.get('/maintainers/ls/:id', function(req, res, next){
       "@id": req.params.id,
       "accountablePerson": body.map(function(x){
         return {
-          '@id': 'users/' + x.name,
+          '@id': 'sa:users/' + x.name,
           '@type': 'Person',
           email: 'mailto:' + x.email
         };
@@ -825,9 +834,9 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
             "@context": SaSchemaOrg.contextUrl,
             "@type": "GiveAction",
             "actionStatus": "CompletedActionStatus",
-            "agent": 'users/' + req.user.name,
-            "object": req.params.id,
-            "recipient": 'users/' + req.params.username
+            "agent": 'sa:users/' + req.user.name,
+            "object": 'sa:' + req.params.id,
+            "recipient": 'sa:users/' + req.params.username
           };
           res.type('application/ld+json').status(resp.statusCode).json(body);
         } else {
@@ -860,9 +869,9 @@ app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, r
           "@context": SaSchemaOrg.contextUrl,
           "@type": "TakeAction",
           "actionStatus": "CompletedActionStatus",
-          "agent": 'users/' + req.user.name,
-          "object": req.params.id,
-          "recipient": 'users/' + req.params.username
+          "agent": 'sa:users/' + req.user.name,
+          "object": 'sa:' + req.params.id,
+          "recipient": 'sa:users/' + req.params.username
         };
         res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {
