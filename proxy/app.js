@@ -336,7 +336,6 @@ app.get('/search', function(req, res, next){
           next(errorCode(errorReport.jsonBody, errorReport.statusCode));
         }
       });
-
   });
 
 });
@@ -393,9 +392,10 @@ app.put('/users/:name', jsonParser, function(req, res, next){
         "agent": 'users/' + req.params.name,
         "object": ''
       };
+      return res.type('application/ld+json').status(resp.statusCode).json(body);
+    } else {
+      return next(errorCode(body, resp.statusCode));
     }
-
-    res.status(resp.statusCode).json(body);
   });
 });
 
@@ -406,8 +406,7 @@ app.get('/users/:name', function(req, res, next){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
 
-    res.set('Content-Type', 'application/ld+json');
-    res.status(resp.statusCode).send(JSON.stringify(body));
+    res.type('application/ld+json').status(resp.statusCode).json(body);
   });
 
 });
@@ -437,8 +436,10 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
           "agent": { "name": req.user.name },
           "object": ""
         };
+        return res.type('application/ld+json').status(resp.statusCode).json(body);
+      } else {
+        return next(errorCode(body, resp.statusCode));
       }
-      res.status(resp.statusCode).json(body);
     });
   });
 
@@ -464,12 +465,12 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
       if (s3Headers.ETag) { res.set('ETag', s3Headers.ETag); }
       if (s3Headers.LastModified) { res.set('Last-Modified', s3Headers.LastModified); }
 
-      return res.status(200).json(action);
+      return res.type('application/ld+json').status(200).json(action);
     }
 
     //resource is not on S3, we PUT it
     if (!req.headers['content-md5']) {
-      return res.status(400).json({error: 'a Content-MD5 header must be provided'});
+      return next(errorCode('a Content-MD5 header must be provided', 400));
     }
 
     var checkStream = req.pipe(sha.stream(req.params.sha1));
@@ -500,7 +501,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
         });
       } else {
         res.set('ETag', data.ETag);
-        res.json(action);
+        res.type('application/ld+json').json(action);
       }
     });
 
@@ -539,10 +540,10 @@ app.get('/r/:sha1', function(req, res, next){
 app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, next){
 
   if (!('content-length' in req.headers)) {
-    return res.status(411).json({error: 'Length Required'});
+    return next(errorCode('Length Required', 411));
   }
   if (parseInt(req.headers['content-length'], 10) > 16777216) {
-    return res.status(413).json({error: 'Request Entity Too Large, currently accept only package < 16Mo'});
+    return next(errorCode('Request Entity Too Large, currently accept only package < 16Mo', 413));
   }
 
   var cdoc = req.cdoc;
@@ -588,11 +589,7 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
             }
           }
 
-          if (respCouch.statusCode === 200) {
-            bodyCouch = _body2action(req, cdoc, false);
-          }
-
-          return res.status((respCouch.statusCode === 200) ? 201: respCouch.statusCode).json(bodyCouch);
+          _next(req, res, cdoc, true, bodyCouch, respCouch.statusCode);
         });
 
       });
@@ -631,10 +628,6 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
           return next(errorCode(body, resp.statusCode));
         }
 
-        if (resp.statusCode === 200) {
-          body = _body2action(req, cdoc, false);
-        }
-
         if (isVersioned && cdoc.latest) { //remove previous latest tag (or tags if something went wrong at some point before...)
           request.get({url: rootCouchAdminRegistryRw + 'vtag/' + req.params.id, json:true}, function(errTagged, respTagged, bodyTagged){
             // if error we keep going, will be fixed at the next update..
@@ -650,26 +643,31 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
               });
             }, function(err){
               if (err) console.error(err);
-              return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
+              _next(req, res, cdoc, false, body, resp.statusCode);
             });
 
           });
         } else {
-          return res.status((resp.statusCode === 200) ? 201 : resp.statusCode).json(body);
+          _next(req, res, cdoc, false, body, resp.statusCode);
         }
       });
 
     }
   });
 
-  function _body2action(req, cdoc, isNew){
-    return {
-      "@context": SaSchemaOrg.contextUrl,
-      "@type": (isNew)? "CreateAction": "UpdateAction",
-      "actionStatus": "CompletedActionStatus",
-      "agent": 'users/' + req.user.name,
-      "result": req.params.id + (('version' in cdoc) ? ('?version=' + cdoc.version) : '')
-    };
+  function _next(req, res, cdoc, isNew, body, statusCode){
+    if (statusCode === 200) {
+      var action =  {
+        "@context": SaSchemaOrg.contextUrl,
+        "@type": (isNew)? "CreateAction": "UpdateAction",
+        "actionStatus": "CompletedActionStatus",
+        "agent": 'users/' + req.user.name,
+        "result": req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
+      };
+      res.type('application/ld+json').status(201).json(action);
+    } else {
+      next(errorCode(body, statusCode));
+    }
   };
 
 });
@@ -759,13 +757,15 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
             });
           }, function(err){
             if(err) return next(err);
-            res.json({
-              "@context": SaSchemaOrg.contextUrl,
-              "@type": "DeleteAction",
-              "actionStatus": "CompletedActionStatus",
-              "agent": "users/" + req.user.name,
-              "object": req.params.id + '/' + ((version) ? ('?version=' + version) : '')
-            });
+            res
+              .type('application/ld+json')
+              .json({
+                "@context": SaSchemaOrg.contextUrl,
+                "@type": "DeleteAction",
+                "actionStatus": "CompletedActionStatus",
+                "agent": "users/" + req.user.name,
+                "object": req.params.id + '/' + ((version) ? ('?version=' + version) : '')
+              });
           });
         });
       }
@@ -792,8 +792,11 @@ app.get('/maintainers/ls/:id', function(req, res, next){
         };
       })
     };
-    res.set('Content-Type', 'application/ld+json');
-    res.status(resp.statusCode).send(JSON.stringify(doc));
+
+    res
+      .type('application/ld+json')
+      .status(resp.statusCode)
+      .json(doc);
   });
 
 });
@@ -826,8 +829,10 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
             "object": req.params.id,
             "recipient": 'users/' + req.params.username
           };
+          res.type('application/ld+json').status(resp.statusCode).json(body);
+        } else {
+          next(errorCode(body, resp.statusCode));
         }
-        res.status(resp.statusCode).json(body);
       });
     });
   });
@@ -859,8 +864,10 @@ app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, r
           "object": req.params.id,
           "recipient": 'users/' + req.params.username
         };
+        res.type('application/ld+json').status(resp.statusCode).json(body);
+      } else {
+        next(errorCode(body, resp.statusCode));
       }
-      res.status(resp.statusCode).json(body);
     });
   });
 
@@ -894,19 +901,21 @@ app.get('/:id/:part*?', maxSatisfyingVersion, function(req, res, next){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(cdoc, resp.statusCode));
     req.cdoc = cdoc;
-
-    //TODO add schema:Action
-
-
     next();
   });
 
 }, serveJsonld);
 
-
 //generic error handling
 app.use(function(err, req, res, next){
-  res.status(err.code || 400).json({'error': err.message || ''});
+  res
+    .type('application/ld+json')
+    .status(err.code || 400)
+    .json({
+      '@context': SaSchemaOrg.contextUrl,
+      '@type': 'Error',
+      'description': err.message || '',
+    });
 });
 
 
