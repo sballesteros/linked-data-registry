@@ -16,7 +16,7 @@ Registry API
 ### GET /
 
 Return a [JSON-LD](http://www.w3.org/TR/json-ld) document describing
-the registry and its potential action using
+the registry and its potential [actions](http://schema.org/Action) using
 [schema.org](http://schema.org).
 
 ### PUT /users/{username}
@@ -158,7 +158,7 @@ registry can be served as
 
 ### GET /maintainers/ls/{namespace}
 
-List the maintainers of package of a [JSON-LD](http://www.w3.org/TR/json-ld) document with ```@id``` ```{namespace}```.
+List the maintainers of a [JSON-LD](http://www.w3.org/TR/json-ld) document with ```@id``` ```{namespace}```.
 
 response body:
 
@@ -241,7 +241,7 @@ Download raw data.
 Search API
 ==========
 
-### GET /{namespace}/{+pathorurl}{?version}
+### GET /search/{?keywords}
 
 Search JSON-LD documents by [keywords](http://schema.org/keywords).
 
