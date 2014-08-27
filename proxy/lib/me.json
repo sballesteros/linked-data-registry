@@ -116,7 +116,7 @@
 
     {
       "@type": "SearchAction",
-      "description": "Search a JSON-LD document by keywords.",
+      "description": "Search JSON-LD documents by keywords.",
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",

@@ -1,11 +1,10 @@
 linked data registry
 ====================
 
-A [CouchDB](http://couchdb.apache.org/) powered registry for linked data.
+A [CouchDB](http://couchdb.apache.org/) powered registry for [linked data](http://en.wikipedia.org/wiki/Linked_data).
 
 [![NPM](https://nodei.co/npm/linked-data-registry.png)](https://nodei.co/npm/linked-data-registry/)
 
-- build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
 - documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
 - compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
 
@@ -242,6 +241,9 @@ Download raw data.
 Search API
 ==========
 
+### GET /{namespace}/{+pathorurl}{?version}
+
+Search JSON-LD documents by [keywords](http://schema.org/keywords).
 
 Tests
 =====

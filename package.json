@@ -14,6 +14,9 @@
     "url": "git://github.com/standard-analytics/linked-data-registry.git"
   },
   "keywords": [
+    "hypermedia",
+    "hypertext",
+    "schema.org",
     "linked-data",
     "hyperdata",
     "publishing",
@@ -22,7 +25,8 @@
     "registry",
     "open-data",
     "data",
-    "JSON-LD"
+    "JSON-LD",
+    "CouchDB"
   ],
   "author": "Sebastien Ballesteros",
   "license": "Apache-2.0",
