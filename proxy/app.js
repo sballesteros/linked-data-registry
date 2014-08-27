@@ -132,7 +132,7 @@ function forceAuth(req, res, next){
 function serveJsonld(req, res, next){
   var cdoc = req.cdoc;
 
-  var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost !!TODO find a better way...: might have side effect
+  var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
   var ctx;
   if (cdoc['@context'] === SaSchemaOrg.contextUrl) {//context transfo to help for testing
     ctx = cdoc['@context'];
@@ -337,21 +337,118 @@ app.get('/search', function(req, res, next){
 });
 
 
-app.put('/adduser/:name', jsonParser, function(req, res, next){
+app.put('/users/:name', jsonParser, function(req, res, next){
   var doc = req.body;
 
-  if (doc.name !== req.params.name) {
+  var name = doc['@id'] && doc['@id'].split('users/')[1];
+
+  if (name !== req.params.name) {
     return next(errorCode('not allowed', 403));
   }
 
-  request.put({url: rootCouchAdminUsersRw +  'create/org.couchdb.user:' + req.params.name, json: doc}, function(err, resp, body){
+  var email = doc.email && doc.email.split('mailto:')[1];
+  if (!email) {
+    return next(errorCode('invalid mailto: URL', 422));
+  }
+
+  if (!doc.password) {
+    return next(errorCode('password is missing', 422));
+  }
+
+  var userdata = { '@id':  'users/' + req.params.name };
+  if (doc['@type']) userdata['@type'] = doc['@type'];
+
+  userdata.name = req.params.name;
+  userdata.email = email;
+
+  if (~couch.host.indexOf('cloudant')) {
+    var salt = crypto.randomBytes(30).toString('hex');
+    userdata.salt = salt;
+    userdata.password_sha = crypto.createHash("sha1").update(doc.password + salt).digest('hex');
+  } else {
+    userdata.password = doc.password;
+  }
+
+  //add other properties
+  for (var key in doc) {
+    if (!(key in userdata) && key.charAt(0)!== '_' && key !== 'date' && key !== 'startDate' && key !== 'roles') {
+      userdata[key] = doc[key];
+    }
+  }
+  userdata.startDate = (new Date()).toISOString();
+
+  request.put({url: rootCouchAdminUsersRw +  'create/org.couchdb.user:' + req.params.name, json: userdata}, function(err, resp, body){
     if (err) return next(err);
+
+    if (resp.statusCode === 201) {
+      body = {
+        '@contextUrl': SaSchemaOrg.contextUrl,
+        "@type": "RegisterAction",
+        "actionStatus": "CompletedActionStatus",
+        "agent": 'users/' + req.params.name,
+        "object": ''
+      };
+    }
+
     res.status(resp.statusCode).json(body);
   });
 });
 
 
+app.get('/users/:name', function(req, res, next){
+
+  request.get({url: rootCouchAdminUsersRw + 'user/org.couchdb.user:' + req.params.name, json:true}, function(err, resp, body){
+    if (err) return next(err);
+    if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
+
+    res.set('Content-Type', 'application/ld+json');
+    res.status(resp.statusCode).send(JSON.stringify(body));
+  });
+
+});
+
+
+app['delete']('/users/:name', forceAuth, function(req, res, next){
+
+  if (req.user.name !== req.params.name) {
+    return next(errorCode('not allowed', 403));
+  }
+
+  var iri = rootCouchAdminUsers + 'org.couchdb.user:' + req.params.name;
+
+  request.head(iri, function(err, resp) {
+    if (err) return next(err);
+    if (resp.statusCode >= 400) {
+      return res.status(resp.statusCode).json({error: (resp.statusCode === 404)? 'user not found' : ('could not DELETE ' + req.user.name)});
+    };
+    var etag = resp.headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
+    request.del({url: iri, headers: {'If-Match': etag}, json:true}, function(err, resp, body){
+      if (err) return next(err);
+      if (resp.statusCode === 200) {
+        body = {
+          '@contextUrl': SaSchemaOrg.contextUrl,
+          "@type": "UnRegisterAction",
+          "actionStatus": "CompletedActionStatus",
+          "agent": { "name": req.user.name },
+          "object": ""
+        };
+      }
+      res.status(resp.statusCode).json(body);
+    });
+  });
+
+});
+
+
 app.put('/r/:sha1', forceAuth, function(req, res, next){
+
+  var action = {
+    '@contextUrl': SaSchemaOrg.contextUrl,
+    "@type": "CreateAction",
+    "actionStatus": "CompletedActionStatus",
+    "agent": 'users/' + req.user.name,
+    "object": 'r/' + req.params.sha1
+  };
 
   //check if the resource exists already
   s3.headObject({Key:req.params.sha1}, function(err, s3Headers) {
@@ -362,7 +459,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
       if (s3Headers.ETag) { res.set('ETag', s3Headers.ETag); }
       if (s3Headers.LastModified) { res.set('Last-Modified', s3Headers.LastModified); }
 
-      return res.status(200).json({ok:true});
+      return res.status(200).json(action);
     }
 
     //resource is not on S3, we PUT it
@@ -398,7 +495,7 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
         });
       } else {
         res.set('ETag', data.ETag);
-        res.json(data);
+        res.json(action);
       }
     });
 
@@ -430,28 +527,6 @@ app.get('/r/:sha1', function(req, res, next){
 });
 
 
-
-app['delete']('/rmuser/:name', forceAuth, function(req, res, next){
-
-  if (req.user.name !== req.params.name) {
-    return next(errorCode('not allowed', 403));
-  }
-
-  var iri = rootCouchAdminUsers + 'org.couchdb.user:' + req.params.name;
-
-  request.head(iri, function(err, resp) {
-    if (err) return next(err);
-    if (resp.statusCode >= 400) {
-      return res.status(resp.statusCode).json({error: (resp.statusCode === 404)? 'user not found' : ('could not DELETE ' + req.user.name)});
-    };
-    var etag = resp.headers.etag.replace(/^"(.*)"$/, '$1') //remove double quotes
-    request.del({url: iri, headers: {'If-Match': etag}, json:true}, function(err, resp, body){
-      if (err) return next(err);
-      res.status(resp.statusCode).json(body);
-    });
-  });
-
-});
 
 //TODO use REDIS and create a lock to validate that all the non
 //namespaced parts exists in the registry (if so => links) if not =>
@@ -508,6 +583,10 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
             }
           }
 
+          if (respCouch.statusCode === 200) {
+            bodyCouch = _body2action(req, cdoc, false);
+          }
+
           return res.status((respCouch.statusCode === 200) ? 201: respCouch.statusCode).json(bodyCouch);
         });
 
@@ -547,6 +626,10 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
           return next(errorCode(body, resp.statusCode));
         }
 
+        if (resp.statusCode === 200) {
+          body = _body2action(req, cdoc, false);
+        }
+
         if (isVersioned && cdoc.latest) { //remove previous latest tag (or tags if something went wrong at some point before...)
           request.get({url: rootCouchAdminRegistryRw + 'vtag/' + req.params.id, json:true}, function(errTagged, respTagged, bodyTagged){
             // if error we keep going, will be fixed at the next update..
@@ -573,6 +656,16 @@ app.put('/:id', forceAuth, jsonParser, compactAndValidate, function(req, res, ne
 
     }
   });
+
+  function _body2action(req, cdoc, isNew){
+    return {
+      "@context": SaSchemaOrg.contextUrl,
+      "@type": (isNew)? "CreateAction": "UpdateAction",
+      "actionStatus": "CompletedActionStatus",
+      "agent": 'users/' + req.user.name,
+      "result": req.params.id + (('version' in cdoc) ? ('?version=' + cdoc.version) : '')
+    };
+  };
 
 });
 
@@ -661,7 +754,13 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
             });
           }, function(err){
             if(err) return next(err);
-            res.json({ok:true});
+            res.json({
+              "@context": SaSchemaOrg.contextUrl,
+              "@type": "DeleteAction",
+              "actionStatus": "CompletedActionStatus",
+              "agent": "users/" + req.user.name,
+              "object": req.params.id + '/' + ((version) ? ('?version=' + version) : '')
+            });
           });
         });
       }
@@ -670,7 +769,6 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
   });
 
 });
-
 
 app.get('/maintainers/ls/:id', function(req, res, next){
 
@@ -683,10 +781,10 @@ app.get('/maintainers/ls/:id', function(req, res, next){
       "@id": req.params.id,
       "accountablePerson": body.map(function(x){
         return {
+          '@id': 'users/' + x.name,
           '@type': 'Person',
-          name: x.name,
           email: 'mailto:' + x.email
-        }
+        };
       })
     };
     res.set('Content-Type', 'application/ld+json');
@@ -695,30 +793,35 @@ app.get('/maintainers/ls/:id', function(req, res, next){
 
 });
 
-app.post('/maintainers/add', jsonParser, forceAuth, function(req, res, next){
-
-  var data = req.body;
-
-  if (!(('username' in data) && ('namespace' in data))) {
-    return next(new Error('invalid POST data'));
-  }
+app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, res, next){
 
   //check if data.username (the user granted) is an existing user
-  request.head(rootCouchAdminUsers + 'org.couchdb.user:' + data.username, function(err, resp){
+  request.head(rootCouchAdminUsers + 'org.couchdb.user:' + req.params.username, function(err, resp){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode('granted user does not exists', resp.statusCode));
 
-    //check if req.user.name (the granter) is a maintainer of data.namespace
+    //check if req.user.name (the granter) is a maintainer of req.params.id
     request.get({url: rootCouchAdminUsersRw + 'maintains/org.couchdb.user:' + req.user.name, json:true}, function(err, resp, maintains){
       if (err) return next(err);
       if (resp.statusCode >= 400) return next(errorCode(maintains, resp.statusCode));
 
-      if(maintains.indexOf(data.namespace) === -1){
+      if (maintains.indexOf(req.params.id) === -1) {
         return next(errorCode('not allowed', 403));
       }
 
-      request.put({url: rootCouchAdminUsersRw + 'add/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
+      request.put({url: rootCouchAdminUsersRw + 'add/org.couchdb.user:' + req.params.username, json: {username:req.params.username, namespace: req.params.id}}, function(err, resp, body){
         if (err) return next(err);
+
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          body = {
+            "@context": SaSchemaOrg.contextUrl,
+            "@type": "GiveAction",
+            "actionStatus": "CompletedActionStatus",
+            "agent": 'users/' + req.user.name,
+            "object": req.params.id,
+            "recipient": 'users/' + req.params.username
+          };
+        }
         res.status(resp.statusCode).json(body);
       });
     });
@@ -729,25 +832,29 @@ app.post('/maintainers/add', jsonParser, forceAuth, function(req, res, next){
 /**
  * TODO do something (or not?) if a package has no maintainers ??
  */
-app.post('/maintainers/rm', jsonParser, forceAuth, function(req, res, next){
+app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, res, next){
 
-  var data = req.body;
-
-  if(!(('username' in data) && ('namespace' in data))){
-    return next(new Error('invalid POST data'));
-  }
-
-  //check if req.user.name (the granter) is a maintainer of data.namespace
+  //check if req.user.name (the granter) is a maintainer of req.params.id
   request.get({url: rootCouchAdminUsersRw + 'maintains/org.couchdb.user:' + req.user.name, json:true}, function(err, resp, maintains){
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(maintains, resp.statusCode));
 
-    if(maintains.indexOf(data.namespace) === -1){
+    if (maintains.indexOf(req.params.id) === -1) {
       return next(errorCode('not allowed', 403));
     }
 
-    request.put({url: rootCouchAdminUsersRw + 'rm/org.couchdb.user:' + data.username, json:data}, function(err, resp, body){
+    request.put({url: rootCouchAdminUsersRw + 'rm/org.couchdb.user:' + req.params.username, json: {username:req.params.username, namespace: req.params.id}}, function(err, resp, body){
       if (err) return next(err);
+      if (res.statusCode === 200 || res.statusCode === 201) {
+        body = {
+          "@context": SaSchemaOrg.contextUrl,
+          "@type": "TakeAction",
+          "actionStatus": "CompletedActionStatus",
+          "agent": 'users/' + req.user.name,
+          "object": req.params.id,
+          "recipient": 'users/' + req.params.username
+        };
+      }
       res.status(resp.statusCode).json(body);
     });
   });

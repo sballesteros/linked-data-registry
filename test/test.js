@@ -42,12 +42,11 @@ function curl(path){
                      path);
 };
 
-var pass = 'seb';
 var userData = {
-  name: 'user_a',
-  salt: '209c14190cf00f0fed293a666c46aa617957dfff23d30afd2615cc28d3e4',
-  password_sha: 'd6614e05191ba50ef610107f92358202eda3e440',
-  email: 'user@domain.io'
+  '@id': 'users/user_a',
+  '@type': ['Person', 'Role'],
+  email: 'mailto:user@domain.io',
+  password: 'secret'
 };
 
 describe('linked data registry', function(){
@@ -55,11 +54,11 @@ describe('linked data registry', function(){
 
   describe('basic PUT and DELETE operations for users', function(){
     it('should create and remove users', function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(err, resp, body){
+      request.put({url: rurl('users/user_a'), json: userData}, function(err, resp, body){
         assert.equal(resp.statusCode, 201);
-        request.get(curl('_users/org.couchdb.user:user_a'), function(err, resp, body){
-          assert.equal(body.name, userData.name);
-          request.del({url: rurl('rmuser/user_a'), auth: {user: 'user_a', pass: pass}}, function(err, resp, body){
+        request.get(rurl('users/user_a'), function(err, resp, body){
+          assert.equal(body['@id'], userData['@id']);
+          request.del({url: rurl('users/user_a'), auth: {user: 'user_a', pass: userData.password}}, function(err, resp, body){
             assert.equal(resp.statusCode, 200);
             done();
           });
@@ -83,44 +82,44 @@ describe('linked data registry', function(){
     };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, done);
+      request.put({url: rurl('users/user_a'), json: userData}, done);
     });
 
     it('should create and remove unversioned documents', function(done){
       var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc', name: 'test doc' };
-      var auth = { user: 'user_a', pass: pass };
+      var auth = { user: 'user_a', pass: userData.password };
       _test(doc, auth, doc['@id'], done);
     });
 
     it('should create and remove versioned documents', function(done){
       var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
-      var auth = { user: 'user_a', pass: pass };
+      var auth = { user: 'user_a', pass: userData.password };
       _test(doc, auth, encodeURIComponent(doc['@id']+ '@' + doc.version), done);
     });
 
     after(function(done){
-      request.del({url: rurl('rmuser/user_a'), auth: {user: 'user_a', pass: pass}}, done);
+      request.del({url: rurl('users/user_a'), auth: {user: 'user_a', pass: userData.password}}, done);
     });
   });
 
 
   describe('auth and maintainers', function(){
 
-    var auth = {user:'user_a', pass: pass};
+    var auth = {user:'user_a', pass: userData.password};
     var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
-    var userB = clone(userData); userB.name = 'user_b';
-    var userC = clone(userData); userC.name = 'user_c';
+    var userB = clone(userData); userB['@id'] = 'users/user_b';
+    var userC = clone(userData); userC['@id'] = 'users/user_c';
     var accountablePersons =  [
-      { '@type': 'Person', name: 'user_a', email: 'mailto:user@domain.io' },
-      { '@type': 'Person', name: 'user_b', email: 'mailto:user@domain.io' }
+      { '@id': 'users/user_a', '@type': 'Person', email: 'mailto:user@domain.io' },
+      { '@id': 'users/user_b', '@type': 'Person', email: 'mailto:user@domain.io' }
     ];
 
     function createFixture(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
-        request.put({url: rurl('adduser/user_b'), json: userB}, function(){
-          request.put({url: rurl('adduser/user_c'), json: userC}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
+        request.put({url: rurl('users/user_b'), json: userB}, function(){
+          request.put({url: rurl('users/user_c'), json: userC}, function(){
             request.put( { url: rurl(doc['@id']), auth: auth, json: doc }, function(){
-              request.post( {url: rurl('maintainers/add'), auth: auth,  json: {username: 'user_b', namespace: doc['@id']}}, done);
+              request.post( {url: rurl('maintainers/add/user_b/' + doc['@id']), auth: auth}, done);
             });
           });
         });
@@ -154,14 +153,14 @@ describe('linked data registry', function(){
       });
 
       it('should error with code 401 if user try to auth with non existent name', function(done){
-        request.get( { url: rurl('session'), auth: {user:'user_wrong', pass: pass} }, function(err, resp, body){
+        request.get( { url: rurl('session'), auth: {user:'user_wrong', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 401);
           done();
         });
       });
 
       it('should return a token and 200 on successful auth', function(done){
-        request.get( { url: rurl('session'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        request.get( { url: rurl('session'), auth: {user:'user_a', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           assert.equal(body.name, 'user_a');
           done();
@@ -176,7 +175,7 @@ describe('linked data registry', function(){
       });
 
       it('should not let user_a overwrite the doc', function(done){
-        request.put({ url: rurl(doc['@id']), auth: {user:'user_a', pass: pass}, json: doc }, function(err, resp, body){
+        request.put({ url: rurl(doc['@id']), auth: {user:'user_a', pass: userData.password}, json: doc }, function(err, resp, body){
           assert.equal(resp.statusCode, 409);
           done();
         });
@@ -185,14 +184,14 @@ describe('linked data registry', function(){
       it('should not let user_c upgrade the doc', function(done){
         var mydoc = clone(doc);
         mydoc.version = '0.0.2';
-        request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: pass}, json: mydoc }, function(err, resp, body){
+        request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: userData.password}, json: mydoc }, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
       });
 
       it('should not let user_c delete the doc and remove it from the roles of user_a and user_b', function(done){
-        request.del( { url: rurl(doc['@id']), auth: {user:'user_c', pass: pass} }, function(err, resp, body){
+        request.del( { url: rurl(doc['@id']), auth: {user:'user_c', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.deepEqual(body.accountablePerson, accountablePersons);
@@ -202,14 +201,14 @@ describe('linked data registry', function(){
       });
 
       it('should not let user_c add itself to the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainers/add'), auth: {user:'user_c', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/add/user_c/' + doc['@id']), auth: {user: 'user_c', pass: userData.password}}, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
       });
 
       it('should not let user_c rm user_a from the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainers/rm'), auth: {user:'user_c', pass: pass},  json: {username: 'user_a', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/rm/user_a/' + doc['@id']), auth: {user:'user_c', pass: userData.password}}, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
@@ -226,14 +225,14 @@ describe('linked data registry', function(){
       });
 
       it('should not let user_a remove user_b account', function(done){
-        request.del({ url: rurl('rmuser/user_b'), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        request.del({ url: rurl('users/user_b'), auth: {user:'user_a', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 403);
           done();
         });
       });
 
       it('should let user_a delete the doc and remove it from the roles of user_a and user_b', function(done){
-        request.del({ url: rurl(doc['@id']), auth: {user:'user_a', pass: pass} }, function(err, resp, body){
+        request.del({ url: rurl(doc['@id']), auth: {user:'user_a', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.equal(resp.statusCode, 404);
@@ -243,15 +242,15 @@ describe('linked data registry', function(){
       });
 
       it('should let user_a add user_c as a maintainers of the doc and then let user_c upgrade it (version bump)', function(done){
-        request.post({url: rurl('maintainers/add'), auth: {user:'user_a', pass: pass},  json: {username: 'user_c', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/add/user_c/' + doc['@id']), auth: {user:'user_a', pass: userData.password}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             var expected = clone(accountablePersons);
-            expected.push({'@type': 'Person', name:'user_c', email:'mailto:user@domain.io'});
+            expected.push({'@id':'users/user_c', '@type': 'Person', email:'mailto:user@domain.io'});
             assert.deepEqual(body.accountablePerson, expected);
 
             var mydoc = clone(doc); mydoc.version = '0.0.2';
-            request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: pass}, json: mydoc }, function(err, resp, body){
+            request.put({ url: rurl(mydoc['@id']), auth: {user:'user_c', pass: userData.password}, json: mydoc }, function(err, resp, body){
               assert.equal(resp.statusCode, 201);
               request.del({url: rurl(mydoc['@id'] + '?version=' + mydoc.version), auth: auth}, done); //clean up extra doc
             });
@@ -260,7 +259,7 @@ describe('linked data registry', function(){
       });
 
       it('should let user_a rm user_b from the maintainers of the doc', function(done){
-        request.post({url: rurl('maintainers/rm'), auth: {user:'user_a', pass: pass},  json: {username: 'user_b', namespace: doc['@id']}}, function(err, resp, body){
+        request.post({url: rurl('maintainers/rm/user_b/' + doc['@id']), auth: {user:'user_a', pass: userData.password}}, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
           request.get(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             assert.deepEqual(body.accountablePerson, accountablePersons.slice(0,-1));
@@ -278,7 +277,7 @@ describe('linked data registry', function(){
 
 
   describe('versions for versioned docs', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
 
     var id = 'doc-version';
     var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
@@ -286,7 +285,7 @@ describe('linked data registry', function(){
     var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
         async.eachSeries([doc0, doc1, doc2], function(doc, cb){
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
         }, done);
@@ -334,20 +333,20 @@ describe('linked data registry', function(){
 
     after(function(done){
       request.del({ url: rurl(id), auth: auth }, function(){
-        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+        request.del({url: rurl('users/user_a'), auth: auth}, done);
       });
     });
   });
 
   describe('revision for unversioned docs', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
 
     var id = 'doc-unversioned';
     var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision' };
     var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision changed' };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
         async.eachSeries([doc0, doc1], function(doc, cb){
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
         }, done);
@@ -370,14 +369,14 @@ describe('linked data registry', function(){
 
     after(function(done){
       request.del({ url: rurl(id), auth: auth }, function(){
-        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+        request.del({url: rurl('users/user_a'), auth: auth}, done);
       });
     });
 
   });
 
   describe('parts', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
     var id = 'test-part';
     var doc = {
       '@context': SaSchemaOrg.contextUrl,
@@ -390,7 +389,7 @@ describe('linked data registry', function(){
     };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
         request.put({ url: rurl(id), auth: auth, json: doc }, done);
       })
     });
@@ -432,18 +431,18 @@ describe('linked data registry', function(){
 
     after(function(done){
       request.del({ url: rurl(id), auth: auth }, function(){
-        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+        request.del({url: rurl('users/user_a'), auth: auth}, done);
       });
     });
   });
 
   describe('JSON-LD profiles', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
     var id = 'test-profiles';
     var doc = { '@context': SaSchemaOrg.contextUrl, '@id': id, about: [{name: 'about profile'}] };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
         request.put({ url: rurl(id), auth: auth, json: doc }, done);
       })
     });
@@ -479,17 +478,17 @@ describe('linked data registry', function(){
 
     after(function(done){
       request.del({ url: rurl(id), auth: auth }, function(){
-        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+        request.del({url: rurl('users/user_a'), auth: auth}, done);
       });
     });
 
   });
 
   describe('attachments (S3)', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, done);
+      request.put({url: rurl('users/user_a'), json: userData}, done);
     });
 
     it('should PUT a compressible attachments and have it deleted when the parent document is deleted', function(done){
@@ -514,7 +513,7 @@ describe('linked data registry', function(){
         };
 
         var r = request.put(ropts, function(err, resp, body){
-          assert('ETag' in body);
+          assert('etag' in resp.headers);
           //put a document referencing the attachment
           var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, function(err, resp, body){
@@ -550,19 +549,19 @@ describe('linked data registry', function(){
     });
 
     after(function(done){
-      request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+      request.del({url: rurl('users/user_a'), auth: auth}, done);
     });
 
   });
 
   describe('search', function(){
-    var auth = { user: 'user_a', pass: pass };
+    var auth = { user: 'user_a', pass: userData.password };
     var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw0', name: 'a', keywords: 'a' };
     var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw1', name: 'a, b, c', keywords: ['a', 'b', 'c'] };
     var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw2', name: 'a, b', keywords: ['a', 'b'] };
 
     before(function(done){
-      request.put({url: rurl('adduser/user_a'), json: userData}, function(){
+      request.put({url: rurl('users/user_a'), json: userData}, function(){
         async.eachSeries([doc0, doc1, doc2], function(doc, cb){
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, cb);
         }, done);
@@ -587,7 +586,7 @@ describe('linked data registry', function(){
       async.eachSeries([doc0, doc1, doc2], function(doc, cb){
         request.del({ url: rurl(doc['@id']), auth: auth }, cb);
       }, function(){
-        request.del({url: rurl('rmuser/user_a'), auth: auth}, done);
+        request.del({url: rurl('users/user_a'), auth: auth}, done);
       });
     });
   });

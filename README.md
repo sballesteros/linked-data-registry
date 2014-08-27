@@ -7,7 +7,7 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for linked data.
 
 - build from the start for [linked data](http://en.wikipedia.org/wiki/Linked_data)
 - documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org)
-- compatible with [linked data fragments](http://linkeddatafragments.org/) [triple pattern fragment](http://linkeddatafragments.org/concept/#tpf)
+- compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
 
 A client is available [here](https://github.com/standard-analytics/ldpm).
 
@@ -22,7 +22,8 @@ the registry and its potential action using
 
 ### PUT /users/{username}
 
-Register an user.
+Register an user. A user can be a [Person](http://schema.org/Person)
+or an [Organization](http://schema.org/Organization).
 
 request body:
 
@@ -63,7 +64,10 @@ response body:
       "@context": "https://registry.standardanalytics.io/context.jsonld",
       "@type": "UnRegisterAction",
       "actionStatus": "CompletedActionStatus",
-      "agent": "users/{username}",
+      "agent": {
+        "@type": "Person",
+        "email": "mailto:johnmarkup@example.com
+      },
       "object": ""
     }
 
@@ -126,8 +130,7 @@ response body:
       "@type": "DeleteAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/john",
-      "object": "{namespace}{?version}",
-      "collection": "{namespace}"
+      "object": "{namespace}{?version}"
     }
 
 
@@ -135,14 +138,15 @@ response body:
 
 Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id```
 ```{namespace}``` or a node of this document of ```@id```
-```{namespace}/{pathorurl}``` or ```{pathorurl}```.
+```{namespace}/{pathorurl}``` or ```{pathorurl}```. In the later case,
+```{pathorurl}``` has to be an absolute URL encode as an Uniform
+Resource Identifier (URI) component.
 
 A specific version can be specified using a query string parameter
 ```version``` whose value is properly encoded as a Uniform Resource
-Identifier (URI) component (e.g with encodeURIComponent). In case the
-document is versionned following
-[Semantic Versioning](http://semver.org/), a range (e.g) ```<0.0.1```
-can be specified as ```version```.
+Identifier (URI) component. In case the document is versionned
+following [Semantic Versioning](http://semver.org/), a range (e.g)
+```<0.0.1``` can be specified as ```version```.
 
 If ```{?version}``` is omitted, the latest version of the document is
 returned.
@@ -217,9 +221,24 @@ required headers:
 - Content-Length
 - Encoding (if any)
 
+response body:
+
+    {
+      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@type": "CreateAction",
+      "actionStatus": "CompletedActionStatus",
+      "agent": "users/{username}",
+      "result": "r/{sha1}"
+    }
+
+
 ### GET /r/{sha1}
 
 Retrieve raw data.
+
+Search API
+==========
+
 
 Tests
 =====
