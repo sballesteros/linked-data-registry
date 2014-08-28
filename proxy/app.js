@@ -97,7 +97,7 @@ app.use(function(req, res, next){
 });
 
 
-var jsonParser = bodyParser.json();
+var jsonParser = bodyParser.json({limit: 16777216});
 
 function forceAuth(req, res, next){
   var user = auth(req);
