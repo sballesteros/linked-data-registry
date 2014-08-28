@@ -318,39 +318,45 @@ app.get('/search', function(req, res, next){
   }, function(err, sortedKw){
     if (err) return next(err);
 
-    //filter results that match all the other kw and stream a JSON-LD response
-    var isFirst = true;
-    oboe(rootCouchRegistryRw + 'search?reduce=false&key="' + sortedKw[0] +'"')
-      .start(function(status, headers){
-        res.set('Content-Type', 'application/ld+json');
-      })
-      .node('rows.*', function(row){
-        if (isFirst) {
-          res.write(['{',
-                     '"@context": "' + SchemaOrgIo.contextUrl + '",',
-                     '"@type": "ItemList",',
-                     '"itemListOrder": "Unordered",',
-                     '"itemListElement": ['
-                    ].join(''));
-          isFirst = false;
-        } else {
-          res.write(',');
-        };
-        delete row.value._id;
-        res.write(JSON.stringify(row.value));
-      })
-      .done(function() {
-        res.write(']}');
-        res.end();
-      })
-      .fail(function(errorReport) {
-        if (errorReport.thrown) {
-          next(errorReport.thrown);
-        } else {
-          next(errorCode(errorReport.jsonBody, errorReport.statusCode));
-        }
-      });
+    var r = request.get({url: rootCouchRegistryRw + 'search?reduce=false&key="' + sortedKw[0] +'"', json:true});
+    r.on('error', next);
+    r.on('response', function(resp){
+      //filter results that match all the other kw and stream a JSON-LD response
+      var isFirst = true;
+      oboe(resp)
+        .start(function(status, headers){
+          res.set('Content-Type', 'application/ld+json');
+        })
+        .node('rows.*', function(row){
+          if (isFirst) {
+            res.write(['{',
+                       '"@context": "' + SchemaOrgIo.contextUrl + '",',
+                       '"@type": "ItemList",',
+                       '"itemListOrder": "Unordered",',
+                       '"itemListElement": ['
+                      ].join(''));
+            isFirst = false;
+          } else {
+            res.write(',');
+          };
+          delete row.value._id;
+          res.write(JSON.stringify(row.value));
+        })
+        .done(function() {
+          res.write(']}');
+          res.end();
+        })
+        .fail(function(errorReport) {
+          if (errorReport.thrown) {
+            next(errorReport.thrown);
+          } else {
+            next(errorCode(errorReport.jsonBody, errorReport.statusCode));
+          }
+        });
+    });
+
   });
+
 
 });
 
