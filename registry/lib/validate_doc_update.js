@@ -26,8 +26,8 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     return false;
   };
 
-  if(!_canWrite()){
-    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to maintain ' + (newDoc.name || oldDoc.name) };
+  if (!_canWrite()) {
+    throw { forbidden: 'user: ' + userCtx.name + ' not authorized to maintain ' + (newDoc['@id'] || oldDoc['@id']) };
   }
 
   if (newDoc._deleted) return;
