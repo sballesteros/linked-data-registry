@@ -81,7 +81,7 @@ views.bySha1 = {
         if (purl.hostname === 'dcat.io') {
           pathname = purl.pathname;
         }
-      } else if (splt.length === 2 && splt[0] === 'io') {
+      } else if (splt.length === 2 && splt[0] === 'ldr') {
         pathName = splt[1];
       }
 

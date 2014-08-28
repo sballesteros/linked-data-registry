@@ -287,7 +287,7 @@ app.get('/session', forceAuth, function(req, res, next){
   if (req.user) {
     res.type('application/ld+json').json({
       '@context': SchemaOrgIo.contextUrl,
-      '@id': 'io:users/' + req.user.name,
+      '@id': 'ldr:users/' + req.user.name,
       'token': req.user.token
     });
   } else {
@@ -358,7 +358,7 @@ app.get('/search', function(req, res, next){
 app.put('/users/:name', jsonParser, compact, function(req, res, next){
   var cdoc = req.cdoc;
 
-  var name = cdoc['@id'] && cdoc['@id'].split('io:users/')[1];
+  var name = cdoc['@id'] && cdoc['@id'].split('ldr:users/')[1];
 
   if (name !== req.params.name) {
     return next(errorCode('not allowed', 403));
@@ -373,7 +373,7 @@ app.put('/users/:name', jsonParser, compact, function(req, res, next){
     return next(errorCode('password is missing', 422));
   }
 
-  var userdata = { '@id':  'io:users/' + req.params.name };
+  var userdata = { '@id':  'ldr:users/' + req.params.name };
   if (cdoc['@type']) userdata['@type'] = cdoc['@type'];
 
   userdata.name = req.params.name;
@@ -403,8 +403,8 @@ app.put('/users/:name', jsonParser, compact, function(req, res, next){
         '@context': SchemaOrgIo.contextUrl,
         "@type": "RegisterAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'io:users/' + req.params.name,
-        "object": 'io:'
+        "agent": 'ldr:users/' + req.params.name,
+        "object": 'ldr:'
       };
       return res.type('application/ld+json').status(resp.statusCode).json(body);
     } else {
@@ -448,7 +448,7 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
           "@type": "UnRegisterAction",
           "actionStatus": "CompletedActionStatus",
           "agent": { "name": req.user.name },
-          "object": "io:"
+          "object": "ldr:"
         };
         return res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {
@@ -466,8 +466,8 @@ app.put('/r/:sha1', forceAuth, function(req, res, next){
     '@context': SchemaOrgIo.contextUrl,
     "@type": "CreateAction",
     "actionStatus": "CompletedActionStatus",
-    "agent": 'io:users/' + req.user.name,
-    "object": 'io:r/' + req.params.sha1
+    "agent": 'ldr:users/' + req.user.name,
+    "object": 'ldr:r/' + req.params.sha1
   };
 
   //check if the resource exists already
@@ -675,8 +675,8 @@ app.put('/:id', forceAuth, jsonParser, compact, validate, function(req, res, nex
         "@context": SchemaOrgIo.contextUrl,
         "@type": (isNew)? "CreateAction": "UpdateAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'io:users/' + req.user.name,
-        "result": 'io:' + req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
+        "agent": 'ldr:users/' + req.user.name,
+        "result": 'ldr:' + req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
       };
       res.type('application/ld+json').status(201).json(action);
     } else {
@@ -777,8 +777,8 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
                 "@context": SchemaOrgIo.contextUrl,
                 "@type": "DeleteAction",
                 "actionStatus": "CompletedActionStatus",
-                "agent": "io:users/" + req.user.name,
-                "object": 'io:' + req.params.id + '/' + ((version) ? ('?version=' + version) : '')
+                "agent": "ldr:users/" + req.user.name,
+                "object": 'ldr:' + req.params.id + '/' + ((version) ? ('?version=' + version) : '')
               });
           });
         });
@@ -800,7 +800,7 @@ app.get('/maintainers/ls/:id', function(req, res, next){
       "@id": req.params.id,
       "accountablePerson": body.map(function(x){
         return {
-          '@id': 'io:users/' + x.name,
+          '@id': 'ldr:users/' + x.name,
           '@type': 'Person',
           email: 'mailto:' + x.email
         };
@@ -839,9 +839,9 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
             "@context": SchemaOrgIo.contextUrl,
             "@type": "GiveAction",
             "actionStatus": "CompletedActionStatus",
-            "agent": 'io:users/' + req.user.name,
-            "object": 'io:' + req.params.id,
-            "recipient": 'io:users/' + req.params.username
+            "agent": 'ldr:users/' + req.user.name,
+            "object": 'ldr:' + req.params.id,
+            "recipient": 'ldr:users/' + req.params.username
           };
           res.type('application/ld+json').status(resp.statusCode).json(body);
         } else {
@@ -874,9 +874,9 @@ app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, r
           "@context": SchemaOrgIo.contextUrl,
           "@type": "TakeAction",
           "actionStatus": "CompletedActionStatus",
-          "agent": 'io:users/' + req.user.name,
-          "object": 'io:' + req.params.id,
-          "recipient": 'io:users/' + req.params.username
+          "agent": 'ldr:users/' + req.user.name,
+          "object": 'ldr:' + req.params.id,
+          "recipient": 'ldr:users/' + req.params.username
         };
         res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {

@@ -1,6 +1,6 @@
 {
   "name": "linked-data-registry",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "A CouchDB powered registry for linked data",
   "main": "index.js",
   "scripts": {
@@ -33,7 +33,7 @@
   },
   "homepage": "https://github.com/standard-analytics/linked-data-registry",
   "dependencies": {
-    "schema-org-io": "0.0.1",
+    "schema-org-io": "0.1.0",
     "mime": "~1.2.11",
     "url": "~0.7.9",
     "sha": "^1.2.3",

@@ -42,7 +42,7 @@ lists.latestPart = function(head, req){
       } else if (partId === node['@id']) { // non data.io CURIE e.g github:partId
         nodePartId = node['@id'];
       } else {
-        nodePartId = node['@id'].split('io:' + id + '/')[1];
+        nodePartId = node['@id'].split('ldr:' + id + '/')[1];
       }
 
       if (nodePartId && nodePartId.replace(/^\/|\/$/g, '') === partId.replace(/^\/|\/$/g, '')) {
