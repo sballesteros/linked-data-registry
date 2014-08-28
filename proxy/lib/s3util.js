@@ -1,6 +1,6 @@
 var async = require('async')
   , request = require('request')
-  , SaSchemaOrg = require('sa-schema-org');
+  , SchemaOrgIo = require('schema-org-io');
 
 function deleteObjects(s3, cdoc, rootCouchRegistryRw, callback){
 
@@ -9,7 +9,7 @@ function deleteObjects(s3, cdoc, rootCouchRegistryRw, callback){
   function _collect(prop, node){
     ['downloadUrl', 'installUrl', 'contentUrl', 'embedUrl'].forEach(function(x){
       if (node[x]) {
-        var sha1 = SaSchemaOrg.getSha1(node[x]);
+        var sha1 = SchemaOrgIo.getSha1(node[x]);
         if (sha1) {
           sha1s.push(sha1);
         }
@@ -18,7 +18,7 @@ function deleteObjects(s3, cdoc, rootCouchRegistryRw, callback){
   };
 
   _collect(null, cdoc);
-  SaSchemaOrg.forEachNode(_collect);
+  SchemaOrgIo.forEachNode(_collect);
 
   async.filter(sha1s, function(sha1, cb){
     request.get({url: rootCouchRegistryRw + 'sha1/' + sha1, json:true}, function(err, resp, body){

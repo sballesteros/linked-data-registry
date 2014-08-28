@@ -19,9 +19,7 @@
     "schema.org",
     "linked-data",
     "hyperdata",
-    "publishing",
     "datapackage",
-    "container",
     "registry",
     "open-data",
     "data",
@@ -35,7 +33,7 @@
   },
   "homepage": "https://github.com/standard-analytics/linked-data-registry",
   "dependencies": {
-    "sa-schema-org": "0.1.0",
+    "schema-org-io": "0.0.1",
     "mime": "~1.2.11",
     "url": "~0.7.9",
     "sha": "^1.2.3",

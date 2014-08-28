@@ -78,10 +78,10 @@ views.bySha1 = {
 
       if (isUrl(uri)) {
         purl = url.parse(uri);
-        if (purl.hostname === 'registry.standardanalytics.io') {
+        if (purl.hostname === 'dcat.io') {
           pathname = purl.pathname;
         }
-      } else if (splt.length === 2 && splt[0] === 'sa') {
+      } else if (splt.length === 2 && splt[0] === 'io') {
         pathName = splt[1];
       }
 

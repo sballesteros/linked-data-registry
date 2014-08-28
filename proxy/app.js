@@ -14,7 +14,7 @@ var http = require('http')
   , mime = require('mime')
   , url = require('url')
   , jsonld = require('jsonld')
-  , SaSchemaOrg = require('sa-schema-org')
+  , SchemaOrgIo = require('schema-org-io')
   , clone = require('clone')
   , AWS = require('aws-sdk')
   , sha = require('sha')
@@ -22,7 +22,7 @@ var http = require('http')
   , bodyParser = require('body-parser')
   , concat = require('concat-stream')
   , oboe = require('oboe')
-  , me = require('./lib/me')
+  , aboutRegistry = require('./lib/about')
   , pkgJson = require('../package.json');
 
 request = request.defaults({headers: {'Accept': 'application/json'}});
@@ -30,7 +30,8 @@ request = request.defaults({headers: {'Accept': 'application/json'}});
 mime.define({
   'application/ld+json': ['jsonld'],
   'application/x-ldjson': ['ldjson', 'ldj'],
-  'application/x-gzip': ['gz', 'gzip'] //tar.gz won't work
+  'application/x-gzip': ['gz', 'gzip'],
+  'application/x-gtar':['tgz'], //tar.gz won't work
 });
 
 var root = path.dirname(path.dirname(__filename));
@@ -73,7 +74,7 @@ var rootCouch = util.format('%s//%s:%s/', couch.protocol, couch.host, couch.port
   , rootCouchRegistryRw = rootCouchRegistry + '_design/registry/_rewrite/'
   , rootCouchAdminRegistryRw = rootCouchAdminRegistry + '_design/registry/_rewrite/';
 
-var packager = new SaSchemaOrg();
+var packager = new SchemaOrgIo();
 
 app.set('packager', packager);
 app.set('admin', admin);
@@ -136,9 +137,9 @@ function forceAuth(req, res, next){
 function serveJsonld(req, res, next){
   var cdoc = req.cdoc;
 
-  var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
+  var ctxUrl = req.proxyUrl; //to facilitate testing on localhost
   var ctx;
-  if (cdoc['@context'] === SaSchemaOrg.contextUrl) {//context transfo to help for testing
+  if (cdoc['@context'] === SchemaOrgIo.contextUrl) {//context transfo to help for testing
     ctx = cdoc['@context'];
     cdoc['@context'] = ctxUrl;
   }
@@ -157,7 +158,7 @@ function serveJsonld(req, res, next){
   switch(req.accepts('application/json', 'application/ld+json', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#compacted"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#expanded"', 'application/ld+json;profile="http://www.w3.org/ns/json-ld#flattened"')){
 
   case 'application/json':
-    res.set('Link', SaSchemaOrg.contextLink);
+    res.set('Link', SchemaOrgIo.contextLink);
     delete cdoc['@context'];
     res.json(cdoc);
     break;
@@ -187,10 +188,10 @@ function serveJsonld(req, res, next){
 
 function compact(req, res, next){
   var doc = req.body;
-  var ctxUrl = req.proxyUrl + '/context.jsonld'; //to facilitate testing on localhost
+  var ctxUrl = req.proxyUrl; //to facilitate testing on localhost
 
   var ctx;
-  if (doc['@context'] === SaSchemaOrg.contextUrl) {
+  if (doc['@context'] === SchemaOrgIo.contextUrl) {
     ctx = doc['@context'];
     doc['@context'] = ctxUrl;
   }
@@ -272,21 +273,21 @@ function maxSatisfyingVersion(req, res, next){
 
 
 app.get('/', function(req, res, next){
-  req.cdoc = me;
+  res.set('Content-Type', 'application/ld+json');
+  res.json(SchemaOrgIo.context());
+});
+
+app.get('/about', function(req, res, next){
+  req.cdoc = aboutRegistry;
   next();
 }, serveJsonld);
-
-app.get('/context.jsonld', function(req, res, next){
-  res.set('Content-Type', 'application/ld+json');
-  res.send(JSON.stringify(SaSchemaOrg.context(), null, 2));
-});
 
 
 app.get('/session', forceAuth, function(req, res, next){
   if (req.user) {
     res.type('application/ld+json').json({
-      '@context': SaSchemaOrg.contextUrl,
-      '@id': 'sa:users/' + req.user.name,
+      '@context': SchemaOrgIo.contextUrl,
+      '@id': 'io:users/' + req.user.name,
       'token': req.user.token
     });
   } else {
@@ -326,7 +327,7 @@ app.get('/search', function(req, res, next){
       .node('rows.*', function(row){
         if (isFirst) {
           res.write(['{',
-                     '"@context": "' + SaSchemaOrg.contextUrl + '",',
+                     '"@context": "' + SchemaOrgIo.contextUrl + '",',
                      '"@type": "ItemList",',
                      '"itemListOrder": "Unordered",',
                      '"itemListElement": ['
@@ -357,7 +358,7 @@ app.get('/search', function(req, res, next){
 app.put('/users/:name', jsonParser, compact, function(req, res, next){
   var cdoc = req.cdoc;
 
-  var name = cdoc['@id'] && cdoc['@id'].split('sa:users/')[1];
+  var name = cdoc['@id'] && cdoc['@id'].split('io:users/')[1];
 
   if (name !== req.params.name) {
     return next(errorCode('not allowed', 403));
@@ -372,7 +373,7 @@ app.put('/users/:name', jsonParser, compact, function(req, res, next){
     return next(errorCode('password is missing', 422));
   }
 
-  var userdata = { '@id':  'sa:users/' + req.params.name };
+  var userdata = { '@id':  'io:users/' + req.params.name };
   if (cdoc['@type']) userdata['@type'] = cdoc['@type'];
 
   userdata.name = req.params.name;
@@ -399,11 +400,11 @@ app.put('/users/:name', jsonParser, compact, function(req, res, next){
 
     if (resp.statusCode === 201) {
       body = {
-        '@context': SaSchemaOrg.contextUrl,
+        '@context': SchemaOrgIo.contextUrl,
         "@type": "RegisterAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'sa:users/' + req.params.name,
-        "object": 'sa:'
+        "agent": 'io:users/' + req.params.name,
+        "object": 'io:'
       };
       return res.type('application/ld+json').status(resp.statusCode).json(body);
     } else {
@@ -443,11 +444,11 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
       if (err) return next(err);
       if (resp.statusCode === 200) {
         body = {
-          '@context': SaSchemaOrg.contextUrl,
+          '@context': SchemaOrgIo.contextUrl,
           "@type": "UnRegisterAction",
           "actionStatus": "CompletedActionStatus",
           "agent": { "name": req.user.name },
-          "object": "sa:"
+          "object": "io:"
         };
         return res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {
@@ -462,11 +463,11 @@ app['delete']('/users/:name', forceAuth, function(req, res, next){
 app.put('/r/:sha1', forceAuth, function(req, res, next){
 
   var action = {
-    '@context': SaSchemaOrg.contextUrl,
+    '@context': SchemaOrgIo.contextUrl,
     "@type": "CreateAction",
     "actionStatus": "CompletedActionStatus",
-    "agent": 'sa:users/' + req.user.name,
-    "object": 'sa:r/' + req.params.sha1
+    "agent": 'io:users/' + req.user.name,
+    "object": 'io:r/' + req.params.sha1
   };
 
   //check if the resource exists already
@@ -671,11 +672,11 @@ app.put('/:id', forceAuth, jsonParser, compact, validate, function(req, res, nex
   function _next(req, res, cdoc, isNew, body, statusCode){
     if (statusCode === 200) {
       var action =  {
-        "@context": SaSchemaOrg.contextUrl,
+        "@context": SchemaOrgIo.contextUrl,
         "@type": (isNew)? "CreateAction": "UpdateAction",
         "actionStatus": "CompletedActionStatus",
-        "agent": 'sa:users/' + req.user.name,
-        "result": 'sa:' + req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
+        "agent": 'io:users/' + req.user.name,
+        "result": 'io:' + req.params.id + (('version' in body) ? ('?version=' + body.version) : '')
       };
       res.type('application/ld+json').status(201).json(action);
     } else {
@@ -773,11 +774,11 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next){
             res
               .type('application/ld+json')
               .json({
-                "@context": SaSchemaOrg.contextUrl,
+                "@context": SchemaOrgIo.contextUrl,
                 "@type": "DeleteAction",
                 "actionStatus": "CompletedActionStatus",
-                "agent": "sa:users/" + req.user.name,
-                "object": 'sa:' + req.params.id + '/' + ((version) ? ('?version=' + version) : '')
+                "agent": "io:users/" + req.user.name,
+                "object": 'io:' + req.params.id + '/' + ((version) ? ('?version=' + version) : '')
               });
           });
         });
@@ -795,11 +796,11 @@ app.get('/maintainers/ls/:id', function(req, res, next){
     if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
 
     var doc = {
-      '@context': SaSchemaOrg.contextUrl,
+      '@context': SchemaOrgIo.contextUrl,
       "@id": req.params.id,
       "accountablePerson": body.map(function(x){
         return {
-          '@id': 'sa:users/' + x.name,
+          '@id': 'io:users/' + x.name,
           '@type': 'Person',
           email: 'mailto:' + x.email
         };
@@ -835,12 +836,12 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
 
         if (res.statusCode === 200 || res.statusCode === 201) {
           body = {
-            "@context": SaSchemaOrg.contextUrl,
+            "@context": SchemaOrgIo.contextUrl,
             "@type": "GiveAction",
             "actionStatus": "CompletedActionStatus",
-            "agent": 'sa:users/' + req.user.name,
-            "object": 'sa:' + req.params.id,
-            "recipient": 'sa:users/' + req.params.username
+            "agent": 'io:users/' + req.user.name,
+            "object": 'io:' + req.params.id,
+            "recipient": 'io:users/' + req.params.username
           };
           res.type('application/ld+json').status(resp.statusCode).json(body);
         } else {
@@ -870,12 +871,12 @@ app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, r
       if (err) return next(err);
       if (res.statusCode === 200 || res.statusCode === 201) {
         body = {
-          "@context": SaSchemaOrg.contextUrl,
+          "@context": SchemaOrgIo.contextUrl,
           "@type": "TakeAction",
           "actionStatus": "CompletedActionStatus",
-          "agent": 'sa:users/' + req.user.name,
-          "object": 'sa:' + req.params.id,
-          "recipient": 'sa:users/' + req.params.username
+          "agent": 'io:users/' + req.user.name,
+          "object": 'io:' + req.params.id,
+          "recipient": 'io:users/' + req.params.username
         };
         res.type('application/ld+json').status(resp.statusCode).json(body);
       } else {
@@ -925,7 +926,7 @@ app.use(function(err, req, res, next){
     .type('application/ld+json')
     .status(err.code || 400)
     .json({
-      '@context': SaSchemaOrg.contextUrl,
+      '@context': SchemaOrgIo.contextUrl,
       '@type': 'Error',
       'description': err.message || '',
     });

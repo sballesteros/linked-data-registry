@@ -8,12 +8,18 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for [linked data](http:
 - documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org) and [hydra](http://www.hydra-cg.com/) (but favoring [schema.org/Action](http://schema.org/Action) over hydra when possible)
 - compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
 
-A client is available [here](https://github.com/standard-analytics/ldpm).
+A client is available [here](https://github.com/standard-analytics/dcat).
 
 Registry API
 ============
 
 ### GET /
+
+Return the [JSON-LD](http://www.w3.org/TR/json-ld)
+[context](http://www.w3.org/TR/json-ld/#the-context) used by the
+registry.
+
+### GET /about
 
 Return a [JSON-LD](http://www.w3.org/TR/json-ld) document describing
 the registry and its potential [actions](http://schema.org/Action) using
@@ -26,7 +32,7 @@ Register an user. A user has to be a [Person](http://schema.org/Person).
 request body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@id": "users/{username}"
       "@type": "Person",
       "password": "secret"
@@ -38,7 +44,7 @@ request body:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "RegisterAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{username}",
@@ -46,8 +52,8 @@ response body:
     }
 
 Note: relative URLs are relative to a ```@base``` of
-```https://registry.standardanalytics.io``` specified in the
-[context](https://registry.standardanalytics.io/context.jsonld).
+```https://dcat.io``` specified in the
+[context](https://dcat.io).
 
 ### DELETE /users/{username}
 
@@ -59,7 +65,7 @@ required header:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "UnRegisterAction",
       "actionStatus": "CompletedActionStatus",
       "agent": {
@@ -93,19 +99,19 @@ required header:
 request body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@id": "{namespace}",
       ...
     }
 
 Note to be valid a document need at least:
-- a ```@context``` of value ```https://registry.standardanalytics.io/context.jsonld```
+- a ```@context``` of value ```https://dcat.io```
 - an ```@id```
 
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "CreateAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{username}",
@@ -124,7 +130,7 @@ required header:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "DeleteAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/john",
@@ -163,7 +169,7 @@ List the maintainers of a [JSON-LD](http://www.w3.org/TR/json-ld) document with 
 response body:
 
     {
-      "@context": "http://registry.standardanalytics.io",
+      "@context": "https://dcat.io",
       "@id": "{namespace}",
       "accountablePerson": [
         { "@id": "users/john", "@type": "Person", "name": "John Markup", "email": "mailto:user@domain.io" },
@@ -181,7 +187,7 @@ required header:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "GiveAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{me}",
@@ -200,7 +206,7 @@ required header:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "TakeAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{me}",
@@ -226,7 +232,7 @@ required headers:
 response body:
 
     {
-      "@context": "https://registry.standardanalytics.io/context.jsonld",
+      "@context": "https://dcat.io",
       "@type": "CreateAction",
       "actionStatus": "CompletedActionStatus",
       "agent": "users/{username}",

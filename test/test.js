@@ -8,7 +8,7 @@ var util = require('util')
   , Readable = require('stream').Readable
   , crypto = require('crypto')
   , querystring = require('querystring')
-  , SaSchemaOrg = require('sa-schema-org')
+  , SchemaOrgIo = require('schema-org-io')
   , cms = require('couch-multipart-stream')
   , AWS = require('aws-sdk')
   , zlib = require('zlib')
@@ -43,7 +43,7 @@ function curl(path){
 };
 
 var userData = {
-  '@context': SaSchemaOrg.contextUrl,
+  '@context': SchemaOrgIo.contextUrl,
   '@id': 'users/user_a',
   '@type': ['Person', 'Role'],
   email: 'mailto:user@domain.io',
@@ -58,7 +58,7 @@ describe('linked data registry', function(){
       request.put({url: rurl('users/user_a'), json: userData}, function(err, resp, body){
         assert.equal(resp.statusCode, 201);
         request.get(rurl('users/user_a'), function(err, resp, body){
-          assert.equal(body['@id'].split('sa:')[1], userData['@id']);
+          assert.equal(body['@id'].split('io:')[1], userData['@id']);
           request.del({url: rurl('users/user_a'), auth: {user: 'user_a', pass: userData.password}}, function(err, resp, body){
             assert.equal(resp.statusCode, 200);
             done();
@@ -87,13 +87,13 @@ describe('linked data registry', function(){
     });
 
     it('should create and remove unversioned documents', function(done){
-      var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc', name: 'test doc' };
+      var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 'doc', name: 'test doc' };
       var auth = { user: 'user_a', pass: userData.password };
       _test(doc, auth, doc['@id'], done);
     });
 
     it('should create and remove versioned documents', function(done){
-      var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
+      var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 'vdoc', name: 'test doc versioned', version: '0.0.0' };
       var auth = { user: 'user_a', pass: userData.password };
       _test(doc, auth, encodeURIComponent(doc['@id']+ '@' + doc.version), done);
     });
@@ -107,12 +107,12 @@ describe('linked data registry', function(){
   describe('auth and maintainers', function(){
 
     var auth = {user:'user_a', pass: userData.password};
-    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
+    var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 'doc-auth', name: 'test doc auth', version: '0.0.0' };
     var userB = clone(userData); userB['@id'] = 'users/user_b';
     var userC = clone(userData); userC['@id'] = 'users/user_c';
     var accountablePersons =  [
-      { '@id': 'sa:users/user_a', '@type': 'Person', email: 'mailto:user@domain.io' },
-      { '@id': 'sa:users/user_b', '@type': 'Person', email: 'mailto:user@domain.io' }
+      { '@id': 'io:users/user_a', '@type': 'Person', email: 'mailto:user@domain.io' },
+      { '@id': 'io:users/user_b', '@type': 'Person', email: 'mailto:user@domain.io' }
     ];
 
     function createFixture(done){
@@ -163,7 +163,7 @@ describe('linked data registry', function(){
       it('should return a token and 200 on successful auth', function(done){
         request.get( { url: rurl('session'), auth: {user:'user_a', pass: userData.password} }, function(err, resp, body){
           assert.equal(resp.statusCode, 200);
-          assert.equal(body['@id'], 'sa:users/user_a');
+          assert.equal(body['@id'], 'io:users/user_a');
           done();
         });
       });
@@ -247,7 +247,7 @@ describe('linked data registry', function(){
           assert.equal(resp.statusCode, 200);
           request(rurl('maintainers/ls/' + doc['@id']), function(err, resp, body){
             var expected = clone(accountablePersons);
-            expected.push({'@id':'sa:users/user_c', '@type': 'Person', email:'mailto:user@domain.io'});
+            expected.push({'@id':'io:users/user_c', '@type': 'Person', email:'mailto:user@domain.io'});
             assert.deepEqual(body.accountablePerson, expected);
 
             var mydoc = clone(doc); mydoc.version = '0.0.2';
@@ -281,9 +281,9 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: userData.password };
 
     var id = 'doc-version';
-    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
-    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '0.1.0' };
-    var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
+    var doc0 = { '@context': SchemaOrgIo.contextUrl, '@id': id, name: 'test doc version', version: '0.0.0' };
+    var doc1 = { '@context': SchemaOrgIo.contextUrl, '@id': id, name: 'test doc version', version: '0.1.0' };
+    var doc2 = { '@context': SchemaOrgIo.contextUrl, '@id': id, name: 'test doc version', version: '1.0.0' };
 
     before(function(done){
       request.put({url: rurl('users/user_a'), json: userData}, function(){
@@ -343,8 +343,8 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: userData.password };
 
     var id = 'doc-unversioned';
-    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision' };
-    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': id, name: 'test revision changed' };
+    var doc0 = { '@context': SchemaOrgIo.contextUrl, '@id': id, name: 'test revision' };
+    var doc1 = { '@context': SchemaOrgIo.contextUrl, '@id': id, name: 'test revision changed' };
 
     before(function(done){
       request.put({url: rurl('users/user_a'), json: userData}, function(){
@@ -380,7 +380,7 @@ describe('linked data registry', function(){
     var auth = { user: 'user_a', pass: userData.password };
     var id = 'test-part';
     var doc = {
-      '@context': SaSchemaOrg.contextUrl,
+      '@context': SchemaOrgIo.contextUrl,
       '@id': id,
       hasPart: [
         { '@id': id + '/part', about: [{'@id': 'http://example.com/subject', name: 'subject'}] },
@@ -440,7 +440,7 @@ describe('linked data registry', function(){
   describe('JSON-LD profiles', function(){
     var auth = { user: 'user_a', pass: userData.password };
     var id = 'test-profiles';
-    var doc = { '@context': SaSchemaOrg.contextUrl, '@id': id, about: [{name: 'about profile'}] };
+    var doc = { '@context': SchemaOrgIo.contextUrl, '@id': id, about: [{name: 'about profile'}] };
 
     before(function(done){
       request.put({url: rurl('users/user_a'), json: userData}, function(){
@@ -471,7 +471,7 @@ describe('linked data registry', function(){
 
     it('should get the doc as JSON interpreted as JSON-LD', function(done){
       request.get(rurl(id), function(err, resp, body){
-        assert.equal(resp.headers.link, SaSchemaOrg.contextLink);
+        assert.equal(resp.headers.link, SchemaOrgIo.contextLink);
         assert.deepEqual(body.about, doc.about);
         done();
       });
@@ -516,7 +516,7 @@ describe('linked data registry', function(){
         var r = request.put(ropts, function(err, resp, body){
           assert('etag' in resp.headers);
           //put a document referencing the attachment
-          var doc = { '@context': SaSchemaOrg.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
+          var doc = { '@context': SchemaOrgIo.contextUrl, '@id': 's3doc', contentUrl: 'r/' + digestSha1 };
           request.put({ url: rurl(doc['@id']), auth: auth, json: doc }, function(err, resp, body){
             assert(resp.statusCode, 201);
 
@@ -557,9 +557,9 @@ describe('linked data registry', function(){
 
   describe('search', function(){
     var auth = { user: 'user_a', pass: userData.password };
-    var doc0 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw0', name: 'a', keywords: 'a' };
-    var doc1 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw1', name: 'a, b, c', keywords: ['a', 'b', 'c'] };
-    var doc2 = { '@context': SaSchemaOrg.contextUrl, '@id': 'cw2', name: 'a, b', keywords: ['a', 'b'] };
+    var doc0 = { '@context': SchemaOrgIo.contextUrl, '@id': 'cw0', name: 'a', keywords: 'a' };
+    var doc1 = { '@context': SchemaOrgIo.contextUrl, '@id': 'cw1', name: 'a, b, c', keywords: ['a', 'b', 'c'] };
+    var doc2 = { '@context': SchemaOrgIo.contextUrl, '@id': 'cw2', name: 'a, b', keywords: ['a', 'b'] };
 
     before(function(done){
       request.put({url: rurl('users/user_a'), json: userData}, function(){

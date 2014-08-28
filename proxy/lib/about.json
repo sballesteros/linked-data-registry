@@ -1,6 +1,6 @@
 {
-  "@context": "https://registry.standardanalytics.io/context.jsonld",
-  "@id": "https://registry.standardanalytics.io/",
+  "@context": "https://dcat.io",
+  "@id": "https://dcat.io",
   "@type": "DataCatalog",
   "name": "linked data registry",
   "description": "A CouchDB powered registry for linked data.",
@@ -16,7 +16,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "PUT",
-        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+        "urlTemplate": "https://dcat.io/users/{username}"
       }
     },
     {
@@ -25,7 +25,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "DELETE",
-        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+        "urlTemplate": "https://dcat.io/users/{username}"
       }
     },
     {
@@ -34,7 +34,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",
-        "urlTemplate": "https://registry.standardanalytics.io/users/{username}"
+        "urlTemplate": "https://dcat.io/users/{username}"
       }
     },
 
@@ -44,7 +44,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "PUT",
-        "urlTemplate": "https://registry.standardanalytics.io/{namespace}"
+        "urlTemplate": "https://dcat.io/{namespace}"
       }
     },
     {
@@ -53,7 +53,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "DELETE",
-        "urlTemplate": "https://registry.standardanalytics.io/{namespace}{?version}"
+        "urlTemplate": "https://dcat.io/{namespace}{?version}"
       }
     },
     {
@@ -62,7 +62,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",
-        "urlTemplate": "https://registry.standardanalytics.io/{namespace}/{+pathorurl}{?version}"
+        "urlTemplate": "https://dcat.io/{namespace}/{+pathorurl}{?version}"
       }
     },
 
@@ -73,7 +73,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",
-        "urlTemplate": "https://registry.standardanalytics.io/maintainers/ls/{namespace}"
+        "urlTemplate": "https://dcat.io/maintainers/ls/{namespace}"
       }
     },
     {
@@ -82,7 +82,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "POST",
-        "urlTemplate": "https://registry.standardanalytics.io/maintainers/add/{username}/{namespace}"
+        "urlTemplate": "https://dcat.io/maintainers/add/{username}/{namespace}"
       }
     },
     {
@@ -91,7 +91,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "POST",
-        "urlTemplate": "https://registry.standardanalytics.io/maintainers/rm/{username}/{namespace}"
+        "urlTemplate": "https://dcat.io/maintainers/rm/{username}/{namespace}"
       }
     },
 
@@ -101,7 +101,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "PUT",
-        "urlTemplate": "https://registry.standardanalytics.io/r/{sha1}"
+        "urlTemplate": "https://dcat.io/r/{sha1}"
       }
     },
     {
@@ -110,7 +110,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",
-        "urlTemplate": "https://registry.standardanalytics.io/r/{sha1}"
+        "urlTemplate": "https://dcat.io/r/{sha1}"
       }
     },
 
@@ -120,7 +120,7 @@
       "target": {
         "@type": "EntryPoint",
         "httpMethod": "GET",
-        "urlTemplate": "https://registry.standardanalytics.io/search/{?keywords}"
+        "urlTemplate": "https://dcat.io/search/{?keywords}"
       }
     }
   ]
