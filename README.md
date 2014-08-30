@@ -5,8 +5,8 @@ A [CouchDB](http://couchdb.apache.org/) powered registry for [linked data](http:
 
 [![NPM](https://nodei.co/npm/linked-data-registry.png)](https://nodei.co/npm/linked-data-registry/)
 
-- documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreded as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org) and [hydra](http://www.hydra-cg.com/) (but favoring [schema.org/Action](http://schema.org/Action) over hydra when possible)
-- compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
+- documents are served as [JSON-LD](http://json-ld.org) or [JSON interpreted as JSON-LD](http://json-ld.org/spec/latest/json-ld/#interpreting-json-as-json-ld) and using the semantic of [schema.org](http://schema.org) and [hydra](http://www.hydra-cg.com/) (but favoring [schema.org/Action](http://schema.org/Action) over hydra when possible)
+- documents are compatible with [linked data fragments](http://linkeddatafragments.org/) ([triple pattern fragment](http://linkeddatafragments.org/concept/#tpf))
 
 A client is available [here](https://github.com/standard-analytics/dcat).
 
@@ -27,7 +27,7 @@ the registry and its potential [actions](http://schema.org/Action) using
 
 ### PUT /users/{username}
 
-Register an user. A user has to be a [Person](http://schema.org/Person).
+Register a user. A user has to be a [Person](http://schema.org/Person).
 
 request body:
 
@@ -51,13 +51,13 @@ response body:
       "object": ""
     }
 
-Note: relative URLs are relative to a ```@base``` of
+Note: relative URLs are relative to an ```@base``` of
 ```https://dcat.io``` specified in the
 [context](https://dcat.io).
 
 ### DELETE /users/{username}
 
-Unregister an user.
+Unregister a user.
 
 required header:
 - Authorization
@@ -78,7 +78,7 @@ response body:
 
 ### GET /users/{username}
 
-Get a user public profile.
+Get a user's public profile.
 
 ### PUT /{namespace}
 
@@ -86,14 +86,15 @@ Create a new [JSON-LD](http://www.w3.org/TR/json-ld) document of
 ```@id``` ```{namespace}```.
 
 If a [```version```](http://schema.org/version) property is specified in the
-document, the document will be versionned that is each update will
-require a new version value to be published. When appropriate version
-number SHOULD follow [semantic versionning](http://semver.org/).
+document, the document will be versioned, that is, each update will
+require a new version value in order to be published. When appropriate, version
+number SHOULD follow [semantic versioning](http://semver.org/).
 
 If a [```version```](http://schema.org/version) property is not specified, the
 new document will replace the previous version irreversibly.
 
 required header:
+
 - Authorization
 
 request body:
@@ -104,7 +105,8 @@ request body:
       ...
     }
 
-Note to be valid a document need at least:
+Note, to be valid a document needs at least:
+
 - a ```@context``` of value ```https://dcat.io```
 - an ```@id```
 
@@ -125,6 +127,7 @@ Delete a document of ```@id``` ```{namespace}``` and version
 deleted.
 
 required header:
+
 - Authorization
 
 response body:
@@ -142,14 +145,14 @@ response body:
 
 Get a [JSON-LD](http://www.w3.org/TR/json-ld) document of ```@id```
 ```{namespace}``` or a node of this document of ```@id```
-```{namespace}/{pathorurl}``` or ```{pathorurl}```. In the later case,
+```{namespace}/{pathorurl}``` or ```{pathorurl}```.  In the latter case,
 ```{pathorurl}``` has to be an absolute URL encoded as an Uniform
 Resource Identifier (URI) component.
 
 A specific version can be specified using a query string parameter
 ```version``` whose value is properly encoded as a Uniform Resource
-Identifier (URI) component. In case the document is versionned
-following [Semantic Versioning](http://semver.org/), a range (e.g
+Identifier (URI) component. In case the document is versioned
+following [Semantic Versioning](http://semver.org/), a range (e.g.
 ```<0.0.1```) can be specified as ```version```.
 
 If ```{?version}``` is omitted, the latest version of the document is
@@ -182,6 +185,7 @@ response body:
 Add a maintainer of ```@id```  ```users/{username}``` to the document of ```@id``` ```{namespace}```.
 
 required header:
+
 - Authorization
 
 response body:
@@ -201,6 +205,7 @@ response body:
 Remove a maintainer of ```@id``` ```users/{username}``` to the document of ```@id``` ```{namespace}```.
 
 required header:
+
 - Authorization
 
 response body:
@@ -223,6 +228,7 @@ Raw data storage API
 Publish a resource whose SHA-1 message digest (encoded in hex) is ```{sha1}```.
 
 required headers:
+
 - Authorization
 - Content-MD5
 - Content-Type
