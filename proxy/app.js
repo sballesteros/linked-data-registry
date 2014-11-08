@@ -112,7 +112,7 @@ function forceAuth(req, res, next){
   }, function(err, resp, body){
     if (err) return next(err);
     if (resp.statusCode >= 400) {
-      return next(errorCode(body, resp.statusCode))
+      return next(errorCode(JSON.parse(body).reason, resp.statusCode))
     }
 
     if (resp.headers && resp.headers['set-cookie']) {
@@ -805,11 +805,19 @@ app.get('/maintainers/ls/:id', function(req, res, next){
       '@context': SchemaOrgIo.contextUrl,
       "@id": req.params.id,
       "accountablePerson": body.map(function(x){
-        return {
+        var person = {
           '@id': 'ldr:users/' + x.name,
           '@type': 'Person',
           email: 'mailto:' + x.email
         };
+
+        ['givenName', 'familyName'].forEach(function(p){
+          if (x[p]) {
+            person[p] = x[p];
+          }
+        });
+
+        return person;
       })
     };
 

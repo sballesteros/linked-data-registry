@@ -1,7 +1,6 @@
 var lists = exports;
 
 lists.maintainers = function(head, req){
-
   var maintainers = [];
   var row;
   while (row = getRow()) {

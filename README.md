@@ -175,7 +175,7 @@ response body:
       "@context": "https://dcat.io",
       "@id": "{namespace}",
       "accountablePerson": [
-        { "@id": "users/john", "@type": "Person", "name": "John Markup", "email": "mailto:user@domain.io" },
+        { "@id": "users/john", "@type": "Person", "name": "John Markup", "email": "mailto:user@domain.io", ... },
         ...
       ]
     }
