@@ -830,7 +830,6 @@ app.get('/maintainers/ls/:id', function(req, res, next){
 });
 
 app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, res, next){
-
   //check if data.username (the user granted) is an existing user
   request.head(rootCouchAdminUsers + 'org.couchdb.user:' + req.params.username, function(err, resp){
     if (err) return next(err);
@@ -864,7 +863,6 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
       });
     });
   });
-
 });
 
 /**

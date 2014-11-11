@@ -22,3 +22,12 @@ views.maintainers = {
   },
   reduce: "_count"
 };
+
+views.byEmail = {
+  map: function (doc) {
+    if (doc.email) {
+      emit(doc.email.replace(/^mailto:/, ''), doc['@id']);
+    }
+  },
+  reduce: "_count"
+};
