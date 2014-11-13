@@ -4,17 +4,16 @@ var updates = exports;
  * create a new user
  */
 updates.create = function(userDoc, req){
-
   var resp = {headers : {"Content-Type" : "application/json"}};
 
-  if(userDoc){
+  if (userDoc) {
     resp.code = 409;
     resp.body = JSON.stringify({error: "user already exists"});
     return [null, resp];
   } else {
-    try{
+    try {
       var data = JSON.parse(req.body);
-    } catch(e){
+    } catch(e) {
       resp.body = JSON.stringify({error: e.message});
       resp.code = 400;
       return [null, resp];
@@ -24,6 +23,7 @@ updates.create = function(userDoc, req){
     userDoc._id = 'org.couchdb.user:' + data.name;
     userDoc.roles = [];
     userDoc.type = 'user';
+    userDoc.readAccess = [];
 
     resp.code = 201;
     resp.body = JSON.stringify({ok: 'created'});
@@ -37,14 +37,13 @@ updates.create = function(userDoc, req){
  * done by admins.
  */
 updates.add = function (userDoc, req) {
-
   var resp = {headers : {"Content-Type" : "application/json"}};
 
-  if(!userDoc){
+  if (!userDoc) {
     resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
     return [null, resp];
   } else {
-    try{
+    try {
       var data = JSON.parse(req.body);
     } catch(e){
       var err = e;
@@ -56,7 +55,7 @@ updates.add = function (userDoc, req) {
       return [null, resp];
     }
 
-    if(userDoc.roles.indexOf(data.namespace) === -1 ){
+    if (userDoc.roles.indexOf(data.namespace) === -1 ) {
       userDoc.roles.push(data.namespace);
     }
 
@@ -68,32 +67,90 @@ updates.add = function (userDoc, req) {
 
 
 updates.rm = function (userDoc, req) {
-
   var resp = {headers : {"Content-Type" : "application/json"}};
 
-  if(!userDoc){
+  if (!userDoc) {
     resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
     return [null, resp];
   } else {
-    try{
+    try {
       var data = JSON.parse(req.body);
     } catch(e){
       var err = e;
     }
 
-    if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ){
+    if (err || !( (typeof data.username === 'string') && (typeof data.namespace === 'string') ) || (data.namespace.charAt(0) === '_') ) {
       resp.body = JSON.stringify({error: "db update rm: invalid data" });
       resp.code = 400;
       return [null, resp];
     }
 
     var pos = userDoc.roles.indexOf(data.namespace);
-    if(pos !== -1 ){
+    if (pos !== -1 ) {
       userDoc.roles.splice(pos, 1);
     }
 
     resp.code = 200;
     resp.body = JSON.stringify(userDoc.roles);
+    return [userDoc, resp];
+  }
+};
+
+updates.addReadAccess = function (userDoc, req) {
+  var resp = {headers : {"Content-Type" : "application/json"}};
+
+  if (!userDoc) {
+    resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
+    return [null, resp];
+  } else {
+    try {
+      var data = JSON.parse(req.body);
+    } catch(e) {
+      var err = e;
+    }
+
+    if (err || !(typeof data.namespace === 'string')) {
+      resp.body = JSON.stringify({error: "db update addReadAccess: invalid data" });
+      resp.code = 400;
+      return [null, resp];
+    }
+
+    if (userDoc.readAccess.indexOf(data.namespace) === -1 ) {
+      userDoc.readAccess.push(data.namespace);
+    }
+
+    resp.code = 200;
+    resp.body = JSON.stringify(userDoc.readAccess);
+    return [userDoc, resp];
+  }
+};
+
+updates.rmReadAccess = function (userDoc, req) {
+  var resp = {headers : {"Content-Type" : "application/json"}};
+
+  if (!userDoc) {
+    resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
+    return [null, resp];
+  } else {
+    try {
+      var data = JSON.parse(req.body);
+    } catch(e) {
+      var err = e;
+    }
+
+    if (err || !(typeof data.namespace === 'string')) {
+      resp.body = JSON.stringify({error: "db update rm: invalid data" });
+      resp.code = 400;
+      return [null, resp];
+    }
+
+    var pos = userDoc.readAccess.indexOf(data.namespace);
+    if (pos !== -1 ) {
+      userDoc.readAccess.splice(pos, 1);
+    }
+
+    resp.code = 200;
+    resp.body = JSON.stringify(userDoc.readAccess);
     return [userDoc, resp];
   }
 };

@@ -357,7 +357,6 @@ app.get('/search', function(req, res, next){
 
   });
 
-
 });
 
 

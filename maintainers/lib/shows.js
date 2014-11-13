@@ -1,17 +1,14 @@
 var shows = exports;
 
 shows.maintains = function(doc,req){
-
   return {
     headers : {"Content-Type":"application/json"},
     body : JSON.stringify(doc.roles.filter(function(x){return x.charAt(0) !== '_';}))
   };
-
 };
 
 
 shows.user = function(doc,req){
-
   var body = {};
   //nice order
   ['@context', '@id', '@type'].forEach(function(x){
@@ -24,6 +21,7 @@ shows.user = function(doc,req){
     if (key.charAt(0) !== '_' &&
         ! (key in body) &&
         key !== 'roles' &&
+        key !== 'readAccess' &&
         key !== 'password' &&
         key !== 'password_sha' &&
         key !== 'type' &&
@@ -56,5 +54,4 @@ shows.user = function(doc,req){
     headers : { "Content-Type":"application/ld+json" },
     body : JSON.stringify(body)
   };
-
 };
