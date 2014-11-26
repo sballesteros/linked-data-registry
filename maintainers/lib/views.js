@@ -4,7 +4,7 @@ views.permissions = {
   map: function(doc) {
     doc.roles
       .filter(function(role) {
-        return role.charAt(0) !== '_' && (role.split('@')[1] || '').indexOf('w') !== -1;
+        return role.charAt(0) !== '_';
       })
       .forEach(function (role) {
         var value = {
@@ -23,7 +23,7 @@ views.permissions = {
         var ns = splt[0];
         var permissions = splt[1] || '';
 
-        for (var i = 0; i<permissions.length; i++) {
+        for (var i = 0; i < permissions.length; i++) {
           emit([ns, permissions[i]], value);
         }
       });

@@ -23,7 +23,6 @@ updates.create = function(userDoc, req){
     userDoc._id = 'org.couchdb.user:' + data.name;
     userDoc.roles = [];
     userDoc.type = 'user';
-    userDoc.readAccess = [];
 
     resp.code = 201;
     resp.body = JSON.stringify({ok: 'created'});
@@ -32,7 +31,7 @@ updates.create = function(userDoc, req){
 };
 
 /**
- * add / replace permissions
+ * add new permissions
  */
 updates.add = function (userDoc, req) {
   var resp = {headers : {"Content-Type" : "application/json"}};
@@ -69,11 +68,17 @@ updates.add = function (userDoc, req) {
         .indexOf(data.namespace);
 
 
-  var newRole = data.namespace + '@' + data.permissions;
-  if (pos === -1 ) {
-    userDoc.roles.push(newRole);
+  if (pos === -1) {
+    userDoc.roles.push(data.namespace + '@' + data.permissions);
   } else {
-    userDoc.roles[pos] = newRole;
+    var permissions = userDoc.roles[pos].split('@')[1];
+    //add new permission if not here already
+    for (var i=0; i<data.permissions.length; i++) {
+      if (permissions.indexOf(data.permissions[i]) === -1) {
+        permissions += data.permissions[i];
+      }
+    }
+    userDoc.roles[pos] = data.namespace + '@' + permissions;
   }
 
   resp.code = 200;

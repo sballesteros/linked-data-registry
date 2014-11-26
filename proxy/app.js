@@ -586,7 +586,7 @@ app.put('/:id', forceAuth, jsonParser, compact, validate, function(req, res, nex
     if (!bodyView.rows.length) { //first time ever we publish the document: add username to maintainers of the pkg
       cdoc.latest = true; //add latest tag Note: **never** rely on the `latest` tag to retrieve latest version, use views instead. the `latest` tag is used to simplify search indexes
       //add username to maintainers of the doc first (if not validate_doc_update will prevent the submission)
-      var udoc = { namespace: req.params.id, permissions: 'rw' };
+      var udoc = { namespace: req.params.id, permissions: 'w' };
       request.put({
         url: rootCouchAdminUsersRw +  'add/org.couchdb.user:' + req.user.name,
         json: udoc
@@ -807,7 +807,7 @@ app['delete']('/:id/:version?', forceAuth, function(req, res, next) {
 app.get('/maintainers/ls/:id', function(req, res, next) {
   request.get({
     url: rootCouchAdminUsersRw + 'doc/' + req.params.id,
-    json:true
+    json: true
   }, function(err, resp, body) {
     if (err) return next(err);
     if (resp.statusCode >= 400) return next(errorCode(body, resp.statusCode));
@@ -857,7 +857,7 @@ app.post('/maintainers/add/:username/:id', jsonParser, forceAuth, function(req, 
 
       request.put({
         url: rootCouchAdminUsersRw + 'add/org.couchdb.user:' + req.params.username,
-        json: {namespace: req.params.id, permissions: 'rw'}
+        json: {namespace: req.params.id, permissions: 'w'}
       }, function(err, resp, body) {
         if (err) return next(err);
 
@@ -897,7 +897,7 @@ app.post('/maintainers/rm/:username/:id', jsonParser, forceAuth, function(req, r
 
     request.put({
       url: rootCouchAdminUsersRw + 'rm/org.couchdb.user:' + req.params.username,
-      json: {namespace: req.params.id, permissions: 'rw'}
+      json: {namespace: req.params.id, permissions: 'w'}
     }, function(err, resp, body) {
       if (err) return next(err);
       if (res.statusCode === 200 || res.statusCode === 201) {
