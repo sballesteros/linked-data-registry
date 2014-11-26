@@ -21,8 +21,20 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     if (_isAdmin()) return true;
 
     for (var i = 0; i< userCtx.roles.length; i ++) {
-      if (userCtx.roles[i] === (newDoc['@id'] || oldDoc['@id']).split(':')[1]) return true; //OR on oldDoc in case of deletion (won't be newDoc')
+      if (userCtx.roles[i].charAt(0) === '_') continue;
+
+      var splt = userCtx.roles[i].split('@');
+      var ns = splt[0];
+      var permissions = splt[1] || '';
+
+      if (
+          permissions.indexOf('w') !== -1 &&
+          ns === (newDoc['@id'] || oldDoc['@id']).split(':')[1] //we use || oldDoc in case of deletion as in those cases there won't be a newDoc
+      ) {
+        return true;
+      }
     }
+
     return false;
   };
 
@@ -44,7 +56,6 @@ module.exports = function(newDoc, oldDoc, userCtx, secObj){
     if (!_isAdmin() && (oldDoc.latest !== newDoc.latest)) {
       throw { forbidden: 'only admin can change tags' };
     }
-
   }
 
 };

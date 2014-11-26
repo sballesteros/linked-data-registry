@@ -3,10 +3,17 @@ var shows = exports;
 shows.maintains = function(doc,req){
   return {
     headers : {"Content-Type":"application/json"},
-    body : JSON.stringify(doc.roles.filter(function(x){return x.charAt(0) !== '_';}))
+    body : JSON.stringify(
+      doc.roles
+        .filter(function(role){
+          return role.charAt(0) !== '_' && (role.split('@')[1] || '').indexOf('w') !== -1;
+        })
+        .map(function(role) {
+          return role.split('@')[0];
+        })
+    )
   };
 };
-
 
 shows.user = function(doc,req){
   var body = {};
@@ -42,8 +49,8 @@ shows.user = function(doc,req){
 
   if (doc.roles) {
     var owns = doc.roles
-      .filter(function(x) {return x.charAt(0) !== '_';})
-      .map(function(x) {return {name: x};});
+          .filter(function(x) {return x.charAt(0) !== '_';})
+          .map(function(x) {return {name: x};});
 
     if (owns.length) {
       body.owns = owns;

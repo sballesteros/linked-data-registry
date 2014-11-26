@@ -3,8 +3,10 @@ var views = exports;
 views.maintainers = {
   map: function(doc) {
     doc.roles
-      .filter(function(x) {return x.charAt(0) !== '_';})
-      .forEach(function (namespace) {
+      .filter(function(role) {
+        return role.charAt(0) !== '_' && (role.split('@')[1] || '').indexOf('w') !== -1;
+      })
+      .forEach(function (role) {
         var value = {
           _id: doc._id,
           name: doc.name,
@@ -17,7 +19,7 @@ views.maintainers = {
           }
         });
 
-        emit(namespace, value);
+        emit(role.split('@')[0], value);
       });
   },
   reduce: "_count"

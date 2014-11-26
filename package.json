@@ -1,9 +1,10 @@
 {
   "name": "linked-data-registry",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A CouchDB powered registry for linked data",
   "main": "index.js",
   "scripts": {
+    "delete": "curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME && curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users",
     "init": "curl -XPUT $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME",
     "push": "(cd registry &&  ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME) && (cd maintainers && ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users)",
     "start": "node proxy/app.js",
