@@ -1,6 +1,6 @@
 var views = exports;
 
-views.maintainers = {
+views.permissions = {
   map: function(doc) {
     doc.roles
       .filter(function(role) {
@@ -19,7 +19,13 @@ views.maintainers = {
           }
         });
 
-        emit(role.split('@')[0], value);
+        var splt = role.split('@');
+        var ns = splt[0];
+        var permissions = splt[1] || '';
+
+        for (var i = 0; i<permissions.length; i++) {
+          emit([ns, permissions[i]], value);
+        }
       });
   },
   reduce: "_count"
@@ -29,29 +35,6 @@ views.byEmail = {
   map: function(doc) {
     if (doc.email) {
       emit(doc.email.replace(/^mailto:/, ''), doc['@id']);
-    }
-  },
-  reduce: "_count"
-};
-
-views.reviewers = {
-  map: function(doc) {
-    if (doc.readAccess && doc.readAccess.length) {
-      doc.readAccess.forEach(function(namespace) {
-        var value = {
-          _id: doc._id,
-          name: doc.name,
-          email: doc.email
-        };
-
-        ['givenName', 'familyName'].forEach(function(p) {
-          if (doc[p]) {
-            value[p] = doc[p];
-          }
-        });
-
-        emit(namespace, value);
-      });
     }
   },
   reduce: "_count"

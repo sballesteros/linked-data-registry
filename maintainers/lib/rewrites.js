@@ -1,6 +1,6 @@
 module.exports = [
-  { from: 'doc/:namespace', to: '/_list/maintainers/maintainers', method: 'GET',
-    query: {reduce: 'false', key: ':namespace', include_docs: 'false'} },
+  { from: 'doc/:namespace', to: '/_list/maintainers/permissions', method: 'GET',
+    query: {reduce: 'false', key: [":namespace", "w"], include_docs: 'false'} },
 
   { from: "/maintains/:_id", to: "/_show/maintains/:_id", method: "GET" },
   { from: "/user/:_id", to: "/_show/user/:_id", method: "GET" },
