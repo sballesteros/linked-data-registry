@@ -6,13 +6,10 @@ var util = require('util')
   , clone = require('clone')
   , request = require('request')
   , Readable = require('stream').Readable
-  , crypto = require('crypto')
   , querystring = require('querystring')
   , SchemaOrgIo = require('schema-org-io')
-  , cms = require('couch-multipart-stream')
   , AWS = require('aws-sdk')
   , zlib = require('zlib')
-  , mime = require('mime')
   , async = require('async')
   , crypto = require('crypto');
 
@@ -28,7 +25,7 @@ request = request.defaults({headers: {'Accept': 'application/json'}, json:true})
 function rurl(path){
   return util.format('http://%s:%s/%s',
                      process.env['NODE_HOST'],
-                     process.env['NODE_PORT'],
+                     process.env['NODE_PORT_HTTP'],
                      path);
 };
 
