@@ -142,7 +142,7 @@ updates.rm = function (userDoc, req) {
   if (!keptPermissions) {
     userDoc.roles.splice(pos, 1);
   } else {
-    userDoc.roles[pos] = data.namespace + '@' + newPermissions;
+    userDoc.roles[pos] = data.namespace + '@' + keptPermissions;
   }
 
   resp.code = 200;
