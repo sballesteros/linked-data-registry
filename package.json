@@ -4,10 +4,10 @@
   "description": "A CouchDB powered registry for linked data",
   "main": "index.js",
   "scripts": {
-    "delete": "curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME && curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users",
-    "init": "curl -XPUT $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME",
-    "push": "(cd registry &&  ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME) && (cd maintainers && ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users)",
-    "start": "node proxy/app.js",
+    "delete": "source env.sh && curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME && curl -XDELETE $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users",
+    "init": "source env.sh && curl -XPUT $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME",
+    "push": "source env.sh && (cd registry &&  ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/$COUCH_DB_NAME) && (cd maintainers && ../node_modules/.bin/couchapp push app.js $COUCH_PROTOCOL//$COUCH_ADMIN_USER:$COUCH_ADMIN_PASS@$COUCH_HOST:$COUCH_PORT/_users)",
+    "start": "source env.sh && node proxy/app.js",
     "test": "source env.sh && ./node_modules/.bin/mocha test/test.js"
   },
   "repository": {
