@@ -3,7 +3,7 @@ var updates = exports;
 /**
  * create a new user
  */
-updates.create = function(userDoc, req){
+updates.create = function(userDoc, req) {
   var resp = {headers : {"Content-Type" : "application/json"}};
 
   if (userDoc) {
@@ -29,6 +29,55 @@ updates.create = function(userDoc, req){
     return [userDoc, resp];
   }
 };
+
+
+/**
+ * update an user profile
+ */
+updates.profile = function(userDoc, req) {
+  var resp = {headers : {"Content-Type" : "application/json"}};
+
+  if (!userDoc) {
+    resp.body = JSON.stringify({ok: "nothing to do, nothing done"});
+    return [null, resp];
+  }
+
+  try {
+    var data = JSON.parse(req.body);
+  } catch(e){
+    var err = e;
+  }
+
+  if (err ||
+      Array.isArray(data) ||
+      data['@id'] ||
+      data['name'] ||
+      data['password_scheme'] ||
+      data['iterations'] ||
+      data['derived_key'] ||
+      data['salt']
+     )
+  {
+    resp.body = JSON.stringify({error: "db update update: invalid data" });
+    resp.code = 400;
+    return [null, resp];
+  }
+
+  for (var key in data) {
+    if (data[key]) {
+      userDoc[key] = data[key];
+    } else {
+      delete userDoc[key];
+    }
+  }
+
+  resp.code = 200;
+  resp.body = JSON.stringify(data);
+  return [userDoc, resp];
+};
+
+
+
 
 /**
  * add new permissions
